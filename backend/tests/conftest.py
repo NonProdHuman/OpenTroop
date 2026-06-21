@@ -1,12 +1,18 @@
+import uuid
 from collections.abc import Generator
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-# Import the package so every model registers on Base.metadata before create_all.
-from app.models import Base
+from app.core.database import get_db
+from app.main import app
+from app.models import Base  # registers all models on Base.metadata
+
+TENANT_A = uuid.UUID("10000000-0000-0000-0000-000000000001")
+TENANT_B = uuid.UUID("20000000-0000-0000-0000-000000000002")
 
 
 @pytest.fixture
@@ -32,3 +38,21 @@ def db_session() -> Generator[Session, None, None]:
         session.close()
         Base.metadata.drop_all(engine)
         engine.dispose()
+
+
+@pytest.fixture
+def client(db_session: Session) -> Generator[TestClient, None, None]:
+    """TestClient scoped to TENANT_A, sharing the in-memory SQLite session."""
+    app.dependency_overrides[get_db] = lambda: db_session
+    with TestClient(app, headers={"X-Tenant-ID": str(TENANT_A)}) as c:
+        yield c
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def other_client(db_session: Session) -> Generator[TestClient, None, None]:
+    """TestClient scoped to TENANT_B — same DB session, different tenant."""
+    app.dependency_overrides[get_db] = lambda: db_session
+    with TestClient(app, headers={"X-Tenant-ID": str(TENANT_B)}) as c:
+        yield c
+    app.dependency_overrides.clear()

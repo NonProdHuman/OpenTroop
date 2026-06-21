@@ -20,28 +20,63 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
+          enable-cache: true
 
       - name: Install dependencies
-        run: pip install -e ".[dev]" pip-audit
+        run: uv sync
 
       - name: Lint (ruff)
-        run: ruff check .
+        run: uv run ruff check .
 
       - name: Format check (ruff)
-        run: ruff format --check .
+        run: uv run ruff format --check .
 
       - name: Type check (mypy)
-        run: python -m mypy app
+        run: uv run python -m mypy app
 
       - name: Dependency vulnerability scan (pip-audit)
-        run: pip-audit
+        run: uv run pip-audit
 
       - name: Test (pytest)
-        run: pytest -q
+        run: uv run pytest -q
+
+  migration-check:
+    name: Migration drift check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: opentroop_test
+          POSTGRES_USER: opentroop
+          POSTGRES_PASSWORD: opentroop
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: postgresql+psycopg://opentroop:opentroop@localhost:5432/opentroop_test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync
+      - name: Apply migrations
+        run: uv run alembic upgrade head
+      - name: Check for drift
+        run: uv run alembic check
 
   secrets-scan:
     name: Secrets scan (gitleaks)

@@ -11,15 +11,15 @@ background sync from day one.
 
 ## Commands
 
-All backend commands run from `backend/`:
+All backend commands run from `backend/`. Use `uv` — never `pip` directly.
 
 ```bash
-pip install -e ".[dev]"          # install backend + dev (pytest) deps
-pytest                           # run the test suite (in-memory SQLite, no DB needed)
-pytest tests/test_models.py::test_parent_child_relationship  # run a single test
-alembic revision --autogenerate -m "msg"   # create a migration from model changes
-alembic upgrade head             # apply migrations (needs a live Postgres)
-uvicorn app.main:app --reload    # run the API locally
+uv sync                          # install backend + dev deps into .venv/
+uv run pytest                    # run the test suite (in-memory SQLite, no DB needed)
+uv run pytest tests/test_models.py::test_parent_child_relationship  # run a single test
+uv run alembic revision --autogenerate -m "msg"   # create a migration from model changes
+uv run alembic upgrade head      # apply migrations (needs a live Postgres)
+uv run uvicorn app.main:app --reload  # run the API locally
 
 # Full stack (Postgres + backend) from repo root:
 docker compose up --build
