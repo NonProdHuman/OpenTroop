@@ -15,23 +15,27 @@ if TYPE_CHECKING:
 
 
 class MemberRelationship(TrackedBase):
-    """Junction linking an adult member to a scout member (guardian graph)."""
+    """Directional family link between two members.
+
+    from_member holds the named role (parent_of, guardian_of); to_member is the child/ward.
+    For sibling_of (symmetric), store with the lower UUID as from_member by convention.
+    """
 
     __tablename__ = "member_relationships"
 
-    adult_id: Mapped[uuid.UUID] = mapped_column(
+    from_member_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("members.id"), nullable=False, index=True
     )
-    scout_id: Mapped[uuid.UUID] = mapped_column(
+    to_member_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("members.id"), nullable=False, index=True
     )
     relationship_type: Mapped[RelationshipType] = mapped_column(
-        SAEnum(RelationshipType), default=RelationshipType.GUARDIAN, nullable=False
+        SAEnum(RelationshipType), nullable=False
     )
 
-    adult: Mapped[Member] = relationship(
-        "Member", foreign_keys=[adult_id], back_populates="dependent_links"
+    from_member: Mapped[Member] = relationship(
+        "Member", foreign_keys=[from_member_id], back_populates="outgoing_relationships"
     )
-    scout: Mapped[Member] = relationship(
-        "Member", foreign_keys=[scout_id], back_populates="guardian_links"
+    to_member: Mapped[Member] = relationship(
+        "Member", foreign_keys=[to_member_id], back_populates="incoming_relationships"
     )

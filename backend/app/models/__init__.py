@@ -2,6 +2,7 @@
 
 from app.models.base import Base, TrackedBase
 from app.models.enums import (
+    MemberStatus,
     MemberType,
     RelationshipType,
     SwimClassification,
@@ -17,6 +18,7 @@ __all__ = [
     "Member",
     "Patrol",
     "MemberRelationship",
+    "MemberStatus",
     "MemberType",
     "TroopRole",
     "SwimClassification",

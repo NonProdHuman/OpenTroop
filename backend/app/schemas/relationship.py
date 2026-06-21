@@ -7,9 +7,9 @@ from app.schemas.base import TrackedRead
 
 
 class MemberRelationshipBase(BaseModel):
-    adult_id: uuid.UUID
-    scout_id: uuid.UUID
-    relationship_type: RelationshipType = RelationshipType.GUARDIAN
+    from_member_id: uuid.UUID
+    to_member_id: uuid.UUID
+    relationship_type: RelationshipType
 
 
 class MemberRelationshipCreate(MemberRelationshipBase):

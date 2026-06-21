@@ -1,10 +1,12 @@
 import uuid
+from datetime import date
 
 from sqlalchemy import inspect
 
 from app.models import (
     Member,
     MemberRelationship,
+    MemberStatus,
     MemberType,
     Patrol,
     RelationshipType,
@@ -54,10 +56,10 @@ def test_patrol_member_relationship(db_session):
     assert patrol.members == [scout]
 
 
-def test_guardian_junction_graph(db_session):
-    """Adult <-> Scout link navigates correctly through MemberRelationship."""
+def test_parent_child_relationship(db_session):
+    """Parent <-> Scout link navigates correctly through MemberRelationship."""
     tenant_id = uuid.uuid4()
-    adult = Member(
+    parent = Member(
         tenant_id=tenant_id,
         first_name="Pat",
         last_name="Parent",
@@ -72,16 +74,76 @@ def test_guardian_junction_graph(db_session):
     )
     link = MemberRelationship(
         tenant_id=tenant_id,
-        adult=adult,
-        scout=scout,
-        relationship_type=RelationshipType.PARENT,
+        from_member=parent,
+        to_member=scout,
+        relationship_type=RelationshipType.PARENT_OF,
     )
     db_session.add(link)
     db_session.commit()
 
-    assert scout.guardian_links[0].adult is adult
-    assert adult.dependent_links[0].scout is scout
-    assert scout.guardian_links[0].relationship_type is RelationshipType.PARENT
+    assert scout.incoming_relationships[0].from_member is parent
+    assert parent.outgoing_relationships[0].to_member is scout
+    assert scout.incoming_relationships[0].relationship_type is RelationshipType.PARENT_OF
+
+
+def test_sibling_relationship(db_session):
+    """Sibling relationship stored with lower UUID as from_member by convention."""
+    tenant_id = uuid.uuid4()
+    sibling_a = Member(
+        tenant_id=tenant_id,
+        first_name="Alex",
+        last_name="Scout",
+        member_type=MemberType.SCOUT,
+    )
+    sibling_b = Member(
+        tenant_id=tenant_id,
+        first_name="Blake",
+        last_name="Scout",
+        member_type=MemberType.SCOUT,
+    )
+    db_session.add_all([sibling_a, sibling_b])
+    db_session.flush()
+
+    from_id, to_id = sorted([sibling_a.id, sibling_b.id])
+    from_member = sibling_a if sibling_a.id == from_id else sibling_b
+    to_member = sibling_b if from_member is sibling_a else sibling_a
+
+    link = MemberRelationship(
+        tenant_id=tenant_id,
+        from_member=from_member,
+        to_member=to_member,
+        relationship_type=RelationshipType.SIBLING_OF,
+    )
+    db_session.add(link)
+    db_session.commit()
+
+    assert link.relationship_type is RelationshipType.SIBLING_OF
+    assert from_member.outgoing_relationships[0].to_member is to_member
+    assert to_member.incoming_relationships[0].from_member is from_member
+
+
+def test_member_status_defaults_to_active(db_session):
+    """New members default to ACTIVE status; ALUMNI retains history without deletion."""
+    tenant_id = uuid.uuid4()
+    scout = Member(
+        tenant_id=tenant_id,
+        first_name="Sam",
+        last_name="Scout",
+        member_type=MemberType.SCOUT,
+    )
+    db_session.add(scout)
+    db_session.commit()
+    db_session.refresh(scout)
+
+    assert scout.membership_status is MemberStatus.ACTIVE
+
+    scout.membership_status = MemberStatus.ALUMNI
+    scout.troop_membership_end_date = date(2024, 5, 31)
+    db_session.commit()
+    db_session.refresh(scout)
+
+    assert scout.membership_status is MemberStatus.ALUMNI
+    assert scout.is_deleted is False
 
 
 def test_soft_delete_flag_is_settable(db_session):
@@ -95,3 +157,38 @@ def test_soft_delete_flag_is_settable(db_session):
     db_session.commit()
     db_session.refresh(patrol)
     assert patrol.is_deleted is True
+
+
+def test_member_extended_fields(db_session):
+    """Extended personal and safety fields persist correctly."""
+    tenant_id = uuid.uuid4()
+    member = Member(
+        tenant_id=tenant_id,
+        first_name="Jordan",
+        middle_name="Lee",
+        last_name="Smith",
+        name_suffix="Jr.",
+        nickname="JJ",
+        date_of_birth=date(2010, 3, 15),
+        member_type=MemberType.SCOUT,
+        address_line1="123 Main St",
+        city="Springfield",
+        state="IL",
+        postal_code="62701",
+        country="US",
+        allergies="Peanuts",
+        dietary_restrictions="Vegetarian",
+        emergency_contact_1_name="Casey Smith",
+        emergency_contact_1_phone="555-0100",
+        medical_form_ab_date=date(2024, 1, 1),
+        swim_date=date(2023, 6, 15),
+    )
+    db_session.add(member)
+    db_session.commit()
+    db_session.refresh(member)
+
+    assert member.nickname == "JJ"
+    assert member.date_of_birth == date(2010, 3, 15)
+    assert member.allergies == "Peanuts"
+    assert member.emergency_contact_1_name == "Casey Smith"
+    assert member.swim_date == date(2023, 6, 15)
