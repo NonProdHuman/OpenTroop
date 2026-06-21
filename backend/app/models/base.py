@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, Uuid
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -11,7 +11,7 @@ class Base(DeclarativeBase):
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class TrackedBase(Base):
@@ -34,6 +34,4 @@ class TrackedBase(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
     )
-    is_deleted: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False, index=True
-    )
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)

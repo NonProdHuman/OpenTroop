@@ -3,7 +3,6 @@ import uuid
 from sqlalchemy import inspect
 
 from app.models import (
-    Base,
     Member,
     MemberRelationship,
     MemberType,

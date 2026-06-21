@@ -16,4 +16,4 @@ class Patrol(TrackedBase):
 
     name: Mapped[str] = mapped_column(String(120), nullable=False)
 
-    members: Mapped[list["Member"]] = relationship(back_populates="patrol")
+    members: Mapped[list[Member]] = relationship(back_populates="patrol")

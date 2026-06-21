@@ -1,14 +1,14 @@
 import enum
 
 
-class MemberType(str, enum.Enum):
+class MemberType(enum.StrEnum):
     """Whether a member is a youth participant or a registered adult."""
 
     SCOUT = "scout"
     ADULT = "adult"
 
 
-class TroopRole(str, enum.Enum):
+class TroopRole(enum.StrEnum):
     """Position / title a member holds within the troop. Orthogonal to MemberType."""
 
     SCOUTMASTER = "scoutmaster"
@@ -20,7 +20,7 @@ class TroopRole(str, enum.Enum):
     NONE = "none"
 
 
-class SwimClassification(str, enum.Enum):
+class SwimClassification(enum.StrEnum):
     """Official BSA aquatics classification."""
 
     NONSWIMMER = "nonswimmer"
@@ -28,7 +28,7 @@ class SwimClassification(str, enum.Enum):
     SWIMMER = "swimmer"
 
 
-class RelationshipType(str, enum.Enum):
+class RelationshipType(enum.StrEnum):
     """Nature of the adult -> scout guardian link."""
 
     PARENT = "parent"

@@ -29,9 +29,9 @@ class MemberRelationship(TrackedBase):
         SAEnum(RelationshipType), default=RelationshipType.GUARDIAN, nullable=False
     )
 
-    adult: Mapped["Member"] = relationship(
+    adult: Mapped[Member] = relationship(
         "Member", foreign_keys=[adult_id], back_populates="dependent_links"
     )
-    scout: Mapped["Member"] = relationship(
+    scout: Mapped[Member] = relationship(
         "Member", foreign_keys=[scout_id], back_populates="guardian_links"
     )
