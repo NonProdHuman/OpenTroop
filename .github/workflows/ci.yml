@@ -26,13 +26,19 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev]" pip-audit
 
       - name: Lint (ruff)
         run: ruff check .
 
       - name: Format check (ruff)
         run: ruff format --check .
+
+      - name: Type check (mypy)
+        run: python -m mypy app
+
+      - name: Dependency vulnerability scan (pip-audit)
+        run: pip-audit
 
       - name: Test (pytest)
         run: pytest -q
