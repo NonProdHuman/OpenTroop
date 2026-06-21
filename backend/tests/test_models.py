@@ -11,14 +11,21 @@ from app.models import (
     Patrol,
     RelationshipType,
     SwimClassification,
-    TroopRole,
 )
 
 
 def test_all_tables_created(db_session):
     """Every declared model produces a physical table."""
     table_names = set(inspect(db_session.get_bind()).get_table_names())
-    assert {"patrols", "members", "member_relationships"} <= table_names
+    assert {
+        "patrols",
+        "members",
+        "member_relationships",
+        "roles",
+        "role_permissions",
+        "role_memberships",
+        "member_role_assignments",
+    } <= table_names
 
 
 def test_tracking_fields_have_defaults(db_session):
@@ -45,7 +52,6 @@ def test_patrol_member_relationship(db_session):
         first_name="Sam",
         last_name="Scout",
         member_type=MemberType.SCOUT,
-        troop_role=TroopRole.SENIOR_PATROL_LEADER,
         swim_classification=SwimClassification.SWIMMER,
         patrol=patrol,
     )
@@ -64,7 +70,6 @@ def test_parent_child_relationship(db_session):
         first_name="Pat",
         last_name="Parent",
         member_type=MemberType.ADULT,
-        troop_role=TroopRole.SCOUTMASTER,
     )
     scout = Member(
         tenant_id=tenant_id,
@@ -123,7 +128,7 @@ def test_sibling_relationship(db_session):
 
 
 def test_member_status_defaults_to_active(db_session):
-    """New members default to ACTIVE status; ALUMNI retains history without deletion."""
+    """New members default to ACTIVE; ALUMNI retains history without deletion."""
     tenant_id = uuid.uuid4()
     scout = Member(
         tenant_id=tenant_id,

@@ -9,11 +9,12 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import TrackedBase
-from app.models.enums import MemberStatus, MemberType, SwimClassification, TroopRole
+from app.models.enums import MemberStatus, MemberType, SwimClassification
 
 if TYPE_CHECKING:
     from app.models.patrol import Patrol
     from app.models.relationship import MemberRelationship
+    from app.models.role import MemberRoleAssignment
 
 
 class Member(TrackedBase):
@@ -40,9 +41,6 @@ class Member(TrackedBase):
     member_type: Mapped[MemberType] = mapped_column(SAEnum(MemberType), nullable=False)
     membership_status: Mapped[MemberStatus] = mapped_column(
         SAEnum(MemberStatus), default=MemberStatus.ACTIVE, nullable=False, index=True
-    )
-    troop_role: Mapped[TroopRole] = mapped_column(
-        SAEnum(TroopRole), default=TroopRole.NONE, nullable=False
     )
     swim_classification: Mapped[SwimClassification] = mapped_column(
         SAEnum(SwimClassification), default=SwimClassification.NONSWIMMER, nullable=False
@@ -73,6 +71,12 @@ class Member(TrackedBase):
 
     patrol_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("patrols.id"), nullable=True)
     patrol: Mapped[Patrol | None] = relationship(back_populates="members")
+
+    role_assignments: Mapped[list[MemberRoleAssignment]] = relationship(
+        "MemberRoleAssignment",
+        foreign_keys="MemberRoleAssignment.member_id",
+        back_populates="member",
+    )
 
     # Family relationship graph. outgoing_relationships: relationships where this
     # member is from_member (e.g. a parent's view of their children).

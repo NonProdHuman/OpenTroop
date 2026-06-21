@@ -3,7 +3,7 @@ from datetime import date
 
 from pydantic import BaseModel, EmailStr
 
-from app.models.enums import MemberStatus, MemberType, SwimClassification, TroopRole
+from app.models.enums import MemberStatus, MemberType, SwimClassification
 from app.schemas.base import TrackedRead
 
 
@@ -25,7 +25,6 @@ class MemberBase(BaseModel):
     country: str | None = "US"
     member_type: MemberType
     membership_status: MemberStatus = MemberStatus.ACTIVE
-    troop_role: TroopRole = TroopRole.NONE
     swim_classification: SwimClassification = SwimClassification.NONSWIMMER
     troop_membership_start_date: date | None = None
     troop_membership_end_date: date | None = None
@@ -67,7 +66,6 @@ class MemberUpdate(BaseModel):
     country: str | None = None
     member_type: MemberType | None = None
     membership_status: MemberStatus | None = None
-    troop_role: TroopRole | None = None
     swim_classification: SwimClassification | None = None
     troop_membership_start_date: date | None = None
     troop_membership_end_date: date | None = None

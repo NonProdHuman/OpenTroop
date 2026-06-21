@@ -21,21 +21,48 @@ class MemberStatus(enum.StrEnum):
     ALUMNI = "alumni"  # left the troop; data retained for history
 
 
-class TroopRole(enum.StrEnum):
-    """Current position a member holds within the troop. Orthogonal to MemberType.
-    This is a convenience denormalization; authoritative history lives in
-    LeadershipHistory (to be added in Pillar 1 CRUD work).
+class Permission(enum.StrEnum):
+    """All capabilities that can be granted to a Role.
+
+    Colon-namespaced by domain. Relationship-scoped access (e.g. a parent reading
+    their own child's record) is enforced separately at the endpoint layer; these
+    permissions gate whether the action is possible at all.
     """
 
-    SCOUTMASTER = "scoutmaster"
-    ASSISTANT_SCOUTMASTER = "assistant_scoutmaster"
-    SENIOR_PATROL_LEADER = "senior_patrol_leader"
-    PATROL_LEADER = "patrol_leader"
-    ASSISTANT_PATROL_LEADER = "assistant_patrol_leader"
-    TREASURER = "treasurer"
-    COMMITTEE_CHAIR = "committee_chair"
-    COMMITTEE_MEMBER = "committee_member"
-    NONE = "none"
+    # Member management
+    MEMBER_READ = "member:read"
+    MEMBER_WRITE = "member:write"
+    MEMBER_READ_MEDICAL = "member:read_medical"
+    MEMBER_WRITE_MEDICAL = "member:write_medical"
+    MEMBER_READ_CONTACT = "member:read_contact"
+    MEMBER_DELETE = "member:delete"
+
+    # Event management
+    EVENT_READ = "event:read"
+    EVENT_CREATE = "event:create"
+    EVENT_WRITE = "event:write"
+    EVENT_DELETE = "event:delete"
+    EVENT_MANAGE_ATTENDANCE = "event:manage_attendance"
+
+    # Advancement
+    ADVANCEMENT_READ = "advancement:read"
+    ADVANCEMENT_RECORD = "advancement:record"
+    ADVANCEMENT_APPROVE = "advancement:approve"
+
+    # Finance
+    FINANCE_READ = "finance:read"
+    FINANCE_WRITE = "finance:write"
+
+    # Role management
+    ROLE_ASSIGN = "role:assign"
+    ROLE_MANAGE = "role:manage"
+
+    # Communications
+    COMMUNICATION_SEND_TROOP = "communication:send_troop"
+    COMMUNICATION_SEND_PATROL = "communication:send_patrol"
+
+    # Reports
+    REPORT_READ = "report:read"
 
 
 class SwimClassification(enum.StrEnum):

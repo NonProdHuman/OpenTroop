@@ -72,6 +72,24 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   `other`. Navigate via `Member.outgoing_relationships` (relationships where this
   member is from_member) and `Member.incoming_relationships` (where this member is
   to_member).
+- `Role` — tenant-scoped named role. Two kinds in practice: **functional groups**
+  (`event_admin`, `member_admin`, `advancement_admin`, `finance_admin`) that hold
+  permissions directly, and **positions** (`scoutmaster`, `patrol_leader`, etc.) that
+  inherit from functional groups via `RoleMembership`. `is_system=True` marks seeded
+  roles that can't be deleted. `is_admin=True` bypasses all permission checks
+  (reserved for the `administrators` role).
+- `RolePermission` — grants a single `Permission` enum value to a `Role`.
+- `RoleMembership` — records that a position role is a member of a functional group.
+  `group_role_id` (the functional group) / `member_role_id` (the position). Members
+  assigned to a position inherit all permissions of the group transitively.
+- `MemberRoleAssignment` — assigns a member to any role (position or functional group
+  directly). `assigned_by_id` provides an audit trail. Soft-delete preserves history.
+  A member may hold multiple roles simultaneously.
+- `Permission` — `StrEnum` in `enums.py` listing all system capabilities, namespaced
+  by domain (`member:read`, `event:create`, `role:manage`, etc.).
+- `resolve_permissions(member_id, session)` in `app/core/permissions.py` — walks
+  `MemberRoleAssignment` → `RoleMembership` transitively (cycle-safe) and returns a
+  `frozenset[Permission]`. Short-circuits to all permissions for `is_admin` roles.
 
 Enums live in `app/models/enums.py` and are shared between ORM models and schemas.
 
