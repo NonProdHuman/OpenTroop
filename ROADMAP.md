@@ -44,9 +44,15 @@ Merit badge clinics have prerequisites. Courts of Honor tie into advancement dat
 Model events generically with typed metadata rather than one-size-fits-all fields.
 
 - [ ] Analyze TroopWebHost event export format before designing the model
-- [ ] Core `Event` model (name, type, dates, location, capacity, tenant-scoped)
+- [ ] `Location` model — reusable named locations (address, phone, website, notes)
+      referenced by events rather than inlining address fields per-event
+- [ ] Core `Event` model (name, type, dates, location FK, capacity, tenant-scoped)
 - [ ] Event types: meeting, campout, service project, merit badge clinic, court of honor, fundraiser
-- [ ] RSVP / attendance tracking per member
+- [ ] Event organizers (which members are responsible for running the event)
+- [ ] Event shifts (multiple time slots within one event, e.g. service project sign-ups)
+- [ ] RSVP / attendance tracking per member (with adult/youth headcount minimums)
+- [ ] Event costs (separate youth/adult pricing)
+- [ ] Packing lists — reusable lists of gear attached to events
 - [ ] Digital permission slips (fillable forms attached to events; parent signature flow)
 - [ ] Health form collection and storage (per-event or per-member)
 - [ ] Calendar view (monthly/weekly; iCal export)
@@ -101,9 +107,10 @@ API contract for each pillar stabilizes.
 1. **Export and analyze** TroopWebHost + Scoutbook data from a real troop before
    building Event or Advancement models.
 2. **Initial Alembic migration** — `docker compose up db` then
-   `alembic revision --autogenerate -m "initial schema"`.
+   `alembic revision --autogenerate -m "initial schema"`. Include the partial
+   unique index on `(tenant_id, bsa_id) WHERE bsa_id IS NOT NULL`.
 3. **CRUD API endpoints** for Pillar 1 models with auth.
-4. **License, contributing guide, and GitHub project structure** for public launch.
+4. **Open the repo publicly** — LICENSE, CONTRIBUTING, and CI are all in place.
 
 ---
 

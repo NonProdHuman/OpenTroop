@@ -54,6 +54,11 @@ unmodified on SQLite, which is how the test suite stays DB-free.
 - `Member` — scouts and adults. Two orthogonal enums: `member_type`
   (scout/adult) vs `troop_role` (scoutmaster, ASM, SPL, treasurer, none, …).
   Aquatics via `swim_classification` (BSA: nonswimmer/beginner/swimmer).
+  `bsa_id` is **nullable** — non-registered parents and family contacts are
+  valid roster members without a BSA number. The canonical identifier is always
+  `id` (UUIDv7). A partial unique index on `(tenant_id, bsa_id) WHERE bsa_id
+  IS NOT NULL` prevents duplicate registrations within a troop while permitting
+  multiple null values; add this in the first Alembic migration.
 - `MemberRelationship` — junction implementing the guardian graph; both
   `adult_id` and `scout_id` are FKs into `members`. Navigate via
   `Member.guardian_links` (a scout's adults) and `Member.dependent_links`
