@@ -4,7 +4,7 @@ import uuid
 from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, ForeignKey, String, Text
+from sqlalchemy import Boolean, Date, ForeignKey, String, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -61,6 +61,13 @@ class Member(TrackedBase):
     emergency_contact_1_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
     emergency_contact_2_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     emergency_contact_2_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
+    # Notification preferences and delivery state. email_opt_out is set by the
+    # member; email_bounced is set automatically by bounce webhook processing.
+    # sms_opt_in requires explicit consent — never default True.
+    email_opt_out: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    email_bounced: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    sms_opt_in: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 

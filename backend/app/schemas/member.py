@@ -38,6 +38,9 @@ class MemberBase(BaseModel):
     emergency_contact_1_phone: str | None = None
     emergency_contact_2_name: str | None = None
     emergency_contact_2_phone: str | None = None
+    email_opt_out: bool = False
+    email_bounced: bool = False
+    sms_opt_in: bool = False
     notes: str | None = None
     patrol_id: uuid.UUID | None = None
 
@@ -77,6 +80,9 @@ class MemberUpdate(BaseModel):
     emergency_contact_1_phone: str | None = None
     emergency_contact_2_name: str | None = None
     emergency_contact_2_phone: str | None = None
+    email_opt_out: bool | None = None
+    email_bounced: bool | None = None
+    sms_opt_in: bool | None = None
     notes: str | None = None
     patrol_id: uuid.UUID | None = None
 
