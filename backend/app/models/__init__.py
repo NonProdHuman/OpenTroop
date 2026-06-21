@@ -2,14 +2,16 @@
 
 from app.models.base import Base, TrackedBase
 from app.models.enums import (
+    MemberStatus,
     MemberType,
+    Permission,
     RelationshipType,
     SwimClassification,
-    TroopRole,
 )
 from app.models.member import Member
 from app.models.patrol import Patrol
 from app.models.relationship import MemberRelationship
+from app.models.role import MemberRoleAssignment, Role, RoleMembership, RolePermission
 
 __all__ = [
     "Base",
@@ -17,8 +19,13 @@ __all__ = [
     "Member",
     "Patrol",
     "MemberRelationship",
+    "Role",
+    "RolePermission",
+    "RoleMembership",
+    "MemberRoleAssignment",
+    "MemberStatus",
     "MemberType",
-    "TroopRole",
+    "Permission",
     "SwimClassification",
     "RelationshipType",
 ]

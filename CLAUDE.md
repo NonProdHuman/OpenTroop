@@ -16,7 +16,7 @@ All backend commands run from `backend/`:
 ```bash
 pip install -e ".[dev]"          # install backend + dev (pytest) deps
 pytest                           # run the test suite (in-memory SQLite, no DB needed)
-pytest tests/test_models.py::test_guardian_junction_graph   # run a single test
+pytest tests/test_models.py::test_parent_child_relationship  # run a single test
 alembic revision --autogenerate -m "msg"   # create a migration from model changes
 alembic upgrade head             # apply migrations (needs a live Postgres)
 uvicorn app.main:app --reload    # run the API locally
@@ -51,18 +51,45 @@ unmodified on SQLite, which is how the test suite stays DB-free.
 ### Domain model (`app/models/`)
 
 - `Patrol` — named unit; one-to-many to `Member`.
-- `Member` — scouts and adults. Two orthogonal enums: `member_type`
-  (scout/adult) vs `troop_role` (scoutmaster, ASM, SPL, treasurer, none, …).
-  Aquatics via `swim_classification` (BSA: nonswimmer/beginner/swimmer).
+- `Member` — scouts and adults. Key enums: `member_type` (scout/adult),
+  `membership_status` (active/inactive/alumni — distinct from `is_deleted`; alumni
+  records remain visible to leaders for history while `is_deleted=True` purges the
+  record from sync payloads entirely), `troop_role` (scoutmaster, ASM, SPL,
+  treasurer, none, … — convenience denormalization; authoritative history goes in a
+  future `LeadershipHistory` table), `swim_classification` (BSA: nonswimmer/beginner/
+  swimmer). Extended fields: full mailing address, date_of_birth, nickname,
+  name_suffix, medical form dates (ab/c), swim_date, allergies,
+  dietary_restrictions, two emergency contacts, notes.
   `bsa_id` is **nullable** — non-registered parents and family contacts are
   valid roster members without a BSA number. The canonical identifier is always
   `id` (UUIDv7). A partial unique index on `(tenant_id, bsa_id) WHERE bsa_id
   IS NOT NULL` prevents duplicate registrations within a troop while permitting
   multiple null values; add this in the first Alembic migration.
-- `MemberRelationship` — junction implementing the guardian graph; both
-  `adult_id` and `scout_id` are FKs into `members`. Navigate via
-  `Member.guardian_links` (a scout's adults) and `Member.dependent_links`
-  (an adult's scouts).
+- `MemberRelationship` — directional family link between any two members.
+  `from_member_id` / `to_member_id` (both FKs into `members`). Relationship types:
+  `parent_of`, `guardian_of` (from_member is the adult; to_member is the child/ward),
+  `sibling_of` (symmetric; by convention store with the lower UUID as from_member),
+  `other`. Navigate via `Member.outgoing_relationships` (relationships where this
+  member is from_member) and `Member.incoming_relationships` (where this member is
+  to_member).
+- `Role` — tenant-scoped named role. Two kinds in practice: **functional groups**
+  (`event_admin`, `member_admin`, `advancement_admin`, `finance_admin`) that hold
+  permissions directly, and **positions** (`scoutmaster`, `patrol_leader`, etc.) that
+  inherit from functional groups via `RoleMembership`. `is_system=True` marks seeded
+  roles that can't be deleted. `is_admin=True` bypasses all permission checks
+  (reserved for the `administrators` role).
+- `RolePermission` — grants a single `Permission` enum value to a `Role`.
+- `RoleMembership` — records that a position role is a member of a functional group.
+  `group_role_id` (the functional group) / `member_role_id` (the position). Members
+  assigned to a position inherit all permissions of the group transitively.
+- `MemberRoleAssignment` — assigns a member to any role (position or functional group
+  directly). `assigned_by_id` provides an audit trail. Soft-delete preserves history.
+  A member may hold multiple roles simultaneously.
+- `Permission` — `StrEnum` in `enums.py` listing all system capabilities, namespaced
+  by domain (`member:read`, `event:create`, `role:manage`, etc.).
+- `resolve_permissions(member_id, session)` in `app/core/permissions.py` — walks
+  `MemberRoleAssignment` → `RoleMembership` transitively (cycle-safe) and returns a
+  `frozenset[Permission]`. Short-circuits to all permissions for `is_admin` roles.
 
 Enums live in `app/models/enums.py` and are shared between ORM models and schemas.
 

@@ -4,6 +4,18 @@ OpenTroop is a community-driven, offline-first replacement for TroopWebHost.
 This document describes the four capability pillars and how they build on each other.
 Granular tasks are tracked via GitHub Issues and Milestones.
 
+OpenTroop is designed to run in two modes:
+
+- **Self-hosted** — a single troop runs their own instance. The operator is the
+  troop leader. All configuration (SMTP credentials, etc.) lives in `.env`.
+  No platform dependency; zero per-email cost if using G Suite or M365 as a relay.
+- **SaaS** — a hosted platform serving many troops (target: up to 200+). Each troop
+  is a tenant. Sending infrastructure is shared but tenant-scoped; per-tenant rate
+  limits and "from" addresses prevent one troop from affecting others' deliverability.
+
+Both modes are supported by the same codebase. The `tenant_id` on every database row
+is the foundation; notification and configuration systems follow the same pattern.
+
 ---
 
 ## Guiding Principles
@@ -79,10 +91,55 @@ this pillar should sync with it, not replace it.
 UI-heavy and legally sensitive (minors, health data). Build after the data
 model is stable enough to query reliably.
 
+#### Notification infrastructure (prerequisite for all messaging features)
+
+A 40-scout troop reaches ~115 recipients per send (scouts × 2 parents + adult
+leaders). One weekly newsletter plus routine patrol and event emails is
+~1,400 emails/month per troop; at 200 troops that is ~280,000/month in aggregate.
+Infrastructure must handle this without synchronous request handlers and without
+vendor lock-in.
+
+- [ ] `NotificationService` abstraction — `EmailBackend` and `SMSBackend` protocols;
+      the rest of the app calls the protocol, never a vendor SDK directly
+- [ ] **Email backends** (configure via `EMAIL_BACKEND` env var):
+  - `smtp` — uses any SMTP relay; ideal for self-hosters with G Suite / M365
+  - `resend` — [Resend](https://resend.com) for small SaaS deployments
+    (50k emails/month on paid plan); excellent deliverability, simple SDK
+  - `ses` — AWS SES for large SaaS deployments (~$0.10/1k; ~$28/month at 200 troops)
+- [ ] **SMS backends** (configure via `SMS_BACKEND` env var; optional feature):
+  - `twilio` — most reliable North American delivery
+  - `telnyx` — drop-in alternative, ~30% cheaper than Twilio
+- [ ] Async send queue (ARQ or Celery) — bulk sends run in background workers,
+      not request handlers; includes per-tenant rate limiting for SaaS deployments
+- [ ] Retry and dead-letter handling — failed sends requeue with exponential backoff;
+      permanently failed messages land in a dead-letter store for operator review
+- [ ] Bounce and complaint webhooks — vendor webhooks map back to the sending tenant;
+      hard bounces auto-set `Member.email_bounced`; spam complaints trigger review
+- [ ] `Member` opt-out fields — `email_opt_out` (bool) and `email_bounced` (bool);
+      the send queue skips opted-out and bounced addresses; required for CAN-SPAM
+- [ ] `TroopSettings` model — per-tenant notification config (custom from-address,
+      optional bring-your-own SMTP credentials); falls back to platform default in
+      SaaS mode, or to the global `.env` config in self-hosted mode
+- [ ] Push notifications via Firebase FCM — free, covers iOS and Android through a
+      single API; complements email rather than replacing it (some parents won't
+      install the app; email is always the fallback)
+
+#### Messaging features
+
+- [ ] Troop-wide and patrol-scoped announcements (email + optional SMS)
+- [ ] Event-triggered notifications: RSVP reminders, permission slip requests,
+      last-minute cancellations
+- [ ] Weekly digest / newsletter template
+- [ ] SMS opt-in flow — explicit consent required; store consent timestamp and
+      source on `Member`
+- [ ] Unsubscribe / preference centre — parents can manage their own email and SMS
+      preferences without contacting the scoutmaster
+
+#### Reports
+
 - [ ] Report builder: roster by patrol, advancement summary, swim classification list
 - [ ] PDF export for reports and permission slips
 - [ ] Parent/guardian contact directory (scoped by guardian links)
-- [ ] Bulk email / announcement to troop or patrol
 - [ ] Medical form storage with expiration tracking (BSA Annual Health & Medical Record)
 - [ ] TroopWebHost-compatible data export (migration path for troops leaving TWH)
 
