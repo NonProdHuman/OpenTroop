@@ -4,9 +4,14 @@ from fastapi.testclient import TestClient
 
 
 def _create_member(client: TestClient, first_name: str = "Alice") -> dict:
-    r = client.post("/members/", json={
-        "first_name": first_name, "last_name": "Test", "member_type": "adult",
-    })
+    r = client.post(
+        "/members/",
+        json={
+            "first_name": first_name,
+            "last_name": "Test",
+            "member_type": "adult",
+        },
+    )
     assert r.status_code == 201
     return r.json()
 
@@ -14,11 +19,14 @@ def _create_member(client: TestClient, first_name: str = "Alice") -> dict:
 def _create_relationship(
     client: TestClient, from_id: str, to_id: str, rel_type: str = "parent_of"
 ) -> dict:
-    r = client.post("/relationships/", json={
-        "from_member_id": from_id,
-        "to_member_id": to_id,
-        "relationship_type": rel_type,
-    })
+    r = client.post(
+        "/relationships/",
+        json={
+            "from_member_id": from_id,
+            "to_member_id": to_id,
+            "relationship_type": rel_type,
+        },
+    )
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -85,22 +93,28 @@ def test_delete_relationship(client: TestClient) -> None:
 def test_from_member_wrong_tenant(client: TestClient, other_client: TestClient) -> None:
     outsider = _create_member(other_client, "Outside")
     local = _create_member(client, "Local")
-    r = client.post("/relationships/", json={
-        "from_member_id": outsider["id"],
-        "to_member_id": local["id"],
-        "relationship_type": "parent_of",
-    })
+    r = client.post(
+        "/relationships/",
+        json={
+            "from_member_id": outsider["id"],
+            "to_member_id": local["id"],
+            "relationship_type": "parent_of",
+        },
+    )
     assert r.status_code == 422
 
 
 def test_to_member_wrong_tenant(client: TestClient, other_client: TestClient) -> None:
     outsider = _create_member(other_client, "Outside")
     local = _create_member(client, "Local")
-    r = client.post("/relationships/", json={
-        "from_member_id": local["id"],
-        "to_member_id": outsider["id"],
-        "relationship_type": "parent_of",
-    })
+    r = client.post(
+        "/relationships/",
+        json={
+            "from_member_id": local["id"],
+            "to_member_id": outsider["id"],
+            "relationship_type": "parent_of",
+        },
+    )
     assert r.status_code == 422
 
 

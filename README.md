@@ -29,12 +29,39 @@ frontend/   Next.js client (scaffolded in a later phase)
 ```bash
 # Run the full stack
 docker compose up --build
-
-# Backend tests (from backend/)
-cd backend
-pip install -e ".[dev]"
-pytest
 ```
+
+## Local development
+
+[uv](https://docs.astral.sh/uv/) manages the Python environment. Install it once:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then from `backend/`:
+
+```bash
+uv sync               # create .venv/ and install all deps
+uv run pytest         # run the test suite (no database needed)
+uv run uvicorn app.main:app --reload   # start the API on :8000
+```
+
+### Pre-commit hooks
+
+```bash
+# Install pre-commit once (uses uv's global tool layer)
+uv tool install pre-commit --with pre-commit-uv
+
+# Wire hooks into git (once per clone)
+pre-commit install
+
+# Or run manually
+pre-commit run --all-files
+```
+
+Hooks cover trailing whitespace, YAML/TOML validation, secret scanning (gitleaks),
+and Python linting/formatting via ruff (pinned to the version in `uv.lock`).
 
 ## Data model (Phase 1)
 

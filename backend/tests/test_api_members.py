@@ -76,18 +76,28 @@ def test_create_member_with_patrol(client: TestClient) -> None:
 
 def test_create_member_patrol_wrong_tenant(client: TestClient, other_client: TestClient) -> None:
     patrol = _create_patrol(other_client)
-    r = client.post("/members/", json={
-        "first_name": "X", "last_name": "Y", "member_type": "scout",
-        "patrol_id": patrol["id"],
-    })
+    r = client.post(
+        "/members/",
+        json={
+            "first_name": "X",
+            "last_name": "Y",
+            "member_type": "scout",
+            "patrol_id": patrol["id"],
+        },
+    )
     assert r.status_code == 422
 
 
 def test_create_member_patrol_not_found(client: TestClient) -> None:
-    r = client.post("/members/", json={
-        "first_name": "X", "last_name": "Y", "member_type": "scout",
-        "patrol_id": "00000000-0000-0000-0000-000000000099",
-    })
+    r = client.post(
+        "/members/",
+        json={
+            "first_name": "X",
+            "last_name": "Y",
+            "member_type": "scout",
+            "patrol_id": "00000000-0000-0000-0000-000000000099",
+        },
+    )
     assert r.status_code == 422
 
 

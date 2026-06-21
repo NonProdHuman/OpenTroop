@@ -25,6 +25,26 @@ uv run uvicorn app.main:app --reload  # run the API locally
 docker compose up --build
 ```
 
+## Pre-commit hooks
+
+`pre-commit` is a repo-wide tool managed via `uv tool`, not a project dependency.
+Install it once globally, then wire it into git:
+
+```bash
+# One-time global install (pre-commit-uv makes hook env creation faster)
+uv tool install pre-commit --with pre-commit-uv
+
+# One-time per clone — installs the git hooks
+pre-commit install
+
+# Run all hooks manually against every file
+pre-commit run --all-files
+```
+
+Hooks run automatically on `git commit`. The ruff hooks (`ruff`, `ruff-format`) use
+`language: system` so they invoke `uv run ruff` from `backend/`, keeping the linter
+version in sync with `uv.lock` rather than a separately-pinned pre-commit environment.
+
 ## Architecture
 
 - **Backend** (`backend/app/`): FastAPI + SQLAlchemy 2.0 (typed `Mapped` style) +

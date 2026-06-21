@@ -1,7 +1,7 @@
 """initial_schema
 
 Revision ID: 476948db06f4
-Revises: 
+Revises:
 Create Date: 2026-06-21 06:12:11.490716
 
 """

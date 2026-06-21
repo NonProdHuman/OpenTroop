@@ -10,12 +10,22 @@ repos:
       - id: check-added-large-files
         args: ["--maxkb=500"]
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.4
+  - repo: local
     hooks:
       - id: ruff
-        args: [--fix]
+        name: ruff
+        language: system
+        entry: bash -c 'cd backend && uv run ruff check --fix .'
+        pass_filenames: false
+        files: ^backend/
+        types_or: [python, pyi]
       - id: ruff-format
+        name: ruff-format
+        language: system
+        entry: bash -c 'cd backend && uv run ruff format .'
+        pass_filenames: false
+        files: ^backend/
+        types_or: [python, pyi]
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.18.4

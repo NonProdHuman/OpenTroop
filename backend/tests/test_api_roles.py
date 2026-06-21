@@ -4,7 +4,9 @@ from fastapi.testclient import TestClient
 
 
 def _create_role(client: TestClient, slug: str = "event_admin", **kwargs: object) -> dict:
-    r = client.post("/roles/", json={"name": slug.replace("_", " ").title(), "slug": slug, **kwargs})
+    r = client.post(
+        "/roles/", json={"name": slug.replace("_", " ").title(), "slug": slug, **kwargs}
+    )
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -62,6 +64,7 @@ def test_deleted_role_excluded_from_list(client: TestClient) -> None:
 # Role permissions
 # ---------------------------------------------------------------------------
 
+
 def test_add_and_list_permissions(client: TestClient) -> None:
     role = _create_role(client)
     r = client.post(f"/roles/{role['id']}/permissions/", json={"permission": "event:create"})
@@ -74,7 +77,9 @@ def test_add_and_list_permissions(client: TestClient) -> None:
 
 def test_remove_permission(client: TestClient) -> None:
     role = _create_role(client)
-    perm = client.post(f"/roles/{role['id']}/permissions/", json={"permission": "member:read"}).json()
+    perm = client.post(
+        f"/roles/{role['id']}/permissions/", json={"permission": "member:read"}
+    ).json()
     assert client.delete(f"/roles/{role['id']}/permissions/{perm['id']}").status_code == 204
     perms = client.get(f"/roles/{role['id']}/permissions/").json()
     assert not any(p["id"] == perm["id"] for p in perms)
@@ -96,13 +101,17 @@ def test_permissions_scoped_to_role(client: TestClient) -> None:
 # Role memberships
 # ---------------------------------------------------------------------------
 
+
 def test_create_role_membership(client: TestClient) -> None:
     group = _create_role(client, "event_admin")
     position = _create_role(client, "scoutmaster")
-    r = client.post("/role-memberships/", json={
-        "group_role_id": group["id"],
-        "member_role_id": position["id"],
-    })
+    r = client.post(
+        "/role-memberships/",
+        json={
+            "group_role_id": group["id"],
+            "member_role_id": position["id"],
+        },
+    )
     assert r.status_code == 201
     data = r.json()
     assert data["group_role_id"] == group["id"]
@@ -113,8 +122,12 @@ def test_list_role_memberships(client: TestClient) -> None:
     group = _create_role(client, "event_admin")
     pos1 = _create_role(client, "scoutmaster")
     pos2 = _create_role(client, "assistant_sm")
-    client.post("/role-memberships/", json={"group_role_id": group["id"], "member_role_id": pos1["id"]})
-    client.post("/role-memberships/", json={"group_role_id": group["id"], "member_role_id": pos2["id"]})
+    client.post(
+        "/role-memberships/", json={"group_role_id": group["id"], "member_role_id": pos1["id"]}
+    )
+    client.post(
+        "/role-memberships/", json={"group_role_id": group["id"], "member_role_id": pos2["id"]}
+    )
     memberships = client.get("/role-memberships/").json()
     member_role_ids = {m["member_role_id"] for m in memberships}
     assert {pos1["id"], pos2["id"]} <= member_role_ids
@@ -123,9 +136,9 @@ def test_list_role_memberships(client: TestClient) -> None:
 def test_delete_role_membership(client: TestClient) -> None:
     group = _create_role(client, "event_admin")
     position = _create_role(client, "scoutmaster")
-    m = client.post("/role-memberships/", json={
-        "group_role_id": group["id"], "member_role_id": position["id"]
-    }).json()
+    m = client.post(
+        "/role-memberships/", json={"group_role_id": group["id"], "member_role_id": position["id"]}
+    ).json()
     assert client.delete(f"/role-memberships/{m['id']}").status_code == 204
     assert client.get(f"/role-memberships/{m['id']}").status_code == 404
 
@@ -133,9 +146,9 @@ def test_delete_role_membership(client: TestClient) -> None:
 def test_role_membership_wrong_tenant(client: TestClient, other_client: TestClient) -> None:
     group = _create_role(client, "event_admin")
     position = _create_role(other_client, "scoutmaster")
-    r = client.post("/role-memberships/", json={
-        "group_role_id": group["id"], "member_role_id": position["id"]
-    })
+    r = client.post(
+        "/role-memberships/", json={"group_role_id": group["id"], "member_role_id": position["id"]}
+    )
     assert r.status_code == 422
 
 

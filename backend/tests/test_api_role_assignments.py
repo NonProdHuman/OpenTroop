@@ -4,9 +4,14 @@ from fastapi.testclient import TestClient
 
 
 def _create_member(client: TestClient, first_name: str = "Alice") -> dict:
-    r = client.post("/members/", json={
-        "first_name": first_name, "last_name": "Test", "member_type": "adult",
-    })
+    r = client.post(
+        "/members/",
+        json={
+            "first_name": first_name,
+            "last_name": "Test",
+            "member_type": "adult",
+        },
+    )
     assert r.status_code == 201
     return r.json()
 
@@ -18,9 +23,9 @@ def _create_role(client: TestClient, slug: str = "event_admin") -> dict:
 
 
 def _assign(client: TestClient, member_id: str, role_id: str, **kwargs: object) -> dict:
-    r = client.post("/role-assignments/", json={
-        "member_id": member_id, "role_id": role_id, **kwargs
-    })
+    r = client.post(
+        "/role-assignments/", json={"member_id": member_id, "role_id": role_id, **kwargs}
+    )
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -115,9 +120,10 @@ def test_assigned_by_wrong_tenant(client: TestClient, other_client: TestClient) 
     m = _create_member(client)
     role = _create_role(client)
     outsider = _create_member(other_client)
-    r = client.post("/role-assignments/", json={
-        "member_id": m["id"], "role_id": role["id"], "assigned_by_id": outsider["id"]
-    })
+    r = client.post(
+        "/role-assignments/",
+        json={"member_id": m["id"], "role_id": role["id"], "assigned_by_id": outsider["id"]},
+    )
     assert r.status_code == 422
 
 

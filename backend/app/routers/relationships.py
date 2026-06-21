@@ -67,7 +67,9 @@ def get_relationship(rel_id: uuid.UUID, tenant_id: TenantDep, db: DbDep):
 
 
 @router.patch("/{rel_id}", response_model=MemberRelationshipRead)
-def update_relationship(rel_id: uuid.UUID, body: MemberRelationshipUpdate, tenant_id: TenantDep, db: DbDep):
+def update_relationship(
+    rel_id: uuid.UUID, body: MemberRelationshipUpdate, tenant_id: TenantDep, db: DbDep
+):
     rel = _get_or_404(db, rel_id, tenant_id)
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(rel, k, v)

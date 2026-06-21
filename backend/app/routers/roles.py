@@ -24,6 +24,7 @@ router = APIRouter(tags=["roles"])
 # Roles
 # ---------------------------------------------------------------------------
 
+
 def _get_role_or_404(db, role_id: uuid.UUID, tenant_id: uuid.UUID) -> Role:
     role = db.get(Role, role_id)
     if not role or role.tenant_id != tenant_id or role.is_deleted:
@@ -75,11 +76,14 @@ def delete_role(role_id: uuid.UUID, tenant_id: TenantDep, db: DbDep):
 # Role permissions (nested under /roles/{role_id}/permissions/)
 # ---------------------------------------------------------------------------
 
+
 class _PermissionBody(BaseModel):
     permission: Permission
 
 
-def _get_perm_or_404(db, perm_id: uuid.UUID, role_id: uuid.UUID, tenant_id: uuid.UUID) -> RolePermission:
+def _get_perm_or_404(
+    db, perm_id: uuid.UUID, role_id: uuid.UUID, tenant_id: uuid.UUID
+) -> RolePermission:
     perm = db.get(RolePermission, perm_id)
     if not perm or perm.tenant_id != tenant_id or perm.role_id != role_id or perm.is_deleted:
         raise HTTPException(status_code=404, detail="Permission not found")
@@ -120,6 +124,7 @@ def remove_role_permission(role_id: uuid.UUID, perm_id: uuid.UUID, tenant_id: Te
 # ---------------------------------------------------------------------------
 # Role memberships (position → functional group links)
 # ---------------------------------------------------------------------------
+
 
 def _get_membership_or_404(db, membership_id: uuid.UUID, tenant_id: uuid.UUID) -> RoleMembership:
     m = db.get(RoleMembership, membership_id)
