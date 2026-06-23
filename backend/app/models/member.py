@@ -4,7 +4,7 @@ import uuid
 from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, ForeignKey, String, Text
+from sqlalchemy import Boolean, Date, ForeignKey, Index, String, Text, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,6 +19,15 @@ if TYPE_CHECKING:
 
 class Member(TrackedBase):
     __tablename__ = "members"
+    __table_args__ = (
+        Index(
+            "uix_members_tenant_bsa_id",
+            "tenant_id",
+            "bsa_id",
+            unique=True,
+            postgresql_where=text("bsa_id IS NOT NULL"),
+        ),
+    )
 
     bsa_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     first_name: Mapped[str] = mapped_column(String(120), nullable=False)
