@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd backend && uv run pytest"
+          }
+        ]
+      }
+    ]
+  }
+}
