@@ -5,9 +5,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from uuid6 import uuid7
 
-from app.core.deps import DbDep, TenantDep
+from app.core.deps import DbDep, TenantDep, get_or_404, require_tenant_fk
 from app.models.enums import Permission
 from app.models.role import Role, RoleMembership, RolePermission
 from app.schemas.role import (
@@ -27,13 +26,6 @@ router = APIRouter(tags=["roles"])
 # ---------------------------------------------------------------------------
 
 
-def _get_role_or_404(db: Session, role_id: uuid.UUID, tenant_id: uuid.UUID) -> Role:
-    role = db.get(Role, role_id)
-    if not role or role.tenant_id != tenant_id or role.is_deleted:
-        raise HTTPException(status_code=404, detail="Role not found")
-    return role
-
-
 @router.get("/roles/", response_model=list[RoleRead])
 def list_roles(tenant_id: TenantDep, db: DbDep) -> Sequence[Role]:
     return db.scalars(
@@ -43,7 +35,7 @@ def list_roles(tenant_id: TenantDep, db: DbDep) -> Sequence[Role]:
 
 @router.post("/roles/", response_model=RoleRead, status_code=201)
 def create_role(body: RoleBase, tenant_id: TenantDep, db: DbDep) -> Role:
-    role = Role(id=uuid7(), tenant_id=tenant_id, **body.model_dump())
+    role = Role(tenant_id=tenant_id, **body.model_dump())
     db.add(role)
     db.commit()
     db.refresh(role)
@@ -52,12 +44,12 @@ def create_role(body: RoleBase, tenant_id: TenantDep, db: DbDep) -> Role:
 
 @router.get("/roles/{role_id}", response_model=RoleRead)
 def get_role(role_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Role:
-    return _get_role_or_404(db, role_id, tenant_id)
+    return get_or_404(db, Role, role_id, tenant_id, "Role not found")
 
 
 @router.patch("/roles/{role_id}", response_model=RoleRead)
 def update_role(role_id: uuid.UUID, body: RoleUpdate, tenant_id: TenantDep, db: DbDep) -> Role:
-    role = _get_role_or_404(db, role_id, tenant_id)
+    role = get_or_404(db, Role, role_id, tenant_id, "Role not found")
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(role, k, v)
     db.commit()
@@ -67,7 +59,7 @@ def update_role(role_id: uuid.UUID, body: RoleUpdate, tenant_id: TenantDep, db: 
 
 @router.delete("/roles/{role_id}", status_code=204)
 def delete_role(role_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
-    role = _get_role_or_404(db, role_id, tenant_id)
+    role = get_or_404(db, Role, role_id, tenant_id, "Role not found")
     if role.is_system:
         raise HTTPException(status_code=403, detail="System roles cannot be deleted")
     role.is_deleted = True
@@ -96,7 +88,7 @@ def _get_perm_or_404(
 def list_role_permissions(
     role_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
 ) -> Sequence[RolePermission]:
-    _get_role_or_404(db, role_id, tenant_id)
+    get_or_404(db, Role, role_id, tenant_id, "Role not found")
     return db.scalars(
         select(RolePermission).where(
             RolePermission.role_id == role_id,
@@ -110,10 +102,8 @@ def list_role_permissions(
 def add_role_permission(
     role_id: uuid.UUID, body: _PermissionBody, tenant_id: TenantDep, db: DbDep
 ) -> RolePermission:
-    _get_role_or_404(db, role_id, tenant_id)
-    perm = RolePermission(
-        id=uuid7(), tenant_id=tenant_id, role_id=role_id, permission=body.permission
-    )
+    get_or_404(db, Role, role_id, tenant_id, "Role not found")
+    perm = RolePermission(tenant_id=tenant_id, role_id=role_id, permission=body.permission)
     db.add(perm)
     db.commit()
     db.refresh(perm)
@@ -134,21 +124,6 @@ def remove_role_permission(
 # ---------------------------------------------------------------------------
 
 
-def _get_membership_or_404(
-    db: Session, membership_id: uuid.UUID, tenant_id: uuid.UUID
-) -> RoleMembership:
-    m = db.get(RoleMembership, membership_id)
-    if not m or m.tenant_id != tenant_id or m.is_deleted:
-        raise HTTPException(status_code=404, detail="Role membership not found")
-    return m
-
-
-def _check_role_tenant(db: Session, role_id: uuid.UUID, tenant_id: uuid.UUID, field: str) -> None:
-    role = db.get(Role, role_id)
-    if not role or role.tenant_id != tenant_id or role.is_deleted:
-        raise HTTPException(status_code=422, detail=f"{field} not found in this tenant")
-
-
 @router.get("/role-memberships/", response_model=list[RoleMembershipRead])
 def list_role_memberships(tenant_id: TenantDep, db: DbDep) -> Sequence[RoleMembership]:
     return db.scalars(
@@ -163,9 +138,9 @@ def list_role_memberships(tenant_id: TenantDep, db: DbDep) -> Sequence[RoleMembe
 def create_role_membership(
     body: RoleMembershipBase, tenant_id: TenantDep, db: DbDep
 ) -> RoleMembership:
-    _check_role_tenant(db, body.group_role_id, tenant_id, "group_role_id")
-    _check_role_tenant(db, body.member_role_id, tenant_id, "member_role_id")
-    membership = RoleMembership(id=uuid7(), tenant_id=tenant_id, **body.model_dump())
+    require_tenant_fk(db, Role, body.group_role_id, tenant_id, "group_role_id")
+    require_tenant_fk(db, Role, body.member_role_id, tenant_id, "member_role_id")
+    membership = RoleMembership(tenant_id=tenant_id, **body.model_dump())
     db.add(membership)
     db.commit()
     db.refresh(membership)
@@ -176,11 +151,13 @@ def create_role_membership(
 def get_role_membership(
     membership_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
 ) -> RoleMembership:
-    return _get_membership_or_404(db, membership_id, tenant_id)
+    return get_or_404(db, RoleMembership, membership_id, tenant_id, "Role membership not found")
 
 
 @router.delete("/role-memberships/{membership_id}", status_code=204)
 def delete_role_membership(membership_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
-    membership = _get_membership_or_404(db, membership_id, tenant_id)
+    membership = get_or_404(
+        db, RoleMembership, membership_id, tenant_id, "Role membership not found"
+    )
     membership.is_deleted = True
     db.commit()
