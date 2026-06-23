@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from app.models.patrol import Patrol
     from app.models.relationship import MemberRelationship
     from app.models.role import MemberRoleAssignment
-    from app.models.user import User
+    from app.models.user import User  # User does not import Member, so no cycle
 
 
 class Member(TrackedBase):
@@ -82,7 +82,7 @@ class Member(TrackedBase):
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id"), nullable=True, index=True
     )
-    user: Mapped[User | None] = relationship("User", back_populates="member_records")
+    user: Mapped[User | None] = relationship("User")
 
     patrol_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("patrols.id"), nullable=True)
     patrol: Mapped[Patrol | None] = relationship(back_populates="members")

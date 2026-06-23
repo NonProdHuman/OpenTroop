@@ -1,15 +1,11 @@
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import PlatformBase
-
-if TYPE_CHECKING:
-    from app.models.member import Member
 
 
 class User(PlatformBase):
@@ -17,8 +13,9 @@ class User(PlatformBase):
 
     One User may hold many Identity records (one per OIDC provider) and may
     have Member records in multiple tenants (troops).  The link from Member
-    to User is nullable so that roster-only contacts (non-registered parents,
-    family members) can exist without a login account.
+    to User is a one-directional FK on Member.user_id; navigate the reverse
+    with a query rather than an ORM backref to avoid a module-level cyclic
+    import between user.py and member.py.
     """
 
     __tablename__ = "users"
@@ -27,7 +24,6 @@ class User(PlatformBase):
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     identities: Mapped[list[Identity]] = relationship("Identity", back_populates="user")
-    member_records: Mapped[list[Member]] = relationship("Member", back_populates="user")
 
 
 class Identity(PlatformBase):
