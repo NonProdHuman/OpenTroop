@@ -1,0 +1,17 @@
+# Automatically merged by `docker compose up` on local developer machines.
+# Binds ports to 127.0.0.1 only — the API and database are not reachable
+# from other devices on the local network.
+#
+# The base docker-compose.yml intentionally omits port bindings so this file
+# is the only place they are defined for local use.
+#
+# CI uses SQLite (no Docker needed for the test suite).
+# Production deployments use their own infrastructure, not this file.
+services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  backend:
+    ports:
+      - "127.0.0.1:8000:8000"

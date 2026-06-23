@@ -5,8 +5,6 @@ services:
       POSTGRES_USER: opentroop
       POSTGRES_PASSWORD: opentroop
       POSTGRES_DB: opentroop
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -19,8 +17,6 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: postgresql+psycopg://opentroop:opentroop@db:5432/opentroop
-    ports:
-      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
