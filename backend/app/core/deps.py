@@ -1,22 +1,18 @@
 import uuid
 from typing import Annotated
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.auth import get_current_user
 from app.core.database import get_db
+from app.core.tenant import get_tenant_id
 from app.models.base import TrackedBase
+from app.models.user import User
 
-
-def _parse_tenant_id(x_tenant_id: Annotated[str, Header()]) -> uuid.UUID:
-    try:
-        return uuid.UUID(x_tenant_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="X-Tenant-ID must be a valid UUID") from exc
-
-
-TenantDep = Annotated[uuid.UUID, Depends(_parse_tenant_id)]
+TenantDep = Annotated[uuid.UUID, Depends(get_tenant_id)]
 DbDep = Annotated[Session, Depends(get_db)]
+CurrentUserDep = Annotated[User, Depends(get_current_user)]
 
 
 def get_or_404[T: TrackedBase](
