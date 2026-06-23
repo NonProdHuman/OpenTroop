@@ -4,11 +4,10 @@
 """
 
 import jwt
-import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import settings
-from tests.conftest import ADMIN_USER_ID, NEW_USER_ID, TENANT_A
+from tests.conftest import NEW_USER_ID, TENANT_A
 
 
 def _create_member(client: TestClient, **overrides: object) -> dict:

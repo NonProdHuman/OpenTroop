@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     app_domain: str = "opentroop.org"
 
     # Secret used to sign member invite/claim tokens (HS256). Must be changed in production.
-    app_secret: str = "change-me-in-production"
+    app_secret: str = "change-me-in-production"  # noqa: S105
 
 
 settings = Settings()

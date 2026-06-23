@@ -2,7 +2,7 @@
 
 from fastapi.testclient import TestClient
 
-from tests.conftest import NEW_USER_ID, TENANT_A
+from tests.conftest import NEW_USER_ID
 
 
 def _provision(client: TestClient, slug: str = "troop123", **overrides: object) -> dict:

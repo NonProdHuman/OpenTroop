@@ -3,7 +3,8 @@ from collections.abc import Generator
 from typing import Annotated
 
 import pytest
-from fastapi import Header, HTTPException, status as http_status
+from fastapi import Header, HTTPException
+from fastapi import status as http_status
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker

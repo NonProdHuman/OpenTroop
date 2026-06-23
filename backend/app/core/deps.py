@@ -1,7 +1,6 @@
 import uuid
 from collections.abc import Callable
-from typing import Any
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException
 from sqlalchemy import select
@@ -9,9 +8,11 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
 from app.core.database import get_db
+from app.core.permissions import resolve_permissions
 from app.core.tenant import get_tenant_id
 from app.models.base import TrackedBase
 from app.models.enums import Permission
+from app.models.member import Member
 from app.models.user import User
 
 TenantDep = Annotated[uuid.UUID, Depends(get_tenant_id)]
@@ -43,10 +44,6 @@ def require(permission: Permission) -> Callable[..., Any]:
     checks permissions through the role hierarchy. Raises 403 if the user has no
     Member row in this tenant or lacks the required permission.
     """
-    from sqlalchemy import select
-
-    from app.core.permissions import resolve_permissions
-    from app.models.member import Member
 
     async def _check(
         user: CurrentUserDep,

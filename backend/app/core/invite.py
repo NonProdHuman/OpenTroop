@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt
 from fastapi import HTTPException, status
@@ -10,7 +10,7 @@ from app.core.config import settings
 
 _CLAIM_DAYS = 7
 _ALGORITHM = "HS256"
-_TOKEN_TYPE = "member_claim"
+_TOKEN_TYPE = "member_claim"  # noqa: S105
 
 
 def create_invite_token(member_id: uuid.UUID, tenant_id: uuid.UUID) -> tuple[str, datetime]:
@@ -19,7 +19,7 @@ def create_invite_token(member_id: uuid.UUID, tenant_id: uuid.UUID) -> tuple[str
     The token encodes member_id, tenant_id, and a type discriminator so it
     cannot be reused for other token purposes in the same app.
     """
-    expires_at = datetime.now(timezone.utc) + timedelta(days=_CLAIM_DAYS)
+    expires_at = datetime.now(UTC) + timedelta(days=_CLAIM_DAYS)
     payload = {
         "sub": str(member_id),
         "tid": str(tenant_id),
