@@ -43,12 +43,14 @@ membership model.
 - [x] Pydantic v2 schemas, Alembic setup, pytest suite on SQLite
 - [x] Initial Alembic migration (requires live Postgres)
 - [x] FastAPI CRUD endpoints for Patrol, Member, MemberRelationship
-- [ ] Role-based access control — permission model and `resolve_permissions` done;
-      auth guards not yet wired to route handlers
+- [x] Role-based access control — permission guards wired to all route handlers;
+      `require(permission)` dependency checks the caller's Member + role hierarchy
 - [x] Auth (JWT; consider Scoutbook SSO as a future option)
 - [ ] TroopWebHost roster CSV import
 - [ ] Scoutbook member export import (BSA recharter format)
-- [ ] Multi-tenant provisioning (troop onboarding flow)
+- [x] Multi-tenant provisioning — `POST /tenants/` bootstraps Tenant + founding admin
+      Member + administrators Role atomically; invite/claim flow links existing
+      roster entries to login accounts via signed tokens
 
 ### Pillar 2 — Events & Calendar
 
