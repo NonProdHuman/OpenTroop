@@ -26,6 +26,13 @@ repos:
         pass_filenames: false
         files: ^backend/
         types_or: [python, pyi]
+      - id: mypy
+        name: mypy
+        language: system
+        entry: bash -c 'cd backend && uv run python -m mypy app'
+        pass_filenames: false
+        files: ^backend/
+        types_or: [python, pyi]
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.18.4
