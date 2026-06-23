@@ -65,10 +65,29 @@ and Python linting/formatting via ruff (pinned to the version in `uv.lock`).
 
 ## Data model (Phase 1)
 
-- **Patrol** — a named unit grouping scouts.
-- **Member** — scouts and adults (`member_type`), with a troop position
-  (`troop_role`), BSA aquatics `swim_classification`, and optional patrol.
-- **MemberRelationship** — guardian graph linking adult members to scout members.
+**Platform-level (global, no tenant scope):**
+- **Tenant** — one row per troop; its `id` is the `tenant_id` on every other table.
+- **User** — a platform login identity (spans tenants; one person can be a member in multiple troops).
+- **Identity** — one OIDC provider credential per User (Google, Apple, passkeys, etc.).
 
-All tables inherit `id` (UUIDv7), `tenant_id`, `created_at`, `updated_at`, and
-`is_deleted` from a shared tracked base.
+**Tenant-scoped (every row carries `tenant_id`):**
+- **Patrol** — a named unit grouping scouts.
+- **Member** — scouts and adults, with BSA `swim_classification`, optional patrol, and a nullable link to a `User` login account.
+- **MemberRelationship** — guardian/parent/sibling graph linking members.
+- **Role / RolePermission / RoleMembership** — two-tier RBAC: functional groups hold permissions; positions inherit from groups.
+- **MemberRoleAssignment** — assigns a member to a role, with a soft-delete audit trail.
+
+All tables inherit `id` (UUIDv7), `created_at`, `updated_at`, and `is_deleted` from a shared base.
+Tenant-scoped tables additionally carry `tenant_id`.
+
+## Authentication
+
+OpenTroop validates standard OIDC JWTs — any compliant provider works.
+See **[docs/auth-provider-setup.md](docs/auth-provider-setup.md)** for step-by-step
+Clerk (SaaS) and Authentik (self-hosted) setup.
+
+## Deployment
+
+See **[docs/deployment.md](docs/deployment.md)** for a full guide.
+The recommended production setup is **Google Cloud Run + Cloud SQL**, which
+starts at ~$10–15/month and scales to hundreds of troops without rearchitecting.
