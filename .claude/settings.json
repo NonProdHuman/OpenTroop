@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd backend && uv run pytest"
+            "command": "cd /home/user/OpenTroop/backend && uv run pytest"
           }
         ]
       }

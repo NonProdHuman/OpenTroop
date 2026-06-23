@@ -13,6 +13,7 @@ dependencies = [
     "pydantic-settings>=2.2",
     "email-validator>=2.1",
     "uuid6>=2024.1.12",
+    "pyjwt[crypto]>=2.8",
 ]
 
 [dependency-groups]

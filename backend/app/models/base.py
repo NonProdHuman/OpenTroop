@@ -14,6 +14,26 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+class PlatformBase(Base):
+    """Abstract base for platform-level entities that span tenants.
+
+    Omits ``tenant_id`` intentionally — User, Identity, and Tenant records are
+    global to the platform, not scoped to a single troop.  Every other table
+    MUST use ``TrackedBase`` instead.
+    """
+
+    __abstract__ = True
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid7)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
+    )
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+
+
 class TrackedBase(Base):
     """Abstract base applying the offline-sync tracking contract to every table.
 

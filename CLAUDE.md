@@ -61,7 +61,7 @@ environment.
 
 ### Sync-aware schema contract (critical)
 
-Every table MUST inherit `TrackedBase` (`app/models/base.py`), which supplies:
+Every tenant-scoped table MUST inherit `TrackedBase` (`app/models/base.py`), which supplies:
 
 - `id` — **UUIDv7** primary key (`uuid6.uuid7`), client-generatable offline and
   time-ordered for index locality. Never use sequential integer PKs.
@@ -69,18 +69,33 @@ Every table MUST inherit `TrackedBase` (`app/models/base.py`), which supplies:
 - `created_at` / `updated_at` — timezone-aware, auto-managed (conflict signals).
 - `is_deleted` — soft-delete tombstone; deletes are logical, not physical.
 
+**Cross-tenant platform entities** (Tenant, User, Identity) use `PlatformBase`
+instead. `PlatformBase` has the same `id`, timestamps, and `is_deleted` as
+`TrackedBase` but **no `tenant_id`**.
+
 The dialect-agnostic SQLAlchemy `Uuid` type lets the Postgres-targeted models run
 unmodified on SQLite, which is how the test suite stays DB-free.
 
 ### Domain model (`app/models/`)
 
+**Platform-level (PlatformBase, no tenant_id):**
+
+- `Tenant` — one row per troop. Fields: `name`, `slug` (unique; used for subdomain
+  routing). `Tenant.id` is the value stored in `tenant_id` on all `TrackedBase` rows.
+- `User` — a platform-level person identity. Fields: `email`, `display_name`. One
+  `User` may have `Member` records in multiple tenants. To fetch a user's members,
+  query `Member.user_id == user.id`; there is no ORM backref to avoid a cyclic import.
+- `Identity` — a single OIDC credential bound to a `User`. Unique on
+  `(issuer, provider_sub)` — the JWT `iss` + `sub` pair. Supports any compliant
+  OIDC provider (Clerk, Authentik, Google, Apple, …).
+
+**Tenant-scoped (TrackedBase):**
+
 - `Patrol` — named unit; one-to-many to `Member`.
 - `Member` — scouts and adults. Key enums: `member_type` (scout/adult),
   `membership_status` (active/inactive/alumni — distinct from `is_deleted`; alumni
   records remain visible to leaders for history while `is_deleted=True` purges the
-  record from sync payloads entirely), `troop_role` (scoutmaster, ASM, SPL,
-  treasurer, none, … — convenience denormalization; authoritative history goes in a
-  future `LeadershipHistory` table), `swim_classification` (BSA: nonswimmer/beginner/
+  record from sync payloads entirely), `swim_classification` (BSA: nonswimmer/beginner/
   swimmer). Extended fields: full mailing address, date_of_birth, nickname,
   name_suffix, medical form dates (ab/c), swim_date, allergies,
   dietary_restrictions, two emergency contacts, notes.
@@ -90,6 +105,8 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   `(tenant_id, bsa_id) WHERE bsa_id IS NOT NULL` prevents duplicate registrations
   within a troop while permitting multiple null values. It is declared in
   `Member.__table_args__` and created by the initial Alembic migration.
+  `user_id` (nullable FK → `users.id`) links the roster record to the platform
+  identity once a member claims their account.
 - `MemberRelationship` — directional family link between any two members.
   `from_member_id` / `to_member_id` (both FKs into `members`). Relationship types:
   `parent_of`, `guardian_of` (from_member is the adult; to_member is the child/ward),
@@ -118,10 +135,27 @@ unmodified on SQLite, which is how the test suite stays DB-free.
 
 Enums live in `app/models/enums.py` and are shared between ORM models and schemas.
 
+### Auth architecture
+
+- **JWT validation** (`app/core/auth.py`): `decode_token` fetches the JWKS from
+  `AUTH_JWKS_URI`, validates RS256/ES256 signatures, and checks `aud` only when
+  `AUTH_AUDIENCE` is set (omit for providers that don't use `aud`).
+- **User provisioning**: `get_or_create_user` maps validated `(iss, sub)` claims to a
+  `User` + `Identity` row pair, creating both atomically on first login.
+- **Tenant resolution** (`app/core/tenant.py`): `get_tenant_id` resolves the tenant
+  from the request subdomain first (`troop123.opentroop.org` → slug lookup), then
+  falls back to the `X-Tenant-ID` header (raw UUID → DB validation). Nested
+  subdomains are rejected to prevent Host-header spoofing.
+- **FastAPI dependencies** (`app/core/deps.py`): `TenantDep`, `DbDep`,
+  `CurrentUserDep` — wire these into route handlers to enforce auth and tenant scope.
+
 ### Conventions
 
 - ORM models in `app/models/`, Pydantic schemas in `app/schemas/` (kept separate).
-  Each resource exposes `*Base` / `*Create` / `*Update` / `*Read` schemas;
-  `*Read` inherits `TrackedRead` and uses `from_attributes=True`.
-- New models: subclass `TrackedBase`, then add the class to `app/models/__init__.py`
-  so it registers on `Base.metadata` for tests and Alembic autogenerate.
+  Each resource exposes `*Base` / `*Create` / `*Update` / `*Read` schemas.
+  `*Read` for tenant-scoped models inherits `TrackedRead`; for platform models it
+  inherits `PlatformRead`. Both use `from_attributes=True`.
+- New tenant-scoped models: subclass `TrackedBase`, then add the class to
+  `app/models/__init__.py` so it registers on `Base.metadata` for tests and Alembic
+  autogenerate.
+- New platform-level models: subclass `PlatformBase` instead (no `tenant_id`).

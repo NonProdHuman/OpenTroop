@@ -41,10 +41,11 @@ membership model.
 - [x] `TrackedBase` mixin: UUIDv7 PK, `tenant_id`, timestamps, soft-delete
 - [x] `Patrol`, `Member` (type + role + BSA swim classification), `MemberRelationship` guardian graph
 - [x] Pydantic v2 schemas, Alembic setup, pytest suite on SQLite
-- [ ] Initial Alembic migration (requires live Postgres)
-- [ ] FastAPI CRUD endpoints for Patrol, Member, MemberRelationship
-- [ ] Role-based access control (Scoutmaster, ASM, Committee Chair, read-only parent)
-- [ ] Auth (JWT; consider Scoutbook SSO as a future option)
+- [x] Initial Alembic migration (requires live Postgres)
+- [x] FastAPI CRUD endpoints for Patrol, Member, MemberRelationship
+- [ ] Role-based access control — permission model and `resolve_permissions` done;
+      auth guards not yet wired to route handlers
+- [x] Auth (JWT; consider Scoutbook SSO as a future option)
 - [ ] TroopWebHost roster CSV import
 - [ ] Scoutbook member export import (BSA recharter format)
 - [ ] Multi-tenant provisioning (troop onboarding flow)
