@@ -46,7 +46,7 @@ async def get_tenant_id(
     if slug:
         tenant = db.scalar(select(Tenant).where(Tenant.slug == slug, Tenant.is_deleted.is_(False)))
         if tenant is None:
-            raise HTTPException(status_code=404, detail=f"Tenant '{slug}' not found")
+            raise HTTPException(status_code=404, detail="Tenant not found")
         return tenant.id
 
     if x_tenant_id is not None:

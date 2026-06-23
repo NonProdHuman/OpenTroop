@@ -32,14 +32,19 @@ def decode_token(token: str) -> dict[str, Any]:
     """Validate a JWT against the configured JWKS. Raises HTTP 401 on any failure."""
     try:
         signing_key = _get_jwks_client().get_signing_key_from_jwt(token)
+        # Pass audience only when configured; PyJWT skips aud verification when
+        # audience=None, which is acceptable for deployments that don't use aud.
+        audience: str | None = settings.auth_audience if settings.auth_audience else None
         return jwt.decode(
             token,
             signing_key.key,
             algorithms=["RS256", "ES256"],
-            audience=settings.auth_audience or None,
+            audience=audience,
         )
     except jwt.exceptions.PyJWTError as exc:
-        logger.debug("JWT validation failed: %s", exc)
+        # Log only the exception class, not the message — the message may contain
+        # token fragments that CodeQL (correctly) treats as sensitive log data.
+        logger.debug("JWT validation failed: %s", type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
