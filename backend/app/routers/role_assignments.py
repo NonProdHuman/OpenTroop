@@ -15,14 +15,18 @@ from app.schemas.role import MemberRoleAssignmentBase, MemberRoleAssignmentRead
 router = APIRouter(prefix="/role-assignments", tags=["role-assignments"])
 
 
-def _get_or_404(db: Session, assignment_id: uuid.UUID, tenant_id: uuid.UUID) -> MemberRoleAssignment:
+def _get_or_404(
+    db: Session, assignment_id: uuid.UUID, tenant_id: uuid.UUID
+) -> MemberRoleAssignment:
     a = db.get(MemberRoleAssignment, assignment_id)
     if not a or a.tenant_id != tenant_id or a.is_deleted:
         raise HTTPException(status_code=404, detail="Role assignment not found")
     return a
 
 
-def _check_member_tenant(db: Session, member_id: uuid.UUID, tenant_id: uuid.UUID, field: str) -> None:
+def _check_member_tenant(
+    db: Session, member_id: uuid.UUID, tenant_id: uuid.UUID, field: str
+) -> None:
     m = db.get(Member, member_id)
     if not m or m.tenant_id != tenant_id or m.is_deleted:
         raise HTTPException(status_code=422, detail=f"{field} not found in this tenant")
@@ -53,7 +57,9 @@ def list_role_assignments(
 
 
 @router.post("/", response_model=MemberRoleAssignmentRead, status_code=201)
-def create_role_assignment(body: MemberRoleAssignmentBase, tenant_id: TenantDep, db: DbDep) -> MemberRoleAssignment:
+def create_role_assignment(
+    body: MemberRoleAssignmentBase, tenant_id: TenantDep, db: DbDep
+) -> MemberRoleAssignment:
     _check_member_tenant(db, body.member_id, tenant_id, "member_id")
     _check_role_tenant(db, body.role_id, tenant_id)
     if body.assigned_by_id is not None:
@@ -66,7 +72,9 @@ def create_role_assignment(body: MemberRoleAssignmentBase, tenant_id: TenantDep,
 
 
 @router.get("/{assignment_id}", response_model=MemberRoleAssignmentRead)
-def get_role_assignment(assignment_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> MemberRoleAssignment:
+def get_role_assignment(
+    assignment_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
+) -> MemberRoleAssignment:
     return _get_or_404(db, assignment_id, tenant_id)
 
 

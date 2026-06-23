@@ -42,7 +42,9 @@ def get_patrol(patrol_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Patrol:
 
 
 @router.patch("/{patrol_id}", response_model=PatrolRead)
-def update_patrol(patrol_id: uuid.UUID, body: PatrolUpdate, tenant_id: TenantDep, db: DbDep) -> Patrol:
+def update_patrol(
+    patrol_id: uuid.UUID, body: PatrolUpdate, tenant_id: TenantDep, db: DbDep
+) -> Patrol:
     patrol = _get_or_404(db, patrol_id, tenant_id)
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(patrol, k, v)

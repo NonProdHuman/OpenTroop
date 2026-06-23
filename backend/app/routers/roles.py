@@ -93,7 +93,9 @@ def _get_perm_or_404(
 
 
 @router.get("/roles/{role_id}/permissions/", response_model=list[RolePermissionRead])
-def list_role_permissions(role_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Sequence[RolePermission]:
+def list_role_permissions(
+    role_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
+) -> Sequence[RolePermission]:
     _get_role_or_404(db, role_id, tenant_id)
     return db.scalars(
         select(RolePermission).where(
@@ -105,7 +107,9 @@ def list_role_permissions(role_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -
 
 
 @router.post("/roles/{role_id}/permissions/", response_model=RolePermissionRead, status_code=201)
-def add_role_permission(role_id: uuid.UUID, body: _PermissionBody, tenant_id: TenantDep, db: DbDep) -> RolePermission:
+def add_role_permission(
+    role_id: uuid.UUID, body: _PermissionBody, tenant_id: TenantDep, db: DbDep
+) -> RolePermission:
     _get_role_or_404(db, role_id, tenant_id)
     perm = RolePermission(
         id=uuid7(), tenant_id=tenant_id, role_id=role_id, permission=body.permission
@@ -117,7 +121,9 @@ def add_role_permission(role_id: uuid.UUID, body: _PermissionBody, tenant_id: Te
 
 
 @router.delete("/roles/{role_id}/permissions/{perm_id}", status_code=204)
-def remove_role_permission(role_id: uuid.UUID, perm_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
+def remove_role_permission(
+    role_id: uuid.UUID, perm_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
+) -> None:
     perm = _get_perm_or_404(db, perm_id, role_id, tenant_id)
     perm.is_deleted = True
     db.commit()
@@ -128,7 +134,9 @@ def remove_role_permission(role_id: uuid.UUID, perm_id: uuid.UUID, tenant_id: Te
 # ---------------------------------------------------------------------------
 
 
-def _get_membership_or_404(db: Session, membership_id: uuid.UUID, tenant_id: uuid.UUID) -> RoleMembership:
+def _get_membership_or_404(
+    db: Session, membership_id: uuid.UUID, tenant_id: uuid.UUID
+) -> RoleMembership:
     m = db.get(RoleMembership, membership_id)
     if not m or m.tenant_id != tenant_id or m.is_deleted:
         raise HTTPException(status_code=404, detail="Role membership not found")
@@ -152,7 +160,9 @@ def list_role_memberships(tenant_id: TenantDep, db: DbDep) -> Sequence[RoleMembe
 
 
 @router.post("/role-memberships/", response_model=RoleMembershipRead, status_code=201)
-def create_role_membership(body: RoleMembershipBase, tenant_id: TenantDep, db: DbDep) -> RoleMembership:
+def create_role_membership(
+    body: RoleMembershipBase, tenant_id: TenantDep, db: DbDep
+) -> RoleMembership:
     _check_role_tenant(db, body.group_role_id, tenant_id, "group_role_id")
     _check_role_tenant(db, body.member_role_id, tenant_id, "member_role_id")
     membership = RoleMembership(id=uuid7(), tenant_id=tenant_id, **body.model_dump())
@@ -163,7 +173,9 @@ def create_role_membership(body: RoleMembershipBase, tenant_id: TenantDep, db: D
 
 
 @router.get("/role-memberships/{membership_id}", response_model=RoleMembershipRead)
-def get_role_membership(membership_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> RoleMembership:
+def get_role_membership(
+    membership_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
+) -> RoleMembership:
     return _get_membership_or_404(db, membership_id, tenant_id)
 
 

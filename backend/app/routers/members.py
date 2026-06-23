@@ -51,7 +51,9 @@ def get_member(member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Member:
 
 
 @router.patch("/{member_id}", response_model=MemberRead)
-def update_member(member_id: uuid.UUID, body: MemberUpdate, tenant_id: TenantDep, db: DbDep) -> Member:
+def update_member(
+    member_id: uuid.UUID, body: MemberUpdate, tenant_id: TenantDep, db: DbDep
+) -> Member:
     member = _get_or_404(db, member_id, tenant_id)
     updates = body.model_dump(exclude_unset=True)
     if "patrol_id" in updates and updates["patrol_id"] is not None:

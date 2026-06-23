@@ -26,7 +26,9 @@ def _get_or_404(db: Session, rel_id: uuid.UUID, tenant_id: uuid.UUID) -> MemberR
     return rel
 
 
-def _check_member_tenant(db: Session, member_id: uuid.UUID, tenant_id: uuid.UUID, field: str) -> None:
+def _check_member_tenant(
+    db: Session, member_id: uuid.UUID, tenant_id: uuid.UUID, field: str
+) -> None:
     member = db.get(Member, member_id)
     if not member or member.tenant_id != tenant_id or member.is_deleted:
         raise HTTPException(status_code=422, detail=f"{field} not found in this tenant")
@@ -53,7 +55,9 @@ def list_relationships(
 
 
 @router.post("/", response_model=MemberRelationshipRead, status_code=201)
-def create_relationship(body: MemberRelationshipBase, tenant_id: TenantDep, db: DbDep) -> MemberRelationship:
+def create_relationship(
+    body: MemberRelationshipBase, tenant_id: TenantDep, db: DbDep
+) -> MemberRelationship:
     _check_member_tenant(db, body.from_member_id, tenant_id, "from_member_id")
     _check_member_tenant(db, body.to_member_id, tenant_id, "to_member_id")
     rel = MemberRelationship(id=uuid7(), tenant_id=tenant_id, **body.model_dump())
