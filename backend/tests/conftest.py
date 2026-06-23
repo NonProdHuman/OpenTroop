@@ -3,7 +3,7 @@ from collections.abc import Generator
 from typing import Annotated
 
 import pytest
-from fastapi import Header
+from fastapi import Header, HTTPException, status as http_status
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -29,6 +29,14 @@ _ADMIN_MEMBER_IDS: dict[uuid.UUID, uuid.UUID] = {
     TENANT_B: uuid.UUID("b0000000-0000-0000-0000-000000000020"),
 }
 
+# A second user with no pre-seeded Member — used for claim / onboarding tests.
+NEW_USER_ID = uuid.UUID("c0000000-0000-0000-0000-000000000001")
+
+_USERS = {
+    str(ADMIN_USER_ID): User(id=ADMIN_USER_ID, email="admin@test.com", display_name="Test Admin"),
+    str(NEW_USER_ID): User(id=NEW_USER_ID, email="newuser@test.com", display_name="New User"),
+}
+
 
 async def _simple_tenant_id(x_tenant_id: Annotated[str, Header()]) -> uuid.UUID:
     """Test-only override: read tenant UUID directly from the X-Tenant-ID header.
@@ -40,9 +48,22 @@ async def _simple_tenant_id(x_tenant_id: Annotated[str, Header()]) -> uuid.UUID:
     return uuid.UUID(x_tenant_id)
 
 
-async def _fake_current_user() -> User:
-    """Test-only override: return a fixed User without JWT validation."""
-    return User(id=ADMIN_USER_ID, email="admin@test.com", display_name="Test Admin")
+async def _test_current_user(
+    x_test_user_id: Annotated[str | None, Header()] = None,
+) -> User:
+    """Test-only override: select the active user from a per-request header.
+
+    Using a header (rather than a fixed lambda) lets multiple test clients with
+    different identities coexist in the same test without conflicting on the
+    single ``dependency_overrides`` slot for ``get_current_user``.
+    """
+    if x_test_user_id is not None and x_test_user_id in _USERS:
+        return _USERS[x_test_user_id]
+    raise HTTPException(
+        status_code=http_status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 def _seed_admin(session: Session, tenant_id: uuid.UUID) -> None:
@@ -81,6 +102,12 @@ def _seed_admin(session: Session, tenant_id: uuid.UUID) -> None:
         session.flush()
 
 
+def _set_shared_overrides(db_session: Session) -> None:
+    app.dependency_overrides[get_db] = lambda: db_session
+    app.dependency_overrides[get_tenant_id] = _simple_tenant_id
+    app.dependency_overrides[get_current_user] = _test_current_user
+
+
 @pytest.fixture
 def db_session() -> Generator[Session, None, None]:
     """In-memory SQLite session with all tables created from the ORM metadata.
@@ -108,12 +135,16 @@ def db_session() -> Generator[Session, None, None]:
 
 @pytest.fixture
 def client(db_session: Session) -> Generator[TestClient, None, None]:
-    """TestClient scoped to TENANT_A, sharing the in-memory SQLite session."""
+    """TestClient scoped to TENANT_A, authenticated as ADMIN_USER_ID."""
     _seed_admin(db_session, TENANT_A)
-    app.dependency_overrides[get_db] = lambda: db_session
-    app.dependency_overrides[get_tenant_id] = _simple_tenant_id
-    app.dependency_overrides[get_current_user] = _fake_current_user
-    with TestClient(app, headers={"X-Tenant-ID": str(TENANT_A)}) as c:
+    _set_shared_overrides(db_session)
+    with TestClient(
+        app,
+        headers={
+            "X-Tenant-ID": str(TENANT_A),
+            "X-Test-User-ID": str(ADMIN_USER_ID),
+        },
+    ) as c:
         yield c
     app.dependency_overrides.clear()
 
@@ -122,9 +153,27 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
 def other_client(db_session: Session) -> Generator[TestClient, None, None]:
     """TestClient scoped to TENANT_B — same DB session, different tenant."""
     _seed_admin(db_session, TENANT_B)
-    app.dependency_overrides[get_db] = lambda: db_session
-    app.dependency_overrides[get_tenant_id] = _simple_tenant_id
-    app.dependency_overrides[get_current_user] = _fake_current_user
-    with TestClient(app, headers={"X-Tenant-ID": str(TENANT_B)}) as c:
+    _set_shared_overrides(db_session)
+    with TestClient(
+        app,
+        headers={
+            "X-Tenant-ID": str(TENANT_B),
+            "X-Test-User-ID": str(ADMIN_USER_ID),
+        },
+    ) as c:
+        yield c
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def claim_client(db_session: Session) -> Generator[TestClient, None, None]:
+    """TestClient authenticated as NEW_USER_ID with no pre-seeded Member in any tenant.
+
+    Used to test the invite/claim and tenant onboarding flows.  The shared
+    ``_test_current_user`` override means this fixture coexists safely with
+    ``client`` and ``other_client`` in the same test.
+    """
+    _set_shared_overrides(db_session)
+    with TestClient(app, headers={"X-Test-User-ID": str(NEW_USER_ID)}) as c:
         yield c
     app.dependency_overrides.clear()

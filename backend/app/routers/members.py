@@ -1,14 +1,15 @@
 import uuid
 from collections.abc import Sequence
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
 from app.core.deps import DbDep, TenantDep, get_or_404, require, require_tenant_fk
+from app.core.invite import create_invite_token
 from app.models.enums import Permission
 from app.models.member import Member
 from app.models.patrol import Patrol
-from app.schemas.member import MemberBase, MemberRead, MemberUpdate
+from app.schemas.member import MemberBase, MemberInviteRead, MemberRead, MemberUpdate
 
 router = APIRouter(prefix="/members", tags=["members"])
 
@@ -56,3 +57,20 @@ def delete_member(member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None
     member = get_or_404(db, Member, member_id, tenant_id, "Member not found")
     member.is_deleted = True
     db.commit()
+
+
+@router.post("/{member_id}/invite", response_model=MemberInviteRead, dependencies=[Depends(require(Permission.ROLE_ASSIGN))])
+def invite_member(member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> MemberInviteRead:
+    """Generate a signed claim token so a member can link their login account.
+
+    The token is valid for 7 days. Returns 409 if the member already has a
+    linked user account.
+    """
+    member = get_or_404(db, Member, member_id, tenant_id, "Member not found")
+    if member.user_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Member already has a linked user account",
+        )
+    token, expires_at = create_invite_token(member_id, tenant_id)
+    return MemberInviteRead(token=token, expires_at=expires_at)

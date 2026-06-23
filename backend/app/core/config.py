@@ -19,5 +19,8 @@ class Settings(BaseSettings):
     # Domain used for subdomain tenant routing (e.g. troop123.opentroop.org → "opentroop.org")
     app_domain: str = "opentroop.org"
 
+    # Secret used to sign member invite/claim tokens (HS256). Must be changed in production.
+    app_secret: str = "change-me-in-production"
+
 
 settings = Settings()
