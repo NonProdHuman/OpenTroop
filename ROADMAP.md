@@ -143,6 +143,51 @@ vendor lock-in.
 - [ ] Medical form storage with expiration tracking (BSA Annual Health & Medical Record)
 - [ ] TroopWebHost-compatible data export (migration path for troops leaving TWH)
 
+#### Natural Language Reports (Text-to-SQL)
+
+Troop reporting needs are too varied to cover with a fixed set of UI screens —
+a leader asking "which scouts have not yet completed their swimming requirement
+before summer camp?" is a different query than "what merit badges were earned
+between June and August?" Rather than trying to build a form for every edge case,
+a Text-to-SQL layer lets any leader ask questions in plain English.
+
+**How it works:**
+
+1. Leader types a natural language question in the app.
+2. The backend sends the question to an LLM along with: (a) the current database
+   schema (table names, column names, types, and relationships), and (b) a small
+   set of representative sample rows per table (no PII beyond what is needed for
+   the model to understand the shape of the data).
+3. The LLM returns a SQL `SELECT` query — no writes, no DDL.
+4. The backend executes that query against a **read-only replica connection string**
+   (separate from the write connection) scoped to the requesting `tenant_id`.
+5. Results are rendered as a table or exported to CSV/PDF.
+
+**Safety constraints:**
+
+- Read-only Postgres role on the replica — the database enforces this, not
+  application code.
+- All queries are appended with a `WHERE tenant_id = :tenant_id` guard before
+  execution to prevent cross-tenant data leakage.
+- Query execution timeout and row-count cap prevent runaway queries.
+- The generated SQL is logged per-request for audit and debugging.
+
+**Tasks:**
+
+- [ ] Read-only Postgres replica connection string support (env var `DATABASE_URL_READONLY`)
+- [ ] Schema introspection endpoint — serializes `Base.metadata` into a prompt-friendly
+      description (table → columns → types → FK relationships)
+- [ ] Sample data extractor — pulls N anonymized rows per table for LLM context
+- [ ] LLM query generation service (`POST /api/reports/natural-language`) — sends
+      schema + sample data + question to Claude; returns raw SQL
+- [ ] SQL safety layer — parse and validate that the returned query is a single
+      `SELECT`; inject `tenant_id` filter; enforce timeout + row cap
+- [ ] Query execution and result formatting (table view + CSV export)
+- [ ] PDF export for natural language query results
+- [ ] UI: natural language query input with result table and export controls
+- [ ] Prompt library — pre-written example questions to help leaders get started
+      ("scouts due for rank advancement", "attendance by patrol last 90 days", etc.)
+
 ---
 
 ## Mobile Applications
