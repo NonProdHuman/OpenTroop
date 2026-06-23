@@ -2,7 +2,7 @@
 name = "opentroop-backend"
 version = "0.1.0"
 description = "OpenTroop backend - offline-first troop management API"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
@@ -31,7 +31,7 @@ pythonpath = ["."]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 exclude = ["alembic/versions/"]
 
 [tool.ruff.lint]
@@ -42,7 +42,7 @@ ignore = ["E501"]
 "tests/**" = ["S101"]  # assert is fine in tests
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 strict = true
 plugins = ["sqlalchemy.ext.mypy.plugin"]
 # Third-party packages without stubs
