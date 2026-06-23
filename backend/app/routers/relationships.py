@@ -1,8 +1,10 @@
 import uuid
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import or_, select
+from sqlalchemy.orm import Session
 from uuid6 import uuid7
 
 from app.core.deps import DbDep, TenantDep
@@ -17,14 +19,14 @@ from app.schemas.relationship import (
 router = APIRouter(prefix="/relationships", tags=["relationships"])
 
 
-def _get_or_404(db, rel_id: uuid.UUID, tenant_id: uuid.UUID) -> MemberRelationship:
+def _get_or_404(db: Session, rel_id: uuid.UUID, tenant_id: uuid.UUID) -> MemberRelationship:
     rel = db.get(MemberRelationship, rel_id)
     if not rel or rel.tenant_id != tenant_id or rel.is_deleted:
         raise HTTPException(status_code=404, detail="Relationship not found")
     return rel
 
 
-def _check_member_tenant(db, member_id: uuid.UUID, tenant_id: uuid.UUID, field: str) -> None:
+def _check_member_tenant(db: Session, member_id: uuid.UUID, tenant_id: uuid.UUID, field: str) -> None:
     member = db.get(Member, member_id)
     if not member or member.tenant_id != tenant_id or member.is_deleted:
         raise HTTPException(status_code=422, detail=f"{field} not found in this tenant")
@@ -35,7 +37,7 @@ def list_relationships(
     tenant_id: TenantDep,
     db: DbDep,
     member_id: Annotated[uuid.UUID | None, Query()] = None,
-):
+) -> Sequence[MemberRelationship]:
     q = select(MemberRelationship).where(
         MemberRelationship.tenant_id == tenant_id,
         MemberRelationship.is_deleted.is_(False),
@@ -51,7 +53,7 @@ def list_relationships(
 
 
 @router.post("/", response_model=MemberRelationshipRead, status_code=201)
-def create_relationship(body: MemberRelationshipBase, tenant_id: TenantDep, db: DbDep):
+def create_relationship(body: MemberRelationshipBase, tenant_id: TenantDep, db: DbDep) -> MemberRelationship:
     _check_member_tenant(db, body.from_member_id, tenant_id, "from_member_id")
     _check_member_tenant(db, body.to_member_id, tenant_id, "to_member_id")
     rel = MemberRelationship(id=uuid7(), tenant_id=tenant_id, **body.model_dump())
@@ -62,14 +64,14 @@ def create_relationship(body: MemberRelationshipBase, tenant_id: TenantDep, db: 
 
 
 @router.get("/{rel_id}", response_model=MemberRelationshipRead)
-def get_relationship(rel_id: uuid.UUID, tenant_id: TenantDep, db: DbDep):
+def get_relationship(rel_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> MemberRelationship:
     return _get_or_404(db, rel_id, tenant_id)
 
 
 @router.patch("/{rel_id}", response_model=MemberRelationshipRead)
 def update_relationship(
     rel_id: uuid.UUID, body: MemberRelationshipUpdate, tenant_id: TenantDep, db: DbDep
-):
+) -> MemberRelationship:
     rel = _get_or_404(db, rel_id, tenant_id)
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(rel, k, v)
@@ -79,7 +81,7 @@ def update_relationship(
 
 
 @router.delete("/{rel_id}", status_code=204)
-def delete_relationship(rel_id: uuid.UUID, tenant_id: TenantDep, db: DbDep):
+def delete_relationship(rel_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
     rel = _get_or_404(db, rel_id, tenant_id)
     rel.is_deleted = True
     db.commit()
