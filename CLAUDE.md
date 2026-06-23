@@ -12,17 +12,20 @@ background sync from day one.
 ## Commands
 
 All backend commands run from `backend/`. Use `uv` — never `pip` directly.
+Requires **Python 3.12**.
 
 ```bash
 uv sync                          # install backend + dev deps into .venv/
 uv run pytest                    # run the test suite (in-memory SQLite, no DB needed)
 uv run pytest tests/test_models.py::test_parent_child_relationship  # run a single test
+uv run python -m mypy app        # type-check
 uv run alembic revision --autogenerate -m "msg"   # create a migration from model changes
 uv run alembic upgrade head      # apply migrations (needs a live Postgres)
 uv run uvicorn app.main:app --reload  # run the API locally
 
 # Full stack (Postgres + backend) from repo root:
 docker compose up --build
+# Ports are bound to 127.0.0.1 via docker-compose.override.yml (auto-merged on local dev).
 ```
 
 ## Pre-commit hooks
@@ -41,9 +44,10 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-Hooks run automatically on `git commit`. The ruff hooks (`ruff`, `ruff-format`) use
-`language: system` so they invoke `uv run ruff` from `backend/`, keeping the linter
-version in sync with `uv.lock` rather than a separately-pinned pre-commit environment.
+Hooks run automatically on `git commit`. The `ruff`, `ruff-format`, and `mypy` hooks
+all use `language: system` so they invoke their tools via `uv run` from `backend/`,
+keeping versions in sync with `uv.lock` rather than a separately-pinned pre-commit
+environment.
 
 ## Architecture
 
@@ -82,9 +86,10 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   dietary_restrictions, two emergency contacts, notes.
   `bsa_id` is **nullable** — non-registered parents and family contacts are
   valid roster members without a BSA number. The canonical identifier is always
-  `id` (UUIDv7). A partial unique index on `(tenant_id, bsa_id) WHERE bsa_id
-  IS NOT NULL` prevents duplicate registrations within a troop while permitting
-  multiple null values; add this in the first Alembic migration.
+  `id` (UUIDv7). A partial unique index `uix_members_tenant_bsa_id` on
+  `(tenant_id, bsa_id) WHERE bsa_id IS NOT NULL` prevents duplicate registrations
+  within a troop while permitting multiple null values. It is declared in
+  `Member.__table_args__` and created by the initial Alembic migration.
 - `MemberRelationship` — directional family link between any two members.
   `from_member_id` / `to_member_id` (both FKs into `members`). Relationship types:
   `parent_of`, `guardian_of` (from_member is the adult; to_member is the child/ward),
