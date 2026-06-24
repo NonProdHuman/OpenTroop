@@ -93,7 +93,8 @@ Model events generically with typed metadata rather than one-size-fits-all field
 - [ ] Packing lists — deferred (feature creep risk before UI exists)
 - [ ] Digital permission slips (fillable forms attached to events; parent signature flow)
 - [ ] Health form collection and storage (per-event or per-member)
-- [ ] Calendar view (monthly/weekly; iCal export)
+- [~] Calendar view — month grid done (`apps/web/.../events`, List/Calendar toggle);
+      weekly view + iCal export still pending
 - [ ] Event notifications (email; push via mobile apps later)
 
 ### Pillar 3 — Advancement & Requirements

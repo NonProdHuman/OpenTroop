@@ -19,6 +19,7 @@ interface EventFiltersProps {
   timeFilter: TimeFilter
   typeIds: string[]
   eventTypes: EventType[]
+  showTimeFilter?: boolean
   onSearchChange: (v: string) => void
   onTimeChange: (v: TimeFilter) => void
   onTypeToggle: (id: string) => void
@@ -30,12 +31,14 @@ export function EventFilters({
   timeFilter,
   typeIds,
   eventTypes,
+  showTimeFilter = true,
   onSearchChange,
   onTimeChange,
   onTypeToggle,
   onClear,
 }: EventFiltersProps) {
-  const isDirty = search !== "" || timeFilter !== "upcoming" || typeIds.length > 0
+  const isDirty =
+    search !== "" || (showTimeFilter && timeFilter !== "upcoming") || typeIds.length > 0
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -49,19 +52,21 @@ export function EventFilters({
         />
       </div>
 
-      <div className="flex items-center gap-1">
-        {TIME_OPTIONS.map((opt) => (
-          <Button
-            key={opt.value}
-            variant={timeFilter === opt.value ? "default" : "outline"}
-            size="sm"
-            onClick={() => onTimeChange(opt.value)}
-            className="h-8"
-          >
-            {opt.label}
-          </Button>
-        ))}
-      </div>
+      {showTimeFilter ? (
+        <div className="flex items-center gap-1">
+          {TIME_OPTIONS.map((opt) => (
+            <Button
+              key={opt.value}
+              variant={timeFilter === opt.value ? "default" : "outline"}
+              size="sm"
+              onClick={() => onTimeChange(opt.value)}
+              className="h-8"
+            >
+              {opt.label}
+            </Button>
+          ))}
+        </div>
+      ) : null}
 
       {eventTypes.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1">
