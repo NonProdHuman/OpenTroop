@@ -237,7 +237,8 @@ Pillars 1 and 2 are complete at the API layer. The web app shell is scaffolded
 
 1. **Members screen** — searchable/filterable roster list + inline detail panel;
    the highest-impact screen for demonstrating the UX difference from TroopWebHost.
-2. **Events screen** — event list and detail view; reuses the same data-table patterns.
+2. ~~**Events screen** — event list and detail view; reuses the same data-table patterns.~~
+   *(done — `apps/web/.../events`: searchable/type/time-filtered list + detail sheet)*
 3. **Attendance screen** — the key field UX moment; optimistic updates, fast tap targets.
 4. **Pillar 3 analysis** — export Scoutbook advancement data from a real troop before
    designing the advancement model; let the data shape the schema.

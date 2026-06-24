@@ -76,6 +76,85 @@ export interface Patrol {
   name: string
 }
 
+// ── Events ───────────────────────────────────────────────────────────────────
+
+export interface EventType {
+  id: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  name: string
+  color: string | null
+  is_active: boolean
+  is_system: boolean
+  tracks_service_hours: boolean
+  tracks_camping_nights: boolean
+  tracks_mileage: boolean
+  allow_signups: boolean
+  require_permission_slip: boolean
+  is_online: boolean
+}
+
+export interface Location {
+  id: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  name: string
+  street1: string | null
+  street2: string | null
+  city: string | null
+  state: string | null
+  postal_code: string | null
+  country: string | null
+  phone: string | null
+  website_url: string | null
+  directions: string | null
+  description: string | null
+  distance_miles: number | null
+}
+
+export interface Event {
+  id: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  name: string
+  event_type_id: string
+  location_id: string | null
+  location_notes: string | null
+  departure_location: string | null
+  return_location: string | null
+  scheduled_start: string // ISO datetime
+  scheduled_end: string // ISO datetime
+  all_day: boolean
+  signup_start: string | null
+  signup_deadline: string | null
+  signup_limit_scouts: number | null
+  signup_limit_adults: number | null
+  cost_youth: string | null // Decimal serialized as string
+  cost_adult: string | null
+  video_conference_url: string | null
+  description: string | null
+  agenda: string | null
+  tour_permit_submitted: boolean | null
+  attendance_taken: boolean
+  linked_event_id: string | null
+  community_service_hours: string | null
+  conservation_hours: string | null
+  hiking_miles: string | null
+  backpacking_miles: string | null
+  paddling_miles: string | null
+  cycling_miles: string | null
+  water_hours: string | null
+  camping_nights: number | null
+  event_type: EventType
+  location: Location | null
+}
+
 // ── Platform (global) control plane ──────────────────────────────────────────
 
 export type PlatformRole = "superadmin" | "support" | "billing"
