@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel, EmailStr
 
@@ -86,4 +86,11 @@ class MemberUpdate(BaseModel):
 
 
 class MemberRead(MemberBase, TrackedRead):
-    pass
+    user_id: uuid.UUID | None = None
+
+
+class MemberInviteRead(BaseModel):
+    """Returned by POST /members/{id}/invite — the token the member uses to claim their account."""
+
+    token: str
+    expires_at: datetime

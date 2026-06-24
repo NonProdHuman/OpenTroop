@@ -48,7 +48,7 @@ def test_delete_role(client: TestClient) -> None:
 
 
 def test_cannot_delete_system_role(client: TestClient) -> None:
-    role = _create_role(client, "administrators", is_system=True, is_admin=True)
+    role = _create_role(client, "protected_system_role", is_system=True)
     r = client.delete(f"/roles/{role['id']}")
     assert r.status_code == 403
 

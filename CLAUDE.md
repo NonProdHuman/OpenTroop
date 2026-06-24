@@ -148,6 +148,16 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   subdomains are rejected to prevent Host-header spoofing.
 - **FastAPI dependencies** (`app/core/deps.py`): `TenantDep`, `DbDep`,
   `CurrentUserDep` — wire these into route handlers to enforce auth and tenant scope.
+  `require(permission)` — dependency factory used as `dependencies=[Depends(require(Permission.X))]`
+  on each route; resolves the caller's `Member` in the current tenant and checks
+  their effective permission set via `resolve_permissions()`. Raises 403 if the user
+  has no Member row in this tenant or lacks the required permission.
+- **Tenant provisioning** (`POST /tenants/`): creates Tenant + founding admin Member
+  + administrators Role atomically. No tenant context required; only `CurrentUserDep`.
+- **Invite/claim flow** (`app/core/invite.py`): `create_invite_token` / `decode_invite_token`
+  use HS256 (signed with `APP_SECRET`) to produce 7-day claim tokens. An admin calls
+  `POST /members/{id}/invite`; the invitee signs in via OIDC then calls
+  `POST /auth/claim` with the token to link their `User.id` to the `Member` row.
 
 ### Conventions
 

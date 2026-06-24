@@ -2,10 +2,11 @@ import uuid
 from collections.abc import Sequence
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 
-from app.core.deps import DbDep, TenantDep, get_or_404, require_tenant_fk
+from app.core.deps import DbDep, TenantDep, get_or_404, require, require_tenant_fk
+from app.models.enums import Permission
 from app.models.member import Member
 from app.models.role import MemberRoleAssignment, Role
 from app.schemas.role import MemberRoleAssignmentBase, MemberRoleAssignmentRead
@@ -13,7 +14,11 @@ from app.schemas.role import MemberRoleAssignmentBase, MemberRoleAssignmentRead
 router = APIRouter(prefix="/role-assignments", tags=["role-assignments"])
 
 
-@router.get("/", response_model=list[MemberRoleAssignmentRead])
+@router.get(
+    "/",
+    response_model=list[MemberRoleAssignmentRead],
+    dependencies=[Depends(require(Permission.MEMBER_READ))],
+)
 def list_role_assignments(
     tenant_id: TenantDep,
     db: DbDep,
@@ -31,7 +36,12 @@ def list_role_assignments(
     return db.scalars(q).all()
 
 
-@router.post("/", response_model=MemberRoleAssignmentRead, status_code=201)
+@router.post(
+    "/",
+    response_model=MemberRoleAssignmentRead,
+    status_code=201,
+    dependencies=[Depends(require(Permission.ROLE_ASSIGN))],
+)
 def create_role_assignment(
     body: MemberRoleAssignmentBase, tenant_id: TenantDep, db: DbDep
 ) -> MemberRoleAssignment:
@@ -46,7 +56,11 @@ def create_role_assignment(
     return assignment
 
 
-@router.get("/{assignment_id}", response_model=MemberRoleAssignmentRead)
+@router.get(
+    "/{assignment_id}",
+    response_model=MemberRoleAssignmentRead,
+    dependencies=[Depends(require(Permission.MEMBER_READ))],
+)
 def get_role_assignment(
     assignment_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
 ) -> MemberRoleAssignment:
@@ -55,7 +69,9 @@ def get_role_assignment(
     )
 
 
-@router.delete("/{assignment_id}", status_code=204)
+@router.delete(
+    "/{assignment_id}", status_code=204, dependencies=[Depends(require(Permission.ROLE_ASSIGN))]
+)
 def delete_role_assignment(assignment_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
     assignment = get_or_404(
         db, MemberRoleAssignment, assignment_id, tenant_id, "Role assignment not found"
