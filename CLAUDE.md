@@ -17,6 +17,9 @@ background sync from day one.
 pnpm install                             # install all workspace deps
 pnpm dev                                 # start web app on :3000
 pnpm --filter web dev                    # same, explicit
+pnpm --filter web test                   # run tests in watch mode
+pnpm --filter web test:run               # run tests once (CI mode)
+pnpm --filter web test:coverage          # run tests + coverage report
 pnpm --filter @opentroop/api-client generate   # regenerate TypeScript types from FastAPI OpenAPI spec
 ```
 
