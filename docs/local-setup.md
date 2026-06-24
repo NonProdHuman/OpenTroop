@@ -9,7 +9,7 @@ Complete walkthrough from a fresh clone to a running stack with real data.
 | [uv](https://docs.astral.sh/uv/) | latest | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | Python | 3.12 | managed by uv — no manual install needed |
 | [pnpm](https://pnpm.io) | 9+ | `npm install -g pnpm` |
-| Node.js | 18+ | [nodejs.org](https://nodejs.org) |
+| Node.js | 22.13+ | [nodejs.org](https://nodejs.org) (pnpm 11 requires it) |
 | Docker Desktop | latest | [docker.com](https://www.docker.com) |
 
 ## 1. Clone and install

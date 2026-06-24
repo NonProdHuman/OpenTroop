@@ -36,7 +36,7 @@ Validates that your Clerk configuration is consistent between frontend and backe
 
 ## Local development
 
-**Frontend** — requires [pnpm](https://pnpm.io) and Node 18+:
+**Frontend** — requires [pnpm](https://pnpm.io) and Node 22.13+ (pnpm 11 needs it):
 
 ```bash
 npm install -g pnpm
