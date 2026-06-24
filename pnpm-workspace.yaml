@@ -5,3 +5,10 @@ packages:
 allowBuilds:
   sharp: true
   unrs-resolver: true
+
+# Force patched versions of vulnerable transitive (build-time) deps.
+# postcss <8.5.10: XSS (GHSA-qx2v-qp2m-jg93), pulled via next.
+# js-yaml <=4.1.1: ReDoS (GHSA-h67p-54hq-rp68), pulled via openapi-typescript.
+overrides:
+  postcss@<8.5.10: ">=8.5.10"
+  js-yaml@<4.1.2: ">=4.1.2"
