@@ -25,6 +25,7 @@ dev = [
     "mypy>=1.10",
     "sqlalchemy[mypy]>=2.0",
     "pip-audit>=2.7",
+    "faker>=25.0",
 ]
 
 [tool.pytest.ini_options]
@@ -50,9 +51,17 @@ plugins = ["sqlalchemy.ext.mypy.plugin"]
 # Third-party packages without stubs
 ignore_missing_imports = true
 
+[project.scripts]
+provision-tenant = "scripts.provision_tenant:main"
+import-twh       = "scripts.import_twh:main"
+reset-tenant     = "scripts.reset_tenant:main"
+reset-db         = "scripts.reset_db:main"
+link-admin       = "scripts.link_admin:main"
+anonymize-twh    = "scripts.anonymize_twh:main"
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["app*"]
+include = ["app*", "scripts*"]

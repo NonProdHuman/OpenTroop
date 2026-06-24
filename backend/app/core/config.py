@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     auth_issuer: str = ""
     auth_audience: str = ""
 
+    # Comma-separated list of origins allowed by CORS.
+    # In production this should be your actual frontend URL(s).
+    cors_origins: list[str] = ["http://localhost:3000"]
+
     # Domain used for subdomain tenant routing (e.g. troop123.opentroop.app → "opentroop.app")
     app_domain: str = "opentroop.app"
 

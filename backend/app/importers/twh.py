@@ -119,6 +119,17 @@ def _parse_int(elem: ET.Element, tag: str) -> int | None:
         return None
 
 
+def _valid_email(value: str) -> str | None:
+    """Return *value* if it looks like an email address, else None.
+
+    Guards against placeholder strings (e.g. ``[email]``) that can appear in
+    XML exports if a pre-processing step scrubs free-text PII aggressively.
+    """
+    if not value or "@" not in value:
+        return None
+    return value
+
+
 # ---------------------------------------------------------------------------
 # Importer
 # ---------------------------------------------------------------------------
@@ -256,7 +267,7 @@ class TwhImporter:
                 membership_status=status,
                 swim_classification=swim,
                 date_of_birth=_parse_date(_text(elem, "Date_Of_Birth")),
-                email=_text(elem, "Email_Address") or None,
+                email=_valid_email(_text(elem, "Email_Address")),
                 phone=_text(elem, "Cell_Phone") or _text(elem, "Home_Phone") or None,
                 address_line1=_text(elem, "Mailing_Address_Line_1") or None,
                 address_line2=_text(elem, "Mailing_Address_Line_2") or None,
@@ -372,13 +383,28 @@ class TwhImporter:
     # ------------------------------------------------------------------
 
     def _import_event_types(self, root: ET.Element) -> None:
+        from sqlalchemy import select
+
         for elem in root.findall("Event_Type"):
             twh_id = _text(elem, "i")
             if not twh_id:
                 continue
             name = _text(elem, "Event_Type_Name") or f"Event Type {twh_id}"
-            is_active = not _flag(elem, "Event_Type_Disabled_Flag")
 
+            # If a system event type with this name was already seeded (e.g. by
+            # provision_tenant), reuse it so we don't violate the tenant+name unique index.
+            existing = self.session.scalar(
+                select(EventType).where(
+                    EventType.tenant_id == self.tenant_id,
+                    EventType.name == name,
+                    EventType.is_deleted.is_(False),
+                )
+            )
+            if existing:
+                self._event_type_map[twh_id] = existing.id
+                continue
+
+            is_active = not _flag(elem, "Event_Type_Disabled_Flag")
             color_raw = _text(elem, "Display_Color").lstrip("#")
             color = f"#{color_raw}" if color_raw else None
 

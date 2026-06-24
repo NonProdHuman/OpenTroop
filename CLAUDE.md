@@ -11,6 +11,12 @@ background sync from day one.
 
 ## Commands
 
+### Start everything
+
+```bash
+./start.sh   # validates Clerk alignment, starts Postgres + backend + frontend
+```
+
 ### Frontend (from repo root — requires pnpm)
 
 ```bash
@@ -35,7 +41,14 @@ uv run python -m mypy app        # type-check
 uv run alembic revision --autogenerate -m "msg"   # create a migration from model changes
 uv run alembic upgrade head      # apply migrations (needs a live Postgres)
 uv run uvicorn app.main:app --reload  # run the API locally
-uv run python import_twh.py <tenant-id> <export.xml>  # import TWH XML into a tenant
+uv run provision-tenant --troop-name "Troop 123" --slug troop123 --admin-first A --admin-last B  # sign in first!
+uv run import-twh <tenant-id> <export.xml>  # import TWH XML into a tenant
+uv run anonymize-twh <real.xml> <out.xml>   # scrub PII from a TWH export for use as test fixture
+
+# Dev data management (from backend/):
+uv run reset-tenant <tenant-id>   # clear imported data, keep Clerk admin — then re-import
+uv run reset-db                   # nuclear: drop all tables + re-migrate (prompts for confirmation)
+uv run reset-db --yes             # same, no prompt (CI/scripts)
 
 # Full stack (Postgres + backend) from repo root:
 docker compose up --build
@@ -72,6 +85,28 @@ Hooks run automatically on `git commit`. All hooks use `language: system`:
 Backend tools run via `uv run` (pinned to `uv.lock`); frontend tools run via
 `pnpm exec` (pinned to `pnpm-lock.yaml`). Neither requires a separately-managed
 pre-commit environment.
+
+## Conventions
+
+### Backend scripts
+
+All one-off CLI scripts live in `backend/scripts/` and are registered as
+`[project.scripts]` entry points in `backend/pyproject.toml`. Always invoke them
+via `uv run <command-name>` — never `python scripts/foo.py` or
+`uv run python scripts/foo.py`.
+
+To add a new script:
+1. Create `backend/scripts/your_script.py` with a `main()` function.
+2. Add an entry to `[project.scripts]` in `pyproject.toml`:
+   ```toml
+   your-command = "scripts.your_script:main"
+   ```
+3. Run `uv sync` to install the entry point.
+4. Invoke via `uv run your-command`.
+
+### Frontend
+
+All one-off frontend tooling runs via `pnpm exec <tool>` (never `npx`).
 
 ## Architecture
 

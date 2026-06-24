@@ -2,11 +2,11 @@
 """
 import_twh.py — Import a TroopWebHost XML full-data export into OpenTroop.
 
-Run from the backend/ directory (where the project venv lives):
+Run from backend/:
 
-    uv run python import_twh.py <tenant-id> <path/to/export.xml>
+    uv run import-twh <tenant-id> <path/to/export.xml>
 
-The tenant must already exist (created via POST /tenants/).  The import is
+The tenant must already exist (run `uv run provision-tenant` first).  The import is
 additive — running it twice on the same tenant will create duplicate records
 (BSA ID uniqueness will raise an IntegrityError on the second run if the same
 persons are re-imported).

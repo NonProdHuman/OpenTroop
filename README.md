@@ -29,10 +29,10 @@ packages/      Shared TypeScript packages (api-client)
 ## Quick start
 
 ```bash
-# Full stack (Postgres + backend + web)
-docker compose up --build   # backend on :8000
-pnpm dev                    # web app on :3000 (from repo root)
+./start.sh
 ```
+
+Validates that your Clerk configuration is consistent between frontend and backend, starts Postgres via Docker, runs the backend with uvicorn, and launches the Next.js dev server. See [docs/local-setup.md](docs/local-setup.md) for the full first-time setup walkthrough.
 
 ## Local development
 

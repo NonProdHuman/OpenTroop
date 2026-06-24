@@ -105,6 +105,10 @@ class MemberUpdate(BaseModel):
 
 class MemberRead(MemberBase, TrackedRead):
     user_id: uuid.UUID | None = None
+    # Override to str so rows with non-RFC-5321 values already in the DB
+    # (e.g. "[email]" placeholder from aggressive PII scrubbing) don't cause
+    # a 500 on the list endpoint.
+    email: str | None = None
 
 
 class MemberInviteRead(BaseModel):

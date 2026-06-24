@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["faker"]
-# ///
 """
 anonymize_twh.py — Scrub PII from a TroopWebHost full-data XML export.
 
@@ -15,12 +10,11 @@ advancement records, attendance flags, relationship links) is preserved intact.
 Run this locally against your real TWH export — never share the real file.
 
 Usage:
-    # Recommended — uv reads the inline dependency declaration and handles faker automatically:
-    uv run reference/anonymize_twh.py path/to/real_export.xml reference/sample_troop.xml
-    uv run reference/anonymize_twh.py real.xml out.xml --seed 99 --date-shift -730
+    uv run anonymize-twh path/to/real_export.xml reference/sample_troop.xml
+    uv run anonymize-twh real.xml out.xml --seed 99 --date-shift -730
 
     # To generate a second "troop" from the same source (different names, same structure):
-    uv run reference/anonymize_twh.py real.xml reference/sample_troop_2.xml --seed 99
+    uv run anonymize-twh real.xml reference/sample_troop_2.xml --seed 99
 
 Options:
     --seed INT        Random seed controlling fake data generation (default: 42).
@@ -31,6 +25,7 @@ Options:
                       A non-zero shift prevents temporal re-identification while
                       preserving all relative date relationships within the data.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,7 +36,6 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 
 from faker import Faker
-
 
 # ---------------------------------------------------------------------------
 # Regex patterns for PII that can appear in free-text fields
@@ -55,9 +49,9 @@ _EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b")
 # matching mid-number substrings or plain dates.
 _PHONE_RE = re.compile(
     r"(?<!\d)"
-    r"(?:\+?1[\s.\-]?)?"          # optional +1 country code
-    r"(?:\(?\d{3}\)?[\s.\-]?)"    # area code
-    r"\d{3}[\s.\-]?\d{4}"         # 7-digit local number
+    r"(?:\+?1[\s.\-]?)?"  # optional +1 country code
+    r"(?:\(?\d{3}\)?[\s.\-]?)"  # area code
+    r"\d{3}[\s.\-]?\d{4}"  # 7-digit local number
     r"(?!\d)"
 )
 
@@ -77,6 +71,20 @@ def _scrub_freetext(text: str) -> str:
 # in the TWH schema — cleared globally rather than per-table.
 # (Scout_Comment and Review_Comment live on Requirement_Pending.)
 _CLEAR_TAGS = frozenset({"Comment", "Note", "Scout_Comment", "Review_Comment"})
+
+# Structured contact fields that _process_person already replaced with valid
+# fake values. Excluded from the _final_pass regex scrub so the fakes aren't
+# overwritten with the "[email]" / "[phone]" placeholders.
+_STRUCTURED_CONTACT_TAGS = frozenset(
+    {
+        "Email_Address",
+        "Email_Address_2",
+        "Home_Phone",
+        "Cell_Phone",
+        "Business_Phone",
+        "Fax_Phone",
+    }
+)
 
 # Person fields that are cleared entirely (content not worth faking).
 _PERSON_CLEAR = frozenset(
@@ -280,8 +288,10 @@ class Anonymizer:
             "Name_Suffix": "",
             "Nickname": first[:3] if self.fake.boolean(chance_of_getting_true=15) else "",
             # Contact
-            "Email_Address": self.fake.email(),
-            "Email_Address_2": self.fake.email() if self.fake.boolean(chance_of_getting_true=20) else "",
+            "Email_Address": f"{first.lower()}.{last.lower()}@example.com",
+            "Email_Address_2": f"{first.lower()}.{last.lower()}2@example.com"
+            if self.fake.boolean(chance_of_getting_true=20)
+            else "",
             "Home_Phone": self.fake.phone_number(),
             "Cell_Phone": self.fake.phone_number(),
             "Business_Phone": self.fake.phone_number() if is_adult else "",
@@ -441,7 +451,7 @@ class Anonymizer:
                     continue
                 if child.tag in _CLEAR_TAGS:
                     child.text = ""
-                else:
+                elif child.tag not in _STRUCTURED_CONTACT_TAGS:
                     scrubbed = _scrub_freetext(child.text)
                     if scrubbed != child.text:
                         child.text = scrubbed
@@ -479,6 +489,7 @@ class Anonymizer:
 # Email_Recipient_Log special handling (has an Email_Address child field)
 # ---------------------------------------------------------------------------
 
+
 def _patch_email_recipient_log_addresses(root: ET.Element, fake: Faker) -> None:
     """Replace raw email addresses stored in Email_Recipient_Log rows."""
     for elem in root.findall("Email_Recipient_Log"):
@@ -490,6 +501,7 @@ def _patch_email_recipient_log_addresses(root: ET.Element, fake: Faker) -> None:
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -517,7 +529,7 @@ def main() -> None:
         sys.exit(f"Input file not found: {args.input}")
 
     print(f"Parsing {args.input} ...")
-    tree = ET.parse(args.input)
+    tree = ET.parse(args.input)  # noqa: S314
     root = tree.getroot()
 
     print(f"Anonymizing (seed={args.seed}, date_shift={args.date_shift:+d} days) ...")
