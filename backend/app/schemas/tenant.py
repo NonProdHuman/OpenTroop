@@ -28,10 +28,11 @@ class TenantProvision(TenantCreate):
 class TenantRead(PlatformRead):
     name: str
     slug: str
+    suspended_at: datetime | None = None
 
 
 class TenantProvisioned(TenantRead):
-    """Response for POST /tenants/ — the new tenant plus the founder's invite.
+    """Response for POST /platform/tenants — the new tenant plus the founder's invite.
 
     ``invite_token`` is a 7-day HS256 claim token for the founding admin Member.
     Deliver it to the founder (manually for now; emailed automatically once the

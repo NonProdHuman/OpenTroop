@@ -10,10 +10,10 @@ from app.routers import (
     locations,
     members,
     patrols,
+    platform,
     relationships,
     role_assignments,
     roles,
-    tenants,
 )
 
 app = FastAPI(title=settings.app_name)
@@ -32,7 +32,7 @@ app.include_router(relationships.router)
 app.include_router(roles.router)
 app.include_router(role_assignments.router)
 app.include_router(auth.router)
-app.include_router(tenants.router)
+app.include_router(platform.router)
 app.include_router(locations.router)
 app.include_router(event_types.router)
 app.include_router(events.router)

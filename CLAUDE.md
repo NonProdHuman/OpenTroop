@@ -163,7 +163,9 @@ unmodified on SQLite, which is how the test suite stays DB-free.
 **Platform-level (PlatformBase, no tenant_id):**
 
 - `Tenant` — one row per troop. Fields: `name`, `slug` (unique; used for subdomain
-  routing). `Tenant.id` is the value stored in `tenant_id` on all `TrackedBase` rows.
+  routing), `suspended_at` (nullable; SaaS suspension marker, distinct from `is_deleted` —
+  a suspended tenant still exists but is locked out of all tenant-scoped requests).
+  `Tenant.id` is the value stored in `tenant_id` on all `TrackedBase` rows.
 - `User` — a platform-level person identity. Fields: `email`, `display_name`,
   `platform_role`. One `User` may have `Member` records in multiple tenants. To fetch
   a user's members, query `Member.user_id == user.id`; there is no ORM backref to avoid
@@ -264,7 +266,8 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
 - **Tenant resolution** (`app/core/tenant.py`): `get_tenant_id` resolves the tenant
   from the request subdomain first (`troop123.opentroop.app` → slug lookup), then
   falls back to the `X-Tenant-ID` header (raw UUID → DB validation). Nested
-  subdomains are rejected to prevent Host-header spoofing.
+  subdomains are rejected to prevent Host-header spoofing. A **suspended** tenant
+  (`Tenant.suspended_at` set) is rejected with 403 on both resolution paths.
 - **FastAPI dependencies** (`app/core/deps.py`): `TenantDep`, `DbDep`,
   `CurrentUserDep` — wire these into route handlers to enforce auth and tenant scope.
   `require(permission)` — dependency factory used as `dependencies=[Depends(require(Permission.X))]`
@@ -274,14 +277,26 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   `get_platform_admin` / `PlatformAdminDep` — gates the SaaS control plane: requires the
   caller's `User.platform_role` to be set (any value), independent of any tenant. Raises
   403 for ordinary users.
-- **Tenant provisioning** (`POST /tenants/`, `PlatformAdminDep`): **platform-admin only** —
-  tenant creation is a control-plane operation, not self-service. Atomically creates the
-  Tenant, an **unclaimed** founding admin Member (`user_id` null, named/emailed via the
-  request body), the administrators Role, the role assignment, and the six default event
-  types. Returns the tenant plus a 7-day invite token for the founder. The provisioning
-  admin does **not** become a member of the new tenant. (The `provision-tenant` CLI is the
-  separate dev/self-host path: it writes the DB directly, bypassing the API gate, and
-  auto-links the single signed-in `User` as founder.)
+- **Platform control plane** (`app/routers/platform.py`, prefix `/platform`, every route
+  gated by `PlatformAdminDep`): the SaaS control plane.
+  - `POST /platform/tenants` — **provision a tenant**: atomically creates the Tenant, an
+    **unclaimed** founding admin Member (`user_id` null, named/emailed via the request body),
+    the administrators Role, the role assignment, and the six default event types. Returns the
+    tenant plus a 7-day invite token for the founder. The provisioning admin does **not**
+    become a member of the new tenant.
+  - `GET /platform/tenants`, `GET /platform/tenants/{id}` — list / inspect tenants.
+  - `POST /platform/tenants/{id}/suspend` · `/unsuspend` — set/clear `suspended_at`
+    (idempotent); a suspended tenant rejects all tenant-scoped requests.
+  - `GET /platform/tenants/{id}/admins` — members holding the is_admin role.
+  - `POST /platform/tenants/{id}/admins` — invite another admin (unclaimed Member + claim token).
+  - `DELETE /platform/tenants/{id}/admins/{member_id}` — revoke admin; 409 if it would remove
+    the tenant's last administrator, 404 if the member isn't an admin here.
+
+  The shared building blocks live in `app/core/provisioning.py` (`provision_tenant`,
+  `invite_admin_member`, `ensure_administrators_role`, `seed_default_event_types` +
+  `DEFAULT_EVENT_TYPES`). The `provision-tenant` CLI is the separate dev/self-host path: it
+  writes the DB directly, bypassing the API gate, and auto-links the single signed-in `User`
+  as founder.
 - **Invite/claim flow** (`app/core/invite.py`): `create_invite_token` / `decode_invite_token`
   use HS256 (signed with `APP_SECRET`) to produce 7-day claim tokens. Tokens are minted
   either by tenant provisioning (for the founder) or by an admin calling

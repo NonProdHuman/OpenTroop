@@ -28,7 +28,7 @@ def _provision_and_claim(
     administrator and can exercise tenant-scoped routes.
     """
     r = platform_admin_client.post(
-        "/tenants/",
+        "/platform/tenants",
         json={
             "name": name,
             "slug": slug,
@@ -127,7 +127,7 @@ def test_system_type_guard_via_provisioning(
 def test_provisioning_seeds_default_event_types(
     platform_admin_client: TestClient, claim_client: TestClient
 ) -> None:
-    """POST /tenants/ seeds 6 system EventTypes with the expected names."""
+    """POST /platform/tenants seeds 6 system EventTypes with the expected names."""
     tenant_id = _provision_and_claim(
         platform_admin_client, claim_client, "seed-test", "Troop Seed Test"
     )

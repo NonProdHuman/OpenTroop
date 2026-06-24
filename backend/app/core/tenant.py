@@ -29,6 +29,12 @@ def _extract_subdomain(host: str, app_domain: str) -> str | None:
     return prefix
 
 
+def _reject_if_suspended(tenant: Tenant) -> None:
+    """Block tenant-scoped access to a suspended tenant (a platform admin can lift it)."""
+    if tenant.suspended_at is not None:
+        raise HTTPException(status_code=403, detail="Tenant is suspended")
+
+
 async def get_tenant_id(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
@@ -47,6 +53,7 @@ async def get_tenant_id(
         tenant = db.scalar(select(Tenant).where(Tenant.slug == slug, Tenant.is_deleted.is_(False)))
         if tenant is None:
             raise HTTPException(status_code=404, detail="Tenant not found")
+        _reject_if_suspended(tenant)
         return tenant.id
 
     if x_tenant_id is not None:
@@ -57,6 +64,7 @@ async def get_tenant_id(
         tenant = db.get(Tenant, tid)
         if tenant is None or tenant.is_deleted:
             raise HTTPException(status_code=404, detail="Tenant not found")
+        _reject_if_suspended(tenant)
         return tid
 
     raise HTTPException(

@@ -58,8 +58,11 @@ membership model.
       `POST /tenants/` is platform-admin-only and creates an *unclaimed* founding admin
       Member invited by email (the provisioning admin doesn't join the troop);
       `promote-platform-admin` CLI bootstraps the first global admin
-- [ ] Platform control-plane API (`/platform/*`) — list/suspend tenants; invite, list,
-      and grant/revoke tenant admins from the global tier (UI: a global management console)
+- [x] Platform control-plane API (`/platform/*`, platform-admin only) — provision/list/
+      inspect tenants; suspend/unsuspend (suspended tenants are locked out of tenant-scoped
+      requests); list, invite, and revoke tenant admins (last-admin guard). Shared
+      provisioning helpers in `app/core/provisioning.py`
+- [ ] Platform control-plane **UI** — a global management console over the `/platform/*` API
 - [ ] Automated invite email delivery (depends on Pillar 4 notification infra) — until then
       provisioning returns the invite token for manual/out-of-band delivery
 
