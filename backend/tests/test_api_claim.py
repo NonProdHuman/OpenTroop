@@ -1,6 +1,6 @@
 """API tests for the invite/claim flow:
-  POST /members/{id}/invite  — admin generates a claim token
-  POST /auth/claim           — new user links their account to a Member record
+POST /members/{id}/invite  — admin generates a claim token
+POST /auth/claim           — new user links their account to a Member record
 """
 
 import jwt

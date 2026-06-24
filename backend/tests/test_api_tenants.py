@@ -29,7 +29,12 @@ def test_provision_slug_conflict(claim_client: TestClient) -> None:
     _provision(claim_client, "troop456")
     r = claim_client.post(
         "/tenants/",
-        json={"name": "Other", "slug": "troop456", "founder_first_name": "X", "founder_last_name": "Y"},
+        json={
+            "name": "Other",
+            "slug": "troop456",
+            "founder_first_name": "X",
+            "founder_last_name": "Y",
+        },
     )
     assert r.status_code == 409
 

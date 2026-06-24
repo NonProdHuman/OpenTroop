@@ -18,7 +18,11 @@ from app.schemas.relationship import (
 router = APIRouter(prefix="/relationships", tags=["relationships"])
 
 
-@router.get("/", response_model=list[MemberRelationshipRead], dependencies=[Depends(require(Permission.MEMBER_READ_CONTACT))])
+@router.get(
+    "/",
+    response_model=list[MemberRelationshipRead],
+    dependencies=[Depends(require(Permission.MEMBER_READ_CONTACT))],
+)
 def list_relationships(
     tenant_id: TenantDep,
     db: DbDep,
@@ -38,7 +42,12 @@ def list_relationships(
     return db.scalars(q).all()
 
 
-@router.post("/", response_model=MemberRelationshipRead, status_code=201, dependencies=[Depends(require(Permission.MEMBER_WRITE))])
+@router.post(
+    "/",
+    response_model=MemberRelationshipRead,
+    status_code=201,
+    dependencies=[Depends(require(Permission.MEMBER_WRITE))],
+)
 def create_relationship(
     body: MemberRelationshipBase, tenant_id: TenantDep, db: DbDep
 ) -> MemberRelationship:
@@ -51,12 +60,20 @@ def create_relationship(
     return rel
 
 
-@router.get("/{rel_id}", response_model=MemberRelationshipRead, dependencies=[Depends(require(Permission.MEMBER_READ_CONTACT))])
+@router.get(
+    "/{rel_id}",
+    response_model=MemberRelationshipRead,
+    dependencies=[Depends(require(Permission.MEMBER_READ_CONTACT))],
+)
 def get_relationship(rel_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> MemberRelationship:
     return get_or_404(db, MemberRelationship, rel_id, tenant_id, "Relationship not found")
 
 
-@router.patch("/{rel_id}", response_model=MemberRelationshipRead, dependencies=[Depends(require(Permission.MEMBER_WRITE))])
+@router.patch(
+    "/{rel_id}",
+    response_model=MemberRelationshipRead,
+    dependencies=[Depends(require(Permission.MEMBER_WRITE))],
+)
 def update_relationship(
     rel_id: uuid.UUID, body: MemberRelationshipUpdate, tenant_id: TenantDep, db: DbDep
 ) -> MemberRelationship:
@@ -68,7 +85,9 @@ def update_relationship(
     return rel
 
 
-@router.delete("/{rel_id}", status_code=204, dependencies=[Depends(require(Permission.MEMBER_WRITE))])
+@router.delete(
+    "/{rel_id}", status_code=204, dependencies=[Depends(require(Permission.MEMBER_WRITE))]
+)
 def delete_relationship(rel_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
     rel = get_or_404(db, MemberRelationship, rel_id, tenant_id, "Relationship not found")
     rel.is_deleted = True

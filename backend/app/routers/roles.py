@@ -26,14 +26,23 @@ router = APIRouter(tags=["roles"])
 # ---------------------------------------------------------------------------
 
 
-@router.get("/roles/", response_model=list[RoleRead], dependencies=[Depends(require(Permission.MEMBER_READ))])
+@router.get(
+    "/roles/",
+    response_model=list[RoleRead],
+    dependencies=[Depends(require(Permission.MEMBER_READ))],
+)
 def list_roles(tenant_id: TenantDep, db: DbDep) -> Sequence[Role]:
     return db.scalars(
         select(Role).where(Role.tenant_id == tenant_id, Role.is_deleted.is_(False))
     ).all()
 
 
-@router.post("/roles/", response_model=RoleRead, status_code=201, dependencies=[Depends(require(Permission.ROLE_MANAGE))])
+@router.post(
+    "/roles/",
+    response_model=RoleRead,
+    status_code=201,
+    dependencies=[Depends(require(Permission.ROLE_MANAGE))],
+)
 def create_role(body: RoleBase, tenant_id: TenantDep, db: DbDep) -> Role:
     role = Role(tenant_id=tenant_id, **body.model_dump())
     db.add(role)
@@ -42,12 +51,20 @@ def create_role(body: RoleBase, tenant_id: TenantDep, db: DbDep) -> Role:
     return role
 
 
-@router.get("/roles/{role_id}", response_model=RoleRead, dependencies=[Depends(require(Permission.MEMBER_READ))])
+@router.get(
+    "/roles/{role_id}",
+    response_model=RoleRead,
+    dependencies=[Depends(require(Permission.MEMBER_READ))],
+)
 def get_role(role_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Role:
     return get_or_404(db, Role, role_id, tenant_id, "Role not found")
 
 
-@router.patch("/roles/{role_id}", response_model=RoleRead, dependencies=[Depends(require(Permission.ROLE_MANAGE))])
+@router.patch(
+    "/roles/{role_id}",
+    response_model=RoleRead,
+    dependencies=[Depends(require(Permission.ROLE_MANAGE))],
+)
 def update_role(role_id: uuid.UUID, body: RoleUpdate, tenant_id: TenantDep, db: DbDep) -> Role:
     role = get_or_404(db, Role, role_id, tenant_id, "Role not found")
     for k, v in body.model_dump(exclude_unset=True).items():
@@ -57,7 +74,9 @@ def update_role(role_id: uuid.UUID, body: RoleUpdate, tenant_id: TenantDep, db: 
     return role
 
 
-@router.delete("/roles/{role_id}", status_code=204, dependencies=[Depends(require(Permission.ROLE_MANAGE))])
+@router.delete(
+    "/roles/{role_id}", status_code=204, dependencies=[Depends(require(Permission.ROLE_MANAGE))]
+)
 def delete_role(role_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
     role = get_or_404(db, Role, role_id, tenant_id, "Role not found")
     if role.is_system:
@@ -84,7 +103,11 @@ def _get_perm_or_404(
     return perm
 
 
-@router.get("/roles/{role_id}/permissions/", response_model=list[RolePermissionRead], dependencies=[Depends(require(Permission.MEMBER_READ))])
+@router.get(
+    "/roles/{role_id}/permissions/",
+    response_model=list[RolePermissionRead],
+    dependencies=[Depends(require(Permission.MEMBER_READ))],
+)
 def list_role_permissions(
     role_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
 ) -> Sequence[RolePermission]:
@@ -98,7 +121,12 @@ def list_role_permissions(
     ).all()
 
 
-@router.post("/roles/{role_id}/permissions/", response_model=RolePermissionRead, status_code=201, dependencies=[Depends(require(Permission.ROLE_MANAGE))])
+@router.post(
+    "/roles/{role_id}/permissions/",
+    response_model=RolePermissionRead,
+    status_code=201,
+    dependencies=[Depends(require(Permission.ROLE_MANAGE))],
+)
 def add_role_permission(
     role_id: uuid.UUID, body: _PermissionBody, tenant_id: TenantDep, db: DbDep
 ) -> RolePermission:
@@ -110,7 +138,11 @@ def add_role_permission(
     return perm
 
 
-@router.delete("/roles/{role_id}/permissions/{perm_id}", status_code=204, dependencies=[Depends(require(Permission.ROLE_MANAGE))])
+@router.delete(
+    "/roles/{role_id}/permissions/{perm_id}",
+    status_code=204,
+    dependencies=[Depends(require(Permission.ROLE_MANAGE))],
+)
 def remove_role_permission(
     role_id: uuid.UUID, perm_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
 ) -> None:
@@ -124,7 +156,11 @@ def remove_role_permission(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/role-memberships/", response_model=list[RoleMembershipRead], dependencies=[Depends(require(Permission.MEMBER_READ))])
+@router.get(
+    "/role-memberships/",
+    response_model=list[RoleMembershipRead],
+    dependencies=[Depends(require(Permission.MEMBER_READ))],
+)
 def list_role_memberships(tenant_id: TenantDep, db: DbDep) -> Sequence[RoleMembership]:
     return db.scalars(
         select(RoleMembership).where(
@@ -134,7 +170,12 @@ def list_role_memberships(tenant_id: TenantDep, db: DbDep) -> Sequence[RoleMembe
     ).all()
 
 
-@router.post("/role-memberships/", response_model=RoleMembershipRead, status_code=201, dependencies=[Depends(require(Permission.ROLE_MANAGE))])
+@router.post(
+    "/role-memberships/",
+    response_model=RoleMembershipRead,
+    status_code=201,
+    dependencies=[Depends(require(Permission.ROLE_MANAGE))],
+)
 def create_role_membership(
     body: RoleMembershipBase, tenant_id: TenantDep, db: DbDep
 ) -> RoleMembership:
@@ -147,14 +188,22 @@ def create_role_membership(
     return membership
 
 
-@router.get("/role-memberships/{membership_id}", response_model=RoleMembershipRead, dependencies=[Depends(require(Permission.MEMBER_READ))])
+@router.get(
+    "/role-memberships/{membership_id}",
+    response_model=RoleMembershipRead,
+    dependencies=[Depends(require(Permission.MEMBER_READ))],
+)
 def get_role_membership(
     membership_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
 ) -> RoleMembership:
     return get_or_404(db, RoleMembership, membership_id, tenant_id, "Role membership not found")
 
 
-@router.delete("/role-memberships/{membership_id}", status_code=204, dependencies=[Depends(require(Permission.ROLE_MANAGE))])
+@router.delete(
+    "/role-memberships/{membership_id}",
+    status_code=204,
+    dependencies=[Depends(require(Permission.ROLE_MANAGE))],
+)
 def delete_role_membership(membership_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
     membership = get_or_404(
         db, RoleMembership, membership_id, tenant_id, "Role membership not found"

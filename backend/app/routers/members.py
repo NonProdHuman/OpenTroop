@@ -14,14 +14,21 @@ from app.schemas.member import MemberBase, MemberInviteRead, MemberRead, MemberU
 router = APIRouter(prefix="/members", tags=["members"])
 
 
-@router.get("/", response_model=list[MemberRead], dependencies=[Depends(require(Permission.MEMBER_READ))])
+@router.get(
+    "/", response_model=list[MemberRead], dependencies=[Depends(require(Permission.MEMBER_READ))]
+)
 def list_members(tenant_id: TenantDep, db: DbDep) -> Sequence[Member]:
     return db.scalars(
         select(Member).where(Member.tenant_id == tenant_id, Member.is_deleted.is_(False))
     ).all()
 
 
-@router.post("/", response_model=MemberRead, status_code=201, dependencies=[Depends(require(Permission.MEMBER_WRITE))])
+@router.post(
+    "/",
+    response_model=MemberRead,
+    status_code=201,
+    dependencies=[Depends(require(Permission.MEMBER_WRITE))],
+)
 def create_member(body: MemberBase, tenant_id: TenantDep, db: DbDep) -> Member:
     if body.patrol_id is not None:
         require_tenant_fk(db, Patrol, body.patrol_id, tenant_id, "patrol_id")
@@ -32,12 +39,20 @@ def create_member(body: MemberBase, tenant_id: TenantDep, db: DbDep) -> Member:
     return member
 
 
-@router.get("/{member_id}", response_model=MemberRead, dependencies=[Depends(require(Permission.MEMBER_READ))])
+@router.get(
+    "/{member_id}",
+    response_model=MemberRead,
+    dependencies=[Depends(require(Permission.MEMBER_READ))],
+)
 def get_member(member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Member:
     return get_or_404(db, Member, member_id, tenant_id, "Member not found")
 
 
-@router.patch("/{member_id}", response_model=MemberRead, dependencies=[Depends(require(Permission.MEMBER_WRITE))])
+@router.patch(
+    "/{member_id}",
+    response_model=MemberRead,
+    dependencies=[Depends(require(Permission.MEMBER_WRITE))],
+)
 def update_member(
     member_id: uuid.UUID, body: MemberUpdate, tenant_id: TenantDep, db: DbDep
 ) -> Member:
@@ -52,14 +67,20 @@ def update_member(
     return member
 
 
-@router.delete("/{member_id}", status_code=204, dependencies=[Depends(require(Permission.MEMBER_DELETE))])
+@router.delete(
+    "/{member_id}", status_code=204, dependencies=[Depends(require(Permission.MEMBER_DELETE))]
+)
 def delete_member(member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
     member = get_or_404(db, Member, member_id, tenant_id, "Member not found")
     member.is_deleted = True
     db.commit()
 
 
-@router.post("/{member_id}/invite", response_model=MemberInviteRead, dependencies=[Depends(require(Permission.ROLE_ASSIGN))])
+@router.post(
+    "/{member_id}/invite",
+    response_model=MemberInviteRead,
+    dependencies=[Depends(require(Permission.ROLE_ASSIGN))],
+)
 def invite_member(member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> MemberInviteRead:
     """Generate a signed claim token so a member can link their login account.
 
