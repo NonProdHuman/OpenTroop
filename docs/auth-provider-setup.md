@@ -5,7 +5,7 @@ This guide covers the two recommended options:
 
 | Deployment mode | Recommended provider |
 |-----------------|----------------------|
-| SaaS (opentroop.org) | **Clerk** — managed, free up to 10 K MAUs |
+| SaaS (opentroop.app) | **Clerk** — managed, free up to 10 K MAUs |
 | Self-hosted (single troop) | **Authentik** — open-source, self-managed |
 
 ---
@@ -52,7 +52,7 @@ Create (or update) `backend/.env`:
 AUTH_JWKS_URI=https://<your-frontend-api>.clerk.accounts.dev/.well-known/jwks.json
 AUTH_ISSUER=https://<your-frontend-api>.clerk.accounts.dev
 AUTH_AUDIENCE=        # leave blank unless you configure a custom audience in Clerk
-APP_DOMAIN=opentroop.org
+APP_DOMAIN=opentroop.app
 ```
 
 Restart the backend.  The JWKS keys are fetched and cached on first request.
@@ -61,7 +61,7 @@ Restart the backend.  The JWKS keys are fetched and cached on first request.
 
 In Clerk dashboard → **Redirects**:
 
-- Add your production domain(s): `https://opentroop.org`, `https://*.opentroop.org`
+- Add your production domain(s): `https://opentroop.app`, `https://*.opentroop.app`
 - Add your local dev URL: `http://localhost:3000`
 
 ### 5. Frontend integration (Next.js)

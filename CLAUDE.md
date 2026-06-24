@@ -107,6 +107,9 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   `Member.__table_args__` and created by the initial Alembic migration.
   `user_id` (nullable FK → `users.id`) links the roster record to the platform
   identity once a member claims their account.
+  OA (Order of the Arrow) fields: `oa_member`, `oa_active` (bools), plus
+  `oa_election_date`, `oa_call_out_date`, `oa_ordeal_date`, `oa_brotherhood_date`,
+  `oa_vigil_date`, `oa_vigil_name`, `oa_notes` (all nullable).
 - `MemberRelationship` — directional family link between any two members.
   `from_member_id` / `to_member_id` (both FKs into `members`). Relationship types:
   `parent_of`, `guardian_of` (from_member is the adult; to_member is the child/ward),
@@ -132,6 +135,34 @@ unmodified on SQLite, which is how the test suite stays DB-free.
 - `resolve_permissions(member_id, session)` in `app/core/permissions.py` — walks
   `MemberRoleAssignment` → `RoleMembership` transitively (cycle-safe) and returns a
   `frozenset[Permission]`. Short-circuits to all permissions for `is_admin` roles.
+- `Location` — reusable named locations (name, address, phone, website_url, directions,
+  description, distance_miles). Referenced by `Event.location_id`; events may also
+  carry a free-text `location_notes` for one-off spots.
+- `EventType` — tenant-scoped, user-customizable event type. Fields: `name`, `color`
+  (hex string), `is_active`, `is_system` (seeded defaults — can disable but not delete),
+  and capability flags: `tracks_service_hours`, `tracks_camping_nights`, `tracks_mileage`,
+  `allow_signups`, `require_permission_slip`, `is_online`. Six defaults are seeded
+  atomically on `POST /tenants/`: Meeting, Campout, Hike, Service Project, Court of
+  Honor, Fundraiser. A `UniqueConstraint("tenant_id", "name")` prevents duplicate
+  names within a tenant.
+- `Event` — core event record (TrackedBase). Key fields: `event_type_id` (FK →
+  `event_types`), `location_id` (nullable FK), `location_notes` (free text),
+  `departure_location`, `return_location`, `scheduled_start`/`scheduled_end`,
+  `all_day`, signup window (`signup_start`, `signup_deadline`), capacity limits
+  (`signup_limit_scouts`, `signup_limit_adults`), `cost_youth`/`cost_adult` (Decimal),
+  `video_conference_url`, `description`, `agenda`, `tour_permit_submitted` (nullable
+  bool — None means not applicable), `attendance_taken`, `linked_event_id` (self-ref FK).
+  Activity metrics (all nullable Decimal/int): `community_service_hours`,
+  `conservation_hours`, `hiking_miles`, `backpacking_miles`, `paddling_miles`,
+  `cycling_miles`, `water_hours`, `camping_nights`.
+- `EventOrganizer` — many-to-many: `event_id` + `member_id`. Soft-deletable.
+- `EventParticipant` — RSVP + attendance per member per event. Fields: `signed_up`,
+  `attended` (nullable — null until `Event.attendance_taken` is set True), `guest_count`,
+  `driver`, `seat_count`, `comment`, `signed_up_at`. Per-person activity overrides
+  (nullable, same names as Event metrics with `_override` suffix). Permission slip:
+  `permission_slip_submitted`, `electronic_permission`, `electronic_permission_at`,
+  `electronic_permission_by_id` (FK → members), `electronic_permission_signature`.
+  Setting `attended` via PATCH is gated: returns 409 if `Event.attendance_taken` is False.
 
 Enums live in `app/models/enums.py` and are shared between ORM models and schemas.
 
@@ -143,7 +174,7 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
 - **User provisioning**: `get_or_create_user` maps validated `(iss, sub)` claims to a
   `User` + `Identity` row pair, creating both atomically on first login.
 - **Tenant resolution** (`app/core/tenant.py`): `get_tenant_id` resolves the tenant
-  from the request subdomain first (`troop123.opentroop.org` → slug lookup), then
+  from the request subdomain first (`troop123.opentroop.app` → slug lookup), then
   falls back to the `X-Tenant-ID` header (raw UUID → DB validation). Nested
   subdomains are rejected to prevent Host-header spoofing.
 - **FastAPI dependencies** (`app/core/deps.py`): `TenantDep`, `DbDep`,

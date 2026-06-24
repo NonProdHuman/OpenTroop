@@ -46,7 +46,9 @@ membership model.
 - [x] Role-based access control — permission guards wired to all route handlers;
       `require(permission)` dependency checks the caller's Member + role hierarchy
 - [x] Auth (JWT; consider Scoutbook SSO as a future option)
-- [ ] TroopWebHost roster CSV import
+- [x] OA (Order of the Arrow) fields on Member — `oa_member`, `oa_active`, election/
+      call-out/ordeal/brotherhood/vigil dates, vigil name, notes
+- [ ] TroopWebHost XML full-dump import (roster + events)
 - [ ] Scoutbook member export import (BSA recharter format)
 - [x] Multi-tenant provisioning — `POST /tenants/` bootstraps Tenant + founding admin
       Member + administrators Role atomically; invite/claim flow links existing
@@ -58,16 +60,20 @@ Event types differ meaningfully. Campouts carry permit numbers and capacity limi
 Merit badge clinics have prerequisites. Courts of Honor tie into advancement data.
 Model events generically with typed metadata rather than one-size-fits-all fields.
 
-- [ ] Analyze TroopWebHost event export format before designing the model
-- [ ] `Location` model — reusable named locations (address, phone, website, notes)
+- [x] Analyze TroopWebHost event export format before designing the model
+- [x] `Location` model — reusable named locations (address, phone, website, notes)
       referenced by events rather than inlining address fields per-event
-- [ ] Core `Event` model (name, type, dates, location FK, capacity, tenant-scoped)
-- [ ] Event types: meeting, campout, service project, merit badge clinic, court of honor, fundraiser
-- [ ] Event organizers (which members are responsible for running the event)
-- [ ] Event shifts (multiple time slots within one event, e.g. service project sign-ups)
-- [ ] RSVP / attendance tracking per member (with adult/youth headcount minimums)
-- [ ] Event costs (separate youth/adult pricing)
-- [ ] Packing lists — reusable lists of gear attached to events
+- [x] Core `Event` model (name, type, dates, location FK, capacity, tenant-scoped)
+- [x] Event types — tenant-customizable `EventType` model; 6 defaults seeded on
+      provisioning (Meeting, Campout, Hike, Service Project, Court of Honor, Fundraiser);
+      capability flags drive field visibility (tracks_mileage, tracks_camping_nights, etc.)
+- [x] Event organizers (which members are responsible for running the event)
+- [ ] Event shifts (multiple time slots within one event — deferred; redesigning for
+      universal sign-up slots beyond TWH's shift model)
+- [x] RSVP / attendance tracking per member — `EventParticipant` with `signed_up`,
+      `attended`, per-person activity overrides, and electronic permission slip fields
+- [x] Event costs (separate youth/adult pricing — `cost_youth` / `cost_adult`)
+- [ ] Packing lists — deferred (feature creep risk before UI exists)
 - [ ] Digital permission slips (fillable forms attached to events; parent signature flow)
 - [ ] Health form collection and storage (per-event or per-member)
 - [ ] Calendar view (monthly/weekly; iCal export)

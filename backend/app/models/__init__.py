@@ -8,6 +8,9 @@ from app.models.enums import (
     RelationshipType,
     SwimClassification,
 )
+from app.models.event import Event, EventOrganizer, EventParticipant
+from app.models.event_type import EventType
+from app.models.location import Location
 from app.models.member import Member
 from app.models.patrol import Patrol
 from app.models.relationship import MemberRelationship
@@ -19,6 +22,11 @@ __all__ = [
     "Base",
     "PlatformBase",
     "TrackedBase",
+    "Event",
+    "EventOrganizer",
+    "EventParticipant",
+    "EventType",
+    "Location",
     "Member",
     "Patrol",
     "MemberRelationship",

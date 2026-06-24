@@ -15,8 +15,8 @@ from app.models.tenant import Tenant
 def _extract_subdomain(host: str, app_domain: str) -> str | None:
     """Return the single subdomain prefix if *host* is a direct subdomain of *app_domain*.
 
-    ``troop123.opentroop.org`` → ``"troop123"``
-    Nested subdomains (``a.troop123.opentroop.org``) are rejected to prevent
+    ``troop123.opentroop.app`` → ``"troop123"``
+    Nested subdomains (``a.troop123.opentroop.app``) are rejected to prevent
     tenant spoofing via crafted Host headers.
     """
     host = host.lower().split(":")[0]  # strip optional port
@@ -37,7 +37,7 @@ async def get_tenant_id(
     """Resolve the tenant for a request.
 
     Resolution order:
-    1. Subdomain — ``troop123.opentroop.org`` → slug lookup in DB.
+    1. Subdomain — ``troop123.opentroop.app`` → slug lookup in DB.
     2. ``X-Tenant-ID`` header — raw UUID → DB validation.
     """
     host = request.headers.get("host", "")

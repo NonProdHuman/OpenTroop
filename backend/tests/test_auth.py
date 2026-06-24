@@ -13,28 +13,28 @@ from app.models.user import User
 
 
 def test_extract_subdomain_valid() -> None:
-    assert _extract_subdomain("troop123.opentroop.org", "opentroop.org") == "troop123"
+    assert _extract_subdomain("troop123.opentroop.app", "opentroop.app") == "troop123"
 
 
 def test_extract_subdomain_with_port() -> None:
-    assert _extract_subdomain("troop123.opentroop.org:8080", "opentroop.org") == "troop123"
+    assert _extract_subdomain("troop123.opentroop.app:8080", "opentroop.app") == "troop123"
 
 
 def test_extract_subdomain_apex_returns_none() -> None:
-    assert _extract_subdomain("opentroop.org", "opentroop.org") is None
+    assert _extract_subdomain("opentroop.app", "opentroop.app") is None
 
 
 def test_extract_subdomain_unrelated_domain_returns_none() -> None:
-    assert _extract_subdomain("other.com", "opentroop.org") is None
+    assert _extract_subdomain("other.com", "opentroop.app") is None
 
 
 def test_extract_subdomain_nested_rejected() -> None:
     # Nested subdomain must not resolve — prevents Host-header spoofing.
-    assert _extract_subdomain("a.troop123.opentroop.org", "opentroop.org") is None
+    assert _extract_subdomain("a.troop123.opentroop.app", "opentroop.app") is None
 
 
 def test_extract_subdomain_case_insensitive() -> None:
-    assert _extract_subdomain("Troop123.OpenTroop.Org", "opentroop.org") == "troop123"
+    assert _extract_subdomain("Troop123.opentroop.app", "opentroop.app") == "troop123"
 
 
 # ---------------------------------------------------------------------------

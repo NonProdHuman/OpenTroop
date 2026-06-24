@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     auth_issuer: str = ""
     auth_audience: str = ""
 
-    # Domain used for subdomain tenant routing (e.g. troop123.opentroop.org → "opentroop.org")
-    app_domain: str = "opentroop.org"
+    # Domain used for subdomain tenant routing (e.g. troop123.opentroop.app → "opentroop.app")
+    app_domain: str = "opentroop.app"
 
     # Secret used to sign member invite/claim tokens (HS256). Must be changed in production.
     app_secret: str = "change-me-in-production"  # noqa: S105

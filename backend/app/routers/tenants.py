@@ -5,10 +5,31 @@ from sqlalchemy import select
 
 from app.core.deps import CurrentUserDep, DbDep
 from app.models.enums import MemberType
+from app.models.event_type import EventType
 from app.models.member import Member
 from app.models.role import MemberRoleAssignment, Role
 from app.models.tenant import Tenant
 from app.schemas.tenant import TenantProvision, TenantRead
+
+_DEFAULT_EVENT_TYPES: list[dict[str, object]] = [
+    {"name": "Meeting", "color": "#4A90D9", "allow_signups": False},
+    {
+        "name": "Campout",
+        "color": "#2ECC71",
+        "tracks_camping_nights": True,
+        "tracks_mileage": True,
+        "require_permission_slip": True,
+    },
+    {"name": "Hike", "color": "#F39C12", "tracks_mileage": True, "require_permission_slip": True},
+    {
+        "name": "Service Project",
+        "color": "#E74C3C",
+        "tracks_service_hours": True,
+        "require_permission_slip": True,
+    },
+    {"name": "Court of Honor", "color": "#9B59B6"},
+    {"name": "Fundraiser", "color": "#1ABC9C"},
+]
 
 router = APIRouter(prefix="/tenants", tags=["tenants"])
 
@@ -54,6 +75,10 @@ def provision_tenant(body: TenantProvision, user: CurrentUserDep, db: DbDep) -> 
     db.flush()
 
     db.add(MemberRoleAssignment(tenant_id=tenant.id, member_id=founder.id, role_id=admin_role.id))
+
+    for defaults in _DEFAULT_EVENT_TYPES:
+        db.add(EventType(tenant_id=tenant.id, is_system=True, **defaults))
+
     db.commit()
     db.refresh(tenant)
     return tenant

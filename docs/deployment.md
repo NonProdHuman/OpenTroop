@@ -142,12 +142,12 @@ Vercel handles CDN, TLS, and preview deployments automatically.
 ## Tenant routing in production
 
 The backend resolves the tenant from the request's `Host` header subdomain
-(`troop123.opentroop.org`).  You need a wildcard DNS record pointing all
+(`troop123.opentroop.app`).  You need a wildcard DNS record pointing all
 subdomains at Cloud Run, and a wildcard TLS certificate.
 
 **DNS (in your registrar):**
 ```
-*.opentroop.org  CNAME  ghs.googlehosted.com.
+*.opentroop.app  CNAME  ghs.googlehosted.com.
 ```
 
 **Cloud Run domain mapping:**
@@ -155,7 +155,7 @@ subdomains at Cloud Run, and a wildcard TLS certificate.
 ```bash
 gcloud beta run domain-mappings create \
   --service=opentroop-backend \
-  --domain=api.opentroop.org \
+  --domain=api.opentroop.app \
   --region=us-central1
 ```
 

@@ -79,6 +79,16 @@ class Member(TrackedBase):
 
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    oa_member: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    oa_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    oa_election_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    oa_call_out_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    oa_ordeal_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    oa_brotherhood_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    oa_vigil_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    oa_vigil_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    oa_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id"), nullable=True, index=True
     )

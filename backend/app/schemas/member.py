@@ -41,6 +41,15 @@ class MemberBase(BaseModel):
     email_bounced: bool = False
     sms_opt_in: bool = False
     notes: str | None = None
+    oa_member: bool = False
+    oa_active: bool = False
+    oa_election_date: date | None = None
+    oa_call_out_date: date | None = None
+    oa_ordeal_date: date | None = None
+    oa_brotherhood_date: date | None = None
+    oa_vigil_date: date | None = None
+    oa_vigil_name: str | None = None
+    oa_notes: str | None = None
     patrol_id: uuid.UUID | None = None
 
 
@@ -82,6 +91,15 @@ class MemberUpdate(BaseModel):
     email_bounced: bool | None = None
     sms_opt_in: bool | None = None
     notes: str | None = None
+    oa_member: bool | None = None
+    oa_active: bool | None = None
+    oa_election_date: date | None = None
+    oa_call_out_date: date | None = None
+    oa_ordeal_date: date | None = None
+    oa_brotherhood_date: date | None = None
+    oa_vigil_date: date | None = None
+    oa_vigil_name: str | None = None
+    oa_notes: str | None = None
     patrol_id: uuid.UUID | None = None
 
 
