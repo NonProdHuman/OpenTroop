@@ -9,6 +9,22 @@ Phase 1 covers Membership/Contact Management and Event Management. Leaders must 
 able to work at camps without connectivity, so the data layer is built for
 background sync from day one.
 
+**SaaS-first (primary design target).** OpenTroop is built first and foremost as a
+hosted multi-tenant SaaS platform serving many troops; self-hosting (one troop, one
+instance) is a supported secondary mode, not the design center. This was decided when
+Clerk was chosen as the auth platform. Practical implications for all work:
+- Every design decision assumes a shared platform with many tenants on it. The
+  `tenant_id` partition key, subdomain tenant routing, and per-tenant rate limiting
+  are first-class, not afterthoughts.
+- There is a **platform/global tier above tenants** (creating tenants, inviting and
+  administering tenant admins, billing/ops) that is distinct from tenant-scoped RBAC.
+  Tenant creation belongs to platform (global) admins, not arbitrary signed-in users.
+- New cross-tenant capabilities subclass `PlatformBase`; tenant features subclass
+  `TrackedBase`. When in doubt, ask "does this row belong to one troop or to the
+  platform?" — that determines the base class.
+- Self-hosted mode must keep working, but where the two modes conflict, optimize for
+  SaaS and degrade gracefully for single-tenant.
+
 ## Commands
 
 ### Start everything
