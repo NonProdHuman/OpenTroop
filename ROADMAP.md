@@ -216,14 +216,17 @@ API contract for each pillar stabilizes.
 
 ## Near-Term Priorities (Next Steps)
 
-Pillars 1 and 2 are complete at the API layer. The natural next steps are:
+Pillars 1 and 2 are complete at the API layer. The web app shell is scaffolded
+(`apps/web/` — Next.js 16, Tailwind 4, shadcn/ui, Clerk auth, sidebar layout).
 
-1. **Frontend scaffolding** — Next.js + Tailwind + shadcn/ui in `frontend/`; wire
-   auth, tenant resolution, and the existing REST endpoints.
-2. **Pillar 3 analysis** — export Scoutbook advancement data from a real troop before
+1. **Members screen** — searchable/filterable roster list + inline detail panel;
+   the highest-impact screen for demonstrating the UX difference from TroopWebHost.
+2. **Events screen** — event list and detail view; reuses the same data-table patterns.
+3. **Attendance screen** — the key field UX moment; optimistic updates, fast tap targets.
+4. **Pillar 3 analysis** — export Scoutbook advancement data from a real troop before
    designing the advancement model; let the data shape the schema.
-3. **Scoutbook member import** — BSA recharter XML format (complement to the TWH importer).
-4. **TroopWebHost-compatible export** — round-trip migration path for troops leaving TWH.
+5. **Scoutbook member import** — BSA recharter XML format (complement to the TWH importer).
+6. **TroopWebHost-compatible export** — round-trip migration path for troops leaving TWH.
 
 ---
 

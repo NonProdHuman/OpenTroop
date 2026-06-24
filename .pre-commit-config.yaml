@@ -6,6 +6,7 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-toml
+      - id: check-json
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ["--maxkb=500"]
@@ -33,6 +34,20 @@ repos:
         pass_filenames: false
         files: ^backend/
         types_or: [python, pyi]
+      - id: tsc-web
+        name: tsc (web)
+        language: system
+        entry: bash -c 'cd apps/web && pnpm exec tsc --noEmit'
+        pass_filenames: false
+        files: ^apps/web/
+        types_or: [ts, tsx]
+      - id: eslint-web
+        name: eslint (web)
+        language: system
+        entry: bash -c 'cd apps/web && pnpm exec eslint src'
+        pass_filenames: false
+        files: ^apps/web/
+        types_or: [ts, tsx]
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.18.4

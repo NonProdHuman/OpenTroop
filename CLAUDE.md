@@ -55,10 +55,20 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-Hooks run automatically on `git commit`. The `ruff`, `ruff-format`, and `mypy` hooks
-all use `language: system` so they invoke their tools via `uv run` from `backend/`,
-keeping versions in sync with `uv.lock` rather than a separately-pinned pre-commit
-environment.
+Hooks run automatically on `git commit`. All hooks use `language: system`:
+
+| Hook | Scope | Tool |
+|------|-------|------|
+| `ruff`, `ruff-format` | `backend/` Python | `uv run ruff` |
+| `mypy` | `backend/` Python | `uv run python -m mypy app` |
+| `tsc-web` | `apps/web/` TypeScript | `pnpm exec tsc --noEmit` |
+| `eslint-web` | `apps/web/` TypeScript/JSX | `pnpm exec eslint src` |
+| `check-json` | whole repo JSON | pre-commit-hooks |
+| `gitleaks` | whole repo | secret scanning |
+
+Backend tools run via `uv run` (pinned to `uv.lock`); frontend tools run via
+`pnpm exec` (pinned to `pnpm-lock.yaml`). Neither requires a separately-managed
+pre-commit environment.
 
 ## Architecture
 
