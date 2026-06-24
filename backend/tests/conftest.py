@@ -15,7 +15,7 @@ from app.core.database import get_db
 from app.core.tenant import get_tenant_id
 from app.main import app
 from app.models import Base  # registers all models on Base.metadata
-from app.models.enums import MemberType
+from app.models.enums import MemberType, PlatformRole
 from app.models.member import Member
 from app.models.role import MemberRoleAssignment, Role
 from app.models.user import User
@@ -33,9 +33,18 @@ _ADMIN_MEMBER_IDS: dict[uuid.UUID, uuid.UUID] = {
 # A second user with no pre-seeded Member — used for claim / onboarding tests.
 NEW_USER_ID = uuid.UUID("c0000000-0000-0000-0000-000000000001")
 
+# A platform (global) admin — holds platform_role, no tenant membership.
+PLATFORM_ADMIN_USER_ID = uuid.UUID("d0000000-0000-0000-0000-000000000001")
+
 _USERS = {
     str(ADMIN_USER_ID): User(id=ADMIN_USER_ID, email="admin@test.com", display_name="Test Admin"),
     str(NEW_USER_ID): User(id=NEW_USER_ID, email="newuser@test.com", display_name="New User"),
+    str(PLATFORM_ADMIN_USER_ID): User(
+        id=PLATFORM_ADMIN_USER_ID,
+        email="platform@test.com",
+        display_name="Platform Admin",
+        platform_role=PlatformRole.SUPERADMIN,
+    ),
 }
 
 
@@ -176,5 +185,18 @@ def claim_client(db_session: Session) -> Generator[TestClient, None, None]:
     """
     _set_shared_overrides(db_session)
     with TestClient(app, headers={"X-Test-User-ID": str(NEW_USER_ID)}) as c:
+        yield c
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def platform_admin_client(db_session: Session) -> Generator[TestClient, None, None]:
+    """TestClient authenticated as a platform (global) admin — no tenant membership.
+
+    Used to test the SaaS control plane (tenant provisioning). Holds
+    ``platform_role=SUPERADMIN`` but is deliberately not a Member of any tenant.
+    """
+    _set_shared_overrides(db_session)
+    with TestClient(app, headers={"X-Test-User-ID": str(PLATFORM_ADMIN_USER_ID)}) as c:
         yield c
     app.dependency_overrides.clear()

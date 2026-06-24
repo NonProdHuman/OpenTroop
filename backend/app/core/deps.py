@@ -20,6 +20,21 @@ DbDep = Annotated[Session, Depends(get_db)]
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 
 
+def get_platform_admin(user: CurrentUserDep) -> User:
+    """Require the caller to hold a platform (global, cross-tenant) role.
+
+    Gates the SaaS control plane — tenant provisioning and tenant-admin
+    administration — independently of any tenant-scoped permission. Raises 403
+    for ordinary users (``platform_role is None``).
+    """
+    if user.platform_role is None:
+        raise HTTPException(status_code=403, detail="Platform administrator access required")
+    return user
+
+
+PlatformAdminDep = Annotated[User, Depends(get_platform_admin)]
+
+
 def get_or_404[T: TrackedBase](
     db: Session, model: type[T], obj_id: uuid.UUID, tenant_id: uuid.UUID, detail: str
 ) -> T:

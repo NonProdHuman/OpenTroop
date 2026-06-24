@@ -3,13 +3,14 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
-from app.core.deps import CurrentUserDep, DbDep
+from app.core.deps import DbDep, PlatformAdminDep
+from app.core.invite import create_invite_token
 from app.models.enums import MemberType
 from app.models.event_type import EventType
 from app.models.member import Member
 from app.models.role import MemberRoleAssignment, Role
 from app.models.tenant import Tenant
-from app.schemas.tenant import TenantProvision, TenantRead
+from app.schemas.tenant import TenantProvision, TenantProvisioned
 
 _DEFAULT_EVENT_TYPES: list[dict[str, object]] = [
     {"name": "Meeting", "color": "#4A90D9", "allow_signups": False},
@@ -34,15 +35,20 @@ _DEFAULT_EVENT_TYPES: list[dict[str, object]] = [
 router = APIRouter(prefix="/tenants", tags=["tenants"])
 
 
-@router.post("/", response_model=TenantRead, status_code=201)
-def provision_tenant(body: TenantProvision, user: CurrentUserDep, db: DbDep) -> Tenant:
-    """Create a new tenant and make the authenticated user its founding admin.
+@router.post("/", response_model=TenantProvisioned, status_code=201)
+def provision_tenant(
+    body: TenantProvision, _admin: PlatformAdminDep, db: DbDep
+) -> TenantProvisioned:
+    """Provision a new tenant and invite its founding admin (platform admins only).
 
-    Atomically creates the Tenant, a Member record for the founder, the
-    'administrators' role (is_admin=True), and the MemberRoleAssignment
-    linking the founder to that role.
+    Tenant creation is a control-plane operation, not self-service. Atomically
+    creates the Tenant, an *unclaimed* founding admin Member (``user_id`` null),
+    the 'administrators' role (is_admin=True), the MemberRoleAssignment linking
+    that member to the role, and the six default event types. The provisioning
+    platform admin does not become a member of the new tenant.
 
-    Returns 409 if the slug is already taken.
+    Returns the tenant plus a 7-day invite token the founder uses to claim the
+    founding admin Member via POST /auth/claim. Returns 409 if the slug is taken.
     """
     if db.scalar(select(Tenant).where(Tenant.slug == body.slug, Tenant.is_deleted.is_(False))):
         raise HTTPException(
@@ -56,9 +62,10 @@ def provision_tenant(body: TenantProvision, user: CurrentUserDep, db: DbDep) -> 
 
     founder = Member(
         tenant_id=tenant.id,
-        user_id=user.id,
+        user_id=None,  # unclaimed until the founder accepts the invite
         first_name=body.founder_first_name,
         last_name=body.founder_last_name,
+        email=body.founder_email,
         member_type=MemberType.ADULT,
     )
     db.add(founder)
@@ -79,6 +86,18 @@ def provision_tenant(body: TenantProvision, user: CurrentUserDep, db: DbDep) -> 
     for defaults in _DEFAULT_EVENT_TYPES:
         db.add(EventType(tenant_id=tenant.id, is_system=True, **defaults))
 
+    token, expires_at = create_invite_token(founder.id, tenant.id)
+
     db.commit()
     db.refresh(tenant)
-    return tenant
+    return TenantProvisioned(
+        id=tenant.id,
+        created_at=tenant.created_at,
+        updated_at=tenant.updated_at,
+        is_deleted=tenant.is_deleted,
+        name=tenant.name,
+        slug=tenant.slug,
+        founder_member_id=founder.id,
+        invite_token=token,
+        invite_expires_at=expires_at,
+    )

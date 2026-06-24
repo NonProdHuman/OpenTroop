@@ -52,8 +52,9 @@ plugins = ["sqlalchemy.ext.mypy.plugin"]
 ignore_missing_imports = true
 
 [project.scripts]
-provision-tenant = "scripts.provision_tenant:main"
-import-twh       = "scripts.import_twh:main"
+provision-tenant       = "scripts.provision_tenant:main"
+promote-platform-admin = "scripts.promote_platform_admin:main"
+import-twh             = "scripts.import_twh:main"
 reset-tenant     = "scripts.reset_tenant:main"
 reset-db         = "scripts.reset_db:main"
 link-admin       = "scripts.link_admin:main"

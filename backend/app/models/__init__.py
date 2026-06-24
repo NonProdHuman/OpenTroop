@@ -5,6 +5,7 @@ from app.models.enums import (
     MemberStatus,
     MemberType,
     Permission,
+    PlatformRole,
     RelationshipType,
     SwimClassification,
 )
@@ -40,6 +41,7 @@ __all__ = [
     "MemberStatus",
     "MemberType",
     "Permission",
+    "PlatformRole",
     "SwimClassification",
     "RelationshipType",
 ]

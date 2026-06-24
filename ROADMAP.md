@@ -54,6 +54,14 @@ membership model.
 - [x] Multi-tenant provisioning — `POST /tenants/` bootstraps Tenant + founding admin
       Member + administrators Role atomically; invite/claim flow links existing
       roster entries to login accounts via signed tokens
+- [x] Platform (global) admin tier — `User.platform_role` gates the SaaS control plane;
+      `POST /tenants/` is platform-admin-only and creates an *unclaimed* founding admin
+      Member invited by email (the provisioning admin doesn't join the troop);
+      `promote-platform-admin` CLI bootstraps the first global admin
+- [ ] Platform control-plane API (`/platform/*`) — list/suspend tenants; invite, list,
+      and grant/revoke tenant admins from the global tier (UI: a global management console)
+- [ ] Automated invite email delivery (depends on Pillar 4 notification infra) — until then
+      provisioning returns the invite token for manual/out-of-band delivery
 
 ### Pillar 2 — Events & Calendar
 

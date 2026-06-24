@@ -85,3 +85,21 @@ class RelationshipType(enum.StrEnum):
     GUARDIAN_OF = "guardian_of"  # legal/non-biological guardian
     SIBLING_OF = "sibling_of"  # symmetric
     OTHER = "other"
+
+
+class PlatformRole(enum.StrEnum):
+    """Global (cross-tenant) role held by a platform User.
+
+    Distinct from tenant-scoped RBAC (Role / Permission), which governs what a
+    member can do *inside one troop*. A platform role governs the SaaS control
+    plane: creating/suspending tenants and administering tenant admins. Most
+    users have no platform role (``User.platform_role is None``).
+
+    SUPERADMIN — full platform control (create tenants, manage tenant admins).
+    SUPPORT    — read-oriented operator access for troubleshooting (future use).
+    BILLING    — billing/subscription administration (future use).
+    """
+
+    SUPERADMIN = "superadmin"
+    SUPPORT = "support"
+    BILLING = "billing"

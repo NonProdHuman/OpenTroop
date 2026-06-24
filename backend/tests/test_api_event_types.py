@@ -19,6 +19,30 @@ def _create_event_type(client: TestClient, **overrides: object) -> dict:
     return r.json()
 
 
+def _provision_and_claim(
+    platform_admin_client: TestClient, claim_client: TestClient, slug: str, name: str
+) -> str:
+    """Provision a tenant (as platform admin) and have the founder claim it.
+
+    Returns the new tenant id. After claiming, ``claim_client`` is the tenant's
+    administrator and can exercise tenant-scoped routes.
+    """
+    r = platform_admin_client.post(
+        "/tenants/",
+        json={
+            "name": name,
+            "slug": slug,
+            "founder_first_name": "Jane",
+            "founder_last_name": "Leader",
+        },
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    claim = claim_client.post("/auth/claim", json={"token": body["invite_token"]})
+    assert claim.status_code == 200, claim.text
+    return str(body["id"])
+
+
 def test_create_event_type(client: TestClient) -> None:
     data = _create_event_type(client, name="Merit Badge Clinic", tracks_service_hours=True)
     assert data["name"] == "Merit Badge Clinic"
@@ -82,19 +106,13 @@ def test_delete_system_event_type_rejected(client: TestClient) -> None:
     assert et["is_system"] is False  # API-created types are never system
 
 
-def test_system_type_guard_via_provisioning(claim_client: TestClient) -> None:
+def test_system_type_guard_via_provisioning(
+    platform_admin_client: TestClient, claim_client: TestClient
+) -> None:
     """Tenant provisioning seeds 6 system EventTypes; none can be deleted."""
-    r = claim_client.post(
-        "/tenants/",
-        json={
-            "name": "Troop Guard Test",
-            "slug": "guard-test",
-            "founder_first_name": "Jane",
-            "founder_last_name": "Leader",
-        },
+    tenant_id = _provision_and_claim(
+        platform_admin_client, claim_client, "guard-test", "Troop Guard Test"
     )
-    assert r.status_code == 201
-    tenant_id = r.json()["id"]
 
     types_r = claim_client.get("/event-types/", headers={"X-Tenant-ID": tenant_id})
     assert types_r.status_code == 200
@@ -106,19 +124,13 @@ def test_system_type_guard_via_provisioning(claim_client: TestClient) -> None:
         assert del_r.status_code == 409
 
 
-def test_provisioning_seeds_default_event_types(claim_client: TestClient) -> None:
+def test_provisioning_seeds_default_event_types(
+    platform_admin_client: TestClient, claim_client: TestClient
+) -> None:
     """POST /tenants/ seeds 6 system EventTypes with the expected names."""
-    r = claim_client.post(
-        "/tenants/",
-        json={
-            "name": "Troop Seed Test",
-            "slug": "seed-test",
-            "founder_first_name": "Jane",
-            "founder_last_name": "Leader",
-        },
+    tenant_id = _provision_and_claim(
+        platform_admin_client, claim_client, "seed-test", "Troop Seed Test"
     )
-    assert r.status_code == 201
-    tenant_id = r.json()["id"]
 
     types_r = claim_client.get("/event-types/", headers={"X-Tenant-ID": tenant_id})
     assert types_r.status_code == 200
@@ -126,17 +138,12 @@ def test_provisioning_seeds_default_event_types(claim_client: TestClient) -> Non
     assert names == _DEFAULT_EVENT_TYPE_NAMES
 
 
-def test_campout_type_has_correct_flags(claim_client: TestClient) -> None:
-    r = claim_client.post(
-        "/tenants/",
-        json={
-            "name": "Flag Test Troop",
-            "slug": "flag-test",
-            "founder_first_name": "J",
-            "founder_last_name": "L",
-        },
+def test_campout_type_has_correct_flags(
+    platform_admin_client: TestClient, claim_client: TestClient
+) -> None:
+    tenant_id = _provision_and_claim(
+        platform_admin_client, claim_client, "flag-test", "Flag Test Troop"
     )
-    tenant_id = r.json()["id"]
     types = claim_client.get("/event-types/", headers={"X-Tenant-ID": tenant_id}).json()
     campout = next(et for et in types if et["name"] == "Campout")
     assert campout["tracks_camping_nights"] is True
@@ -144,17 +151,12 @@ def test_campout_type_has_correct_flags(claim_client: TestClient) -> None:
     assert campout["require_permission_slip"] is True
 
 
-def test_meeting_type_no_signups(claim_client: TestClient) -> None:
-    r = claim_client.post(
-        "/tenants/",
-        json={
-            "name": "Meeting Test Troop",
-            "slug": "meeting-test",
-            "founder_first_name": "J",
-            "founder_last_name": "L",
-        },
+def test_meeting_type_no_signups(
+    platform_admin_client: TestClient, claim_client: TestClient
+) -> None:
+    tenant_id = _provision_and_claim(
+        platform_admin_client, claim_client, "meeting-test", "Meeting Test Troop"
     )
-    tenant_id = r.json()["id"]
     types = claim_client.get("/event-types/", headers={"X-Tenant-ID": tenant_id}).json()
     meeting = next(et for et in types if et["name"] == "Meeting")
     assert meeting["allow_signups"] is False

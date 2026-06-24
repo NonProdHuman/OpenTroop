@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import uuid
 
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import PlatformBase
+from app.models.enums import PlatformRole
 
 
 class User(PlatformBase):
@@ -22,6 +24,10 @@ class User(PlatformBase):
 
     email: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Global SaaS control-plane role. None for ordinary users; set only on the
+    # handful of platform operators who manage tenants and tenant admins.
+    platform_role: Mapped[PlatformRole | None] = mapped_column(SAEnum(PlatformRole), nullable=True)
 
     identities: Mapped[list[Identity]] = relationship("Identity", back_populates="user")
 
