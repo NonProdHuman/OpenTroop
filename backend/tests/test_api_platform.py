@@ -86,7 +86,8 @@ def test_founder_claims_then_administers(
     tenant_id = tenant["id"]
 
     # Before claiming, the founder is not yet a member — tenant routes are forbidden.
-    assert claim_client.get("/members/", headers={"X-Tenant-ID": tenant_id}).status_code == 403
+    pre_claim = claim_client.get("/members/", headers={"X-Tenant-ID": tenant_id})
+    assert pre_claim.status_code == 403
 
     claimed = claim_client.post("/auth/claim", json={"token": tenant["invite_token"]})
     assert claimed.status_code == 200, claimed.text
@@ -122,7 +123,8 @@ def test_list_and_get_tenants(platform_admin_client: TestClient) -> None:
 
 
 def test_list_tenants_requires_platform_admin(claim_client: TestClient) -> None:
-    assert claim_client.get("/platform/tenants").status_code == 403
+    r = claim_client.get("/platform/tenants")
+    assert r.status_code == 403
 
 
 def test_suspend_and_unsuspend(platform_admin_client: TestClient) -> None:
@@ -229,7 +231,8 @@ def test_admin_endpoints_require_platform_admin(
     platform_admin_client: TestClient, claim_client: TestClient
 ) -> None:
     tenant = _provision(platform_admin_client, "troop-gate")
-    assert claim_client.get(f"/platform/tenants/{tenant['id']}/admins").status_code == 403
+    r = claim_client.get(f"/platform/tenants/{tenant['id']}/admins")
+    assert r.status_code == 403
 
 
 # ---------------------------------------------------------------------------
@@ -286,8 +289,10 @@ def test_support_admin_can_list_but_not_mutate(
 ) -> None:
     """Read access for any platform admin; mutation gated to superadmin."""
     user = _make_user(db_session, "someadmin@test.com", PlatformRole.BILLING)
-    assert support_client.get("/platform/admins").status_code == 200
-    assert support_client.delete(f"/platform/admins/{user.id}").status_code == 403
+    listed = support_client.get("/platform/admins")
+    assert listed.status_code == 200
+    revoked = support_client.delete(f"/platform/admins/{user.id}")
+    assert revoked.status_code == 403
 
 
 def test_revoke_platform_admin(platform_admin_client: TestClient, db_session: Session) -> None:
@@ -295,7 +300,8 @@ def test_revoke_platform_admin(platform_admin_client: TestClient, db_session: Se
     _make_user(db_session, "super-b@test.com", PlatformRole.SUPERADMIN)
 
     # Two superadmins exist, so revoking one is allowed.
-    assert platform_admin_client.delete(f"/platform/admins/{a.id}").status_code == 204
+    revoked = platform_admin_client.delete(f"/platform/admins/{a.id}")
+    assert revoked.status_code == 204
     emails = {x["email"] for x in platform_admin_client.get("/platform/admins").json()}
     assert "super-a@test.com" not in emails
     assert "super-b@test.com" in emails
@@ -313,5 +319,7 @@ def test_revoke_platform_non_admin_returns_404(
     platform_admin_client: TestClient, db_session: Session
 ) -> None:
     plain = _make_user(db_session, "plain@test.com", None)
-    assert platform_admin_client.delete(f"/platform/admins/{plain.id}").status_code == 404
-    assert platform_admin_client.delete(f"/platform/admins/{uuid.uuid4()}").status_code == 404
+    not_admin = platform_admin_client.delete(f"/platform/admins/{plain.id}")
+    assert not_admin.status_code == 404
+    missing = platform_admin_client.delete(f"/platform/admins/{uuid.uuid4()}")
+    assert missing.status_code == 404
