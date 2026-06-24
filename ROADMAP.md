@@ -216,13 +216,14 @@ API contract for each pillar stabilizes.
 
 ## Near-Term Priorities (Next Steps)
 
-1. **Export and analyze** TroopWebHost + Scoutbook data from a real troop before
-   building Event or Advancement models.
-2. **Initial Alembic migration** — `docker compose up db` then
-   `alembic revision --autogenerate -m "initial schema"`. Include the partial
-   unique index on `(tenant_id, bsa_id) WHERE bsa_id IS NOT NULL`.
-3. **CRUD API endpoints** for Pillar 1 models with auth.
-4. **Open the repo publicly** — LICENSE, CONTRIBUTING, and CI are all in place.
+Pillars 1 and 2 are complete at the API layer. The natural next steps are:
+
+1. **Frontend scaffolding** — Next.js + Tailwind + shadcn/ui in `frontend/`; wire
+   auth, tenant resolution, and the existing REST endpoints.
+2. **Pillar 3 analysis** — export Scoutbook advancement data from a real troop before
+   designing the advancement model; let the data shape the schema.
+3. **Scoutbook member import** — BSA recharter XML format (complement to the TWH importer).
+4. **TroopWebHost-compatible export** — round-trip migration path for troops leaving TWH.
 
 ---
 

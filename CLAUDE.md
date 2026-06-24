@@ -215,9 +215,8 @@ CLI: run from `backend/`:
 uv run python import_twh.py <tenant-uuid> path/to/export.xml
 ```
 
-Test fixture: `backend/tests/fixtures/sample_twh_minimal.xml` — safe to commit,
-all PII is fake.  The real TWH export and anonymized samples are blocked by
-`reference/.gitignore`.
+Test fixture: `backend/tests/fixtures/sample_twh_minimal.xml` — all PII is fake.
+The real TWH export and any anonymized samples are blocked by `reference/.gitignore`.
 
 ### Conventions
 

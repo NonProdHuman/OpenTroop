@@ -72,10 +72,15 @@ and Python linting/formatting via ruff (pinned to the version in `uv.lock`).
 
 **Tenant-scoped (every row carries `tenant_id`):**
 - **Patrol** — a named unit grouping scouts.
-- **Member** — scouts and adults, with BSA `swim_classification`, optional patrol, and a nullable link to a `User` login account.
+- **Member** — scouts and adults, with BSA `swim_classification`, optional patrol, OA fields, and a nullable link to a `User` login account.
 - **MemberRelationship** — guardian/parent/sibling graph linking members.
 - **Role / RolePermission / RoleMembership** — two-tier RBAC: functional groups hold permissions; positions inherit from groups.
 - **MemberRoleAssignment** — assigns a member to a role, with a soft-delete audit trail.
+- **Location** — reusable named locations (address, phone, directions) referenced by events.
+- **EventType** — tenant-customizable event categories with capability flags (`tracks_camping_nights`, `allow_signups`, etc.); six defaults seeded on provisioning.
+- **Event** — core event record with dates, location, costs, activity metrics, signup window, and capacity limits.
+- **EventOrganizer** — which members are running a given event.
+- **EventParticipant** — per-member RSVP, attendance, activity overrides, and permission slip tracking.
 
 All tables inherit `id` (UUIDv7), `created_at`, `updated_at`, and `is_deleted` from a shared base.
 Tenant-scoped tables additionally carry `tenant_id`.
