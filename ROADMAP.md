@@ -48,7 +48,8 @@ membership model.
 - [x] Auth (JWT; consider Scoutbook SSO as a future option)
 - [x] OA (Order of the Arrow) fields on Member — `oa_member`, `oa_active`, election/
       call-out/ordeal/brotherhood/vigil dates, vigil name, notes
-- [ ] TroopWebHost XML full-dump import (roster + events)
+- [x] TroopWebHost XML full-dump import (roster + events) — `app/importers/twh.py`
+      CLI: `uv run python import_twh.py <tenant-id> <export.xml>` from `backend/`
 - [ ] Scoutbook member export import (BSA recharter format)
 - [x] Multi-tenant provisioning — `POST /tenants/` bootstraps Tenant + founding admin
       Member + administrators Role atomically; invite/claim flow links existing

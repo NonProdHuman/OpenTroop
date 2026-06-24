@@ -1,0 +1,592 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!--
+  Minimal TWH XML fixture for importer tests.
+  Contains enough records to exercise every import path without being bulky.
+  All PII is fake. Safe to commit.
+-->
+<DataBase name="Sample Troop Database">
+
+  <!-- ===== Patrols ===== -->
+  <Patrol>
+    <i>1</i>
+    <Patrol_Name>Eagle Patrol</Patrol_Name>
+    <Gender>M</Gender>
+  </Patrol>
+  <Patrol>
+    <i>2</i>
+    <Patrol_Name>Hawk Patrol</Patrol_Name>
+    <Gender>M</Gender>
+  </Patrol>
+
+  <!-- ===== Persons (2 scouts, 2 adults, 1 alumni) ===== -->
+
+  <!-- Scout with patrol, OA membership, medical dates -->
+  <Person>
+    <i>1</i>
+    <Name_First>Alice</Name_First>
+    <Name_Middle>J</Name_Middle>
+    <Name_Last>Scout</Name_Last>
+    <Name_Suffix></Name_Suffix>
+    <Nickname>Al</Nickname>
+    <Date_Of_Birth>3/15/2010 12:00:00 AM</Date_Of_Birth>
+    <BSA_Membership_Number>12345678</BSA_Membership_Number>
+    <Adult_Flag>N</Adult_Flag>
+    <Patrol>1</Patrol>
+    <Swim_Level>Swimmer</Swim_Level>
+    <Alumni_Flag>N</Alumni_Flag>
+    <Troop_Member_Flag>Y</Troop_Member_Flag>
+    <Email_Address>alice@example.com</Email_Address>
+    <Cell_Phone>555-111-2222</Cell_Phone>
+    <Home_Phone></Home_Phone>
+    <Mailing_Address_Line_1>123 Main St</Mailing_Address_Line_1>
+    <Mailing_Address_Line_2></Mailing_Address_Line_2>
+    <Mailing_Address_City>Springfield</Mailing_Address_City>
+    <Mailing_Address_State>IL</Mailing_Address_State>
+    <Mailing_Address_Zip>62701</Mailing_Address_Zip>
+    <Mailing_Address_Country>US</Mailing_Address_Country>
+    <Troop_Membership_Start_Date>9/1/2018 12:00:00 AM</Troop_Membership_Start_Date>
+    <Troop_Membership_End_Date></Troop_Membership_End_Date>
+    <Class_1_Medical_Form_Date>5/1/2025 12:00:00 AM</Class_1_Medical_Form_Date>
+    <Class_2_Medical_Form_Date>5/1/2025 12:00:00 AM</Class_2_Medical_Form_Date>
+    <Class_3_Medical_Form_Date>5/1/2025 12:00:00 AM</Class_3_Medical_Form_Date>
+    <Swim_Date>6/15/2024 12:00:00 AM</Swim_Date>
+    <Emergency_Contact_1_Name_First>Bob</Emergency_Contact_1_Name_First>
+    <Emergency_Contact_1_Name_Middle></Emergency_Contact_1_Name_Middle>
+    <Emergency_Contact_1_Name_Last>Scout</Emergency_Contact_1_Name_Last>
+    <Emergency_Contact_1_Name_Suffix></Emergency_Contact_1_Name_Suffix>
+    <Emergency_Contact_1_Phone>555-333-4444</Emergency_Contact_1_Phone>
+    <Emergency_Contact_2_Name_First>Carol</Emergency_Contact_2_Name_First>
+    <Emergency_Contact_2_Name_Middle></Emergency_Contact_2_Name_Middle>
+    <Emergency_Contact_2_Name_Last>Scout</Emergency_Contact_2_Name_Last>
+    <Emergency_Contact_2_Name_Suffix></Emergency_Contact_2_Name_Suffix>
+    <Emergency_Contact_2_Phone>555-555-6666</Emergency_Contact_2_Phone>
+    <Allergies></Allergies>
+    <Dietary_Restrictions></Dietary_Restrictions>
+    <OA_Member_Flag>Y</OA_Member_Flag>
+    <OA_Active_Flag>Y</OA_Active_Flag>
+    <OA_Election_Date>3/1/2024 12:00:00 AM</OA_Election_Date>
+    <OA_Call_Out_Date>3/15/2024 12:00:00 AM</OA_Call_Out_Date>
+    <OA_Ordeal_Date>6/1/2024 12:00:00 AM</OA_Ordeal_Date>
+    <OA_Brotherhood_Date></OA_Brotherhood_Date>
+    <OA_Vigil_Date></OA_Vigil_Date>
+    <OA_Vigil_Name>Running River</OA_Vigil_Name>
+    <OA_Notes></OA_Notes>
+    <Notes></Notes>
+  </Person>
+
+  <!-- Scout in second patrol, non-swimmer -->
+  <Person>
+    <i>2</i>
+    <Name_First>Dave</Name_First>
+    <Name_Middle></Name_Middle>
+    <Name_Last>Youth</Name_Last>
+    <Name_Suffix></Name_Suffix>
+    <Nickname></Nickname>
+    <Date_Of_Birth>7/4/2012 12:00:00 AM</Date_Of_Birth>
+    <BSA_Membership_Number>87654321</BSA_Membership_Number>
+    <Adult_Flag>N</Adult_Flag>
+    <Patrol>2</Patrol>
+    <Swim_Level>Non-Swimmer</Swim_Level>
+    <Alumni_Flag>N</Alumni_Flag>
+    <Troop_Member_Flag>Y</Troop_Member_Flag>
+    <Email_Address></Email_Address>
+    <Cell_Phone></Cell_Phone>
+    <Home_Phone></Home_Phone>
+    <Mailing_Address_Line_1></Mailing_Address_Line_1>
+    <Mailing_Address_City></Mailing_Address_City>
+    <Mailing_Address_State></Mailing_Address_State>
+    <Mailing_Address_Zip></Mailing_Address_Zip>
+    <Mailing_Address_Country></Mailing_Address_Country>
+    <Troop_Membership_Start_Date>9/1/2020 12:00:00 AM</Troop_Membership_Start_Date>
+    <Troop_Membership_End_Date></Troop_Membership_End_Date>
+    <Class_1_Medical_Form_Date></Class_1_Medical_Form_Date>
+    <Class_2_Medical_Form_Date></Class_2_Medical_Form_Date>
+    <Class_3_Medical_Form_Date></Class_3_Medical_Form_Date>
+    <Swim_Date></Swim_Date>
+    <Emergency_Contact_1_Name_First>Eve</Emergency_Contact_1_Name_First>
+    <Emergency_Contact_1_Name_Last>Youth</Emergency_Contact_1_Name_Last>
+    <Emergency_Contact_1_Phone>555-777-8888</Emergency_Contact_1_Phone>
+    <Emergency_Contact_2_Name_First></Emergency_Contact_2_Name_First>
+    <Emergency_Contact_2_Name_Last></Emergency_Contact_2_Name_Last>
+    <Emergency_Contact_2_Phone></Emergency_Contact_2_Phone>
+    <Allergies></Allergies>
+    <Dietary_Restrictions></Dietary_Restrictions>
+    <OA_Member_Flag>N</OA_Member_Flag>
+    <OA_Active_Flag>N</OA_Active_Flag>
+    <OA_Election_Date></OA_Election_Date>
+    <OA_Call_Out_Date></OA_Call_Out_Date>
+    <OA_Ordeal_Date></OA_Ordeal_Date>
+    <OA_Brotherhood_Date></OA_Brotherhood_Date>
+    <OA_Vigil_Date></OA_Vigil_Date>
+    <OA_Vigil_Name></OA_Vigil_Name>
+    <OA_Notes></OA_Notes>
+    <Notes></Notes>
+  </Person>
+
+  <!-- Adult leader (parent of scout #1) -->
+  <Person>
+    <i>3</i>
+    <Name_First>Bob</Name_First>
+    <Name_Middle></Name_Middle>
+    <Name_Last>Scout</Name_Last>
+    <Name_Suffix></Name_Suffix>
+    <Nickname></Nickname>
+    <Date_Of_Birth>3/15/1975 12:00:00 AM</Date_Of_Birth>
+    <BSA_Membership_Number>11112222</BSA_Membership_Number>
+    <Adult_Flag>Y</Adult_Flag>
+    <Patrol></Patrol>
+    <Swim_Level>Swimmer</Swim_Level>
+    <Alumni_Flag>N</Alumni_Flag>
+    <Troop_Member_Flag>Y</Troop_Member_Flag>
+    <Email_Address>bob@example.com</Email_Address>
+    <Cell_Phone>555-333-4444</Cell_Phone>
+    <Home_Phone></Home_Phone>
+    <Mailing_Address_Line_1>123 Main St</Mailing_Address_Line_1>
+    <Mailing_Address_City>Springfield</Mailing_Address_City>
+    <Mailing_Address_State>IL</Mailing_Address_State>
+    <Mailing_Address_Zip>62701</Mailing_Address_Zip>
+    <Mailing_Address_Country>US</Mailing_Address_Country>
+    <Troop_Membership_Start_Date>9/1/2015 12:00:00 AM</Troop_Membership_Start_Date>
+    <Troop_Membership_End_Date></Troop_Membership_End_Date>
+    <Class_1_Medical_Form_Date></Class_1_Medical_Form_Date>
+    <Class_2_Medical_Form_Date></Class_2_Medical_Form_Date>
+    <Class_3_Medical_Form_Date></Class_3_Medical_Form_Date>
+    <Swim_Date></Swim_Date>
+    <Emergency_Contact_1_Name_First>Carol</Emergency_Contact_1_Name_First>
+    <Emergency_Contact_1_Name_Last>Scout</Emergency_Contact_1_Name_Last>
+    <Emergency_Contact_1_Phone>555-555-6666</Emergency_Contact_1_Phone>
+    <Emergency_Contact_2_Name_First></Emergency_Contact_2_Name_First>
+    <Emergency_Contact_2_Name_Last></Emergency_Contact_2_Name_Last>
+    <Emergency_Contact_2_Phone></Emergency_Contact_2_Phone>
+    <Allergies></Allergies>
+    <Dietary_Restrictions></Dietary_Restrictions>
+    <OA_Member_Flag>N</OA_Member_Flag>
+    <OA_Active_Flag>N</OA_Active_Flag>
+    <OA_Election_Date></OA_Election_Date>
+    <OA_Call_Out_Date></OA_Call_Out_Date>
+    <OA_Ordeal_Date></OA_Ordeal_Date>
+    <OA_Brotherhood_Date></OA_Brotherhood_Date>
+    <OA_Vigil_Date></OA_Vigil_Date>
+    <OA_Vigil_Name></OA_Vigil_Name>
+    <OA_Notes></OA_Notes>
+    <Notes></Notes>
+  </Person>
+
+  <!-- Adult leader (parent of scout #2) -->
+  <Person>
+    <i>4</i>
+    <Name_First>Eve</Name_First>
+    <Name_Middle></Name_Middle>
+    <Name_Last>Youth</Name_Last>
+    <Name_Suffix></Name_Suffix>
+    <Nickname></Nickname>
+    <Date_Of_Birth>6/20/1980 12:00:00 AM</Date_Of_Birth>
+    <BSA_Membership_Number></BSA_Membership_Number>
+    <Adult_Flag>Y</Adult_Flag>
+    <Patrol></Patrol>
+    <Swim_Level></Swim_Level>
+    <Alumni_Flag>N</Alumni_Flag>
+    <Troop_Member_Flag>Y</Troop_Member_Flag>
+    <Email_Address>eve@example.com</Email_Address>
+    <Cell_Phone>555-777-8888</Cell_Phone>
+    <Home_Phone></Home_Phone>
+    <Mailing_Address_Line_1></Mailing_Address_Line_1>
+    <Mailing_Address_City></Mailing_Address_City>
+    <Mailing_Address_State></Mailing_Address_State>
+    <Mailing_Address_Zip></Mailing_Address_Zip>
+    <Mailing_Address_Country></Mailing_Address_Country>
+    <Troop_Membership_Start_Date>9/1/2020 12:00:00 AM</Troop_Membership_Start_Date>
+    <Troop_Membership_End_Date></Troop_Membership_End_Date>
+    <Class_1_Medical_Form_Date></Class_1_Medical_Form_Date>
+    <Class_2_Medical_Form_Date></Class_2_Medical_Form_Date>
+    <Class_3_Medical_Form_Date></Class_3_Medical_Form_Date>
+    <Swim_Date></Swim_Date>
+    <Emergency_Contact_1_Name_First>Frank</Emergency_Contact_1_Name_First>
+    <Emergency_Contact_1_Name_Last>Youth</Emergency_Contact_1_Name_Last>
+    <Emergency_Contact_1_Phone>555-999-0000</Emergency_Contact_1_Phone>
+    <Emergency_Contact_2_Name_First></Emergency_Contact_2_Name_First>
+    <Emergency_Contact_2_Name_Last></Emergency_Contact_2_Name_Last>
+    <Emergency_Contact_2_Phone></Emergency_Contact_2_Phone>
+    <Allergies></Allergies>
+    <Dietary_Restrictions></Dietary_Restrictions>
+    <OA_Member_Flag>N</OA_Member_Flag>
+    <OA_Active_Flag>N</OA_Active_Flag>
+    <OA_Election_Date></OA_Election_Date>
+    <OA_Call_Out_Date></OA_Call_Out_Date>
+    <OA_Ordeal_Date></OA_Ordeal_Date>
+    <OA_Brotherhood_Date></OA_Brotherhood_Date>
+    <OA_Vigil_Date></OA_Vigil_Date>
+    <OA_Vigil_Name></OA_Vigil_Name>
+    <OA_Notes></OA_Notes>
+    <Notes></Notes>
+  </Person>
+
+  <!-- Alumni scout (no longer active) -->
+  <Person>
+    <i>5</i>
+    <Name_First>Grace</Name_First>
+    <Name_Middle></Name_Middle>
+    <Name_Last>Alumni</Name_Last>
+    <Name_Suffix></Name_Suffix>
+    <Nickname></Nickname>
+    <Date_Of_Birth>1/1/2005 12:00:00 AM</Date_Of_Birth>
+    <BSA_Membership_Number>99998888</BSA_Membership_Number>
+    <Adult_Flag>N</Adult_Flag>
+    <Patrol></Patrol>
+    <Swim_Level>Swimmer</Swim_Level>
+    <Alumni_Flag>Y</Alumni_Flag>
+    <Troop_Member_Flag>N</Troop_Member_Flag>
+    <Email_Address></Email_Address>
+    <Cell_Phone></Cell_Phone>
+    <Home_Phone></Home_Phone>
+    <Mailing_Address_Line_1></Mailing_Address_Line_1>
+    <Mailing_Address_City></Mailing_Address_City>
+    <Mailing_Address_State></Mailing_Address_State>
+    <Mailing_Address_Zip></Mailing_Address_Zip>
+    <Mailing_Address_Country></Mailing_Address_Country>
+    <Troop_Membership_Start_Date>9/1/2017 12:00:00 AM</Troop_Membership_Start_Date>
+    <Troop_Membership_End_Date>6/1/2023 12:00:00 AM</Troop_Membership_End_Date>
+    <Class_1_Medical_Form_Date></Class_1_Medical_Form_Date>
+    <Class_2_Medical_Form_Date></Class_2_Medical_Form_Date>
+    <Class_3_Medical_Form_Date></Class_3_Medical_Form_Date>
+    <Swim_Date></Swim_Date>
+    <Emergency_Contact_1_Name_First></Emergency_Contact_1_Name_First>
+    <Emergency_Contact_1_Name_Last></Emergency_Contact_1_Name_Last>
+    <Emergency_Contact_1_Phone></Emergency_Contact_1_Phone>
+    <Emergency_Contact_2_Name_First></Emergency_Contact_2_Name_First>
+    <Emergency_Contact_2_Name_Last></Emergency_Contact_2_Name_Last>
+    <Emergency_Contact_2_Phone></Emergency_Contact_2_Phone>
+    <Allergies></Allergies>
+    <Dietary_Restrictions></Dietary_Restrictions>
+    <OA_Member_Flag>N</OA_Member_Flag>
+    <OA_Active_Flag>N</OA_Active_Flag>
+    <OA_Election_Date></OA_Election_Date>
+    <OA_Call_Out_Date></OA_Call_Out_Date>
+    <OA_Ordeal_Date></OA_Ordeal_Date>
+    <OA_Brotherhood_Date></OA_Brotherhood_Date>
+    <OA_Vigil_Date></OA_Vigil_Date>
+    <OA_Vigil_Name></OA_Vigil_Name>
+    <OA_Notes></OA_Notes>
+    <Notes></Notes>
+  </Person>
+
+  <!-- ===== Relationships ===== -->
+  <Relationship>
+    <i>1</i>
+    <Person_ID_Scout>1</Person_ID_Scout>
+    <Person_ID_Adult>3</Person_ID_Adult>
+    <Relationship_Type>Parent</Relationship_Type>
+  </Relationship>
+  <Relationship>
+    <i>2</i>
+    <Person_ID_Scout>2</Person_ID_Scout>
+    <Person_ID_Adult>4</Person_ID_Adult>
+    <Relationship_Type>Parent</Relationship_Type>
+  </Relationship>
+  <!-- Relationship referencing a non-existent person — should warn and skip -->
+  <Relationship>
+    <i>99</i>
+    <Person_ID_Scout>999</Person_ID_Scout>
+    <Person_ID_Adult>3</Person_ID_Adult>
+    <Relationship_Type>Parent</Relationship_Type>
+  </Relationship>
+
+  <!-- ===== Locations ===== -->
+  <Location>
+    <i>1</i>
+    <Location_Name>Camp Eagle</Location_Name>
+    <Address_Line_1>456 Forest Rd</Address_Line_1>
+    <Address_Line_2></Address_Line_2>
+    <Address_City>Shelbyville</Address_City>
+    <Address_State>IL</Address_State>
+    <Address_Zip>62565</Address_Zip>
+    <Address_Country>US</Address_Country>
+    <Telephone_Number>555-777-8888</Telephone_Number>
+    <Website_URL>https://campeagle.example.com</Website_URL>
+    <Directions>Take I-55 north</Directions>
+    <Description>Beautiful wilderness camp</Description>
+    <Distance>25</Distance>
+    <Disabled_Flag>N</Disabled_Flag>
+  </Location>
+  <!-- Disabled location — should be skipped -->
+  <Location>
+    <i>2</i>
+    <Location_Name>Old Meeting Hall (Closed)</Location_Name>
+    <Address_Line_1>789 Oak Ave</Address_Line_1>
+    <Address_City>Springfield</Address_City>
+    <Address_State>IL</Address_State>
+    <Address_Zip>62701</Address_Zip>
+    <Disabled_Flag>Y</Disabled_Flag>
+  </Location>
+  <Location>
+    <i>3</i>
+    <Location_Name>Community Center</Location_Name>
+    <Address_Line_1>100 Park Dr</Address_Line_1>
+    <Address_City>Springfield</Address_City>
+    <Address_State>IL</Address_State>
+    <Address_Zip>62701</Address_Zip>
+    <Address_Country>US</Address_Country>
+    <Telephone_Number></Telephone_Number>
+    <Website_URL></Website_URL>
+    <Directions></Directions>
+    <Description></Description>
+    <Distance></Distance>
+    <Disabled_Flag>N</Disabled_Flag>
+  </Location>
+
+  <!-- ===== Event Types ===== -->
+  <Event_Type>
+    <i>1</i>
+    <Event_Type_Name>Meeting</Event_Type_Name>
+    <Camping_Nights_Flag>N</Camping_Nights_Flag>
+    <Service_Hours_Flag>N</Service_Hours_Flag>
+    <Hiking_Miles_Flag>N</Hiking_Miles_Flag>
+    <SignUp_Flag>N</SignUp_Flag>
+    <Permission_Slip_Flag>N</Permission_Slip_Flag>
+    <Online_Meeting_Flag>N</Online_Meeting_Flag>
+    <Event_Type_Disabled_Flag>N</Event_Type_Disabled_Flag>
+    <Display_Color></Display_Color>
+  </Event_Type>
+  <Event_Type>
+    <i>2</i>
+    <Event_Type_Name>Campout</Event_Type_Name>
+    <Camping_Nights_Flag>Y</Camping_Nights_Flag>
+    <Service_Hours_Flag>Y</Service_Hours_Flag>
+    <Hiking_Miles_Flag>Y</Hiking_Miles_Flag>
+    <SignUp_Flag>Y</SignUp_Flag>
+    <Permission_Slip_Flag>Y</Permission_Slip_Flag>
+    <Online_Meeting_Flag>N</Online_Meeting_Flag>
+    <Event_Type_Disabled_Flag>N</Event_Type_Disabled_Flag>
+    <Display_Color>#2ECC71</Display_Color>
+  </Event_Type>
+  <!-- Disabled event type — imported as is_active=False -->
+  <Event_Type>
+    <i>3</i>
+    <Event_Type_Name>Old Category</Event_Type_Name>
+    <Camping_Nights_Flag>N</Camping_Nights_Flag>
+    <Service_Hours_Flag>N</Service_Hours_Flag>
+    <Hiking_Miles_Flag>N</Hiking_Miles_Flag>
+    <SignUp_Flag>N</SignUp_Flag>
+    <Permission_Slip_Flag>N</Permission_Slip_Flag>
+    <Online_Meeting_Flag>N</Online_Meeting_Flag>
+    <Event_Type_Disabled_Flag>Y</Event_Type_Disabled_Flag>
+    <Display_Color></Display_Color>
+  </Event_Type>
+
+  <!-- ===== Events ===== -->
+
+  <!-- Meeting: attendance already taken, no location notes -->
+  <Event>
+    <i>1</i>
+    <Event_Name>Weekly Meeting</Event_Name>
+    <Event_Type_ID>1</Event_Type_ID>
+    <Location>3</Location>
+    <New_Location_Name></New_Location_Name>
+    <Departure_Location></Departure_Location>
+    <Scheduled_Start>9/10/2025 7:00:00 PM</Scheduled_Start>
+    <Scheduled_End>9/10/2025 8:30:00 PM</Scheduled_End>
+    <Scheduled_All_Day_Flag>N</Scheduled_All_Day_Flag>
+    <Attendance_Taken_Flag>Y</Attendance_Taken_Flag>
+    <Tour_Permit_Submitted_Flag></Tour_Permit_Submitted_Flag>
+    <Description_Future>Monthly planning meeting</Description_Future>
+    <Description_Past></Description_Past>
+    <Agenda></Agenda>
+    <Video_Conference_URL></Video_Conference_URL>
+    <Linked_Event_ID></Linked_Event_ID>
+    <SignUp_Deadline></SignUp_Deadline>
+    <SignUp_Start_Date></SignUp_Start_Date>
+    <Signup_Limit_Scouts></Signup_Limit_Scouts>
+    <Signup_Limit_Adults></Signup_Limit_Adults>
+    <Estimated_Cost_Per_Person></Estimated_Cost_Per_Person>
+    <Community_Service_Hours></Community_Service_Hours>
+    <Hiking_Miles></Hiking_Miles>
+    <Cycling_Miles></Cycling_Miles>
+    <Paddling_Miles></Paddling_Miles>
+    <Backpacking_Miles></Backpacking_Miles>
+    <Conservation_Hours></Conservation_Hours>
+    <Water_Hours></Water_Hours>
+  </Event>
+
+  <!-- Campout: permit, cost, metrics, signup window, capacity limits -->
+  <Event>
+    <i>2</i>
+    <Event_Name>Summer Campout</Event_Name>
+    <Event_Type_ID>2</Event_Type_ID>
+    <Location>1</Location>
+    <New_Location_Name></New_Location_Name>
+    <Departure_Location>Church parking lot</Departure_Location>
+    <Scheduled_Start>7/10/2025 4:00:00 PM</Scheduled_Start>
+    <Scheduled_End>7/12/2025 11:00:00 AM</Scheduled_End>
+    <Scheduled_All_Day_Flag>N</Scheduled_All_Day_Flag>
+    <Attendance_Taken_Flag>N</Attendance_Taken_Flag>
+    <Tour_Permit_Submitted_Flag>Y</Tour_Permit_Submitted_Flag>
+    <Description_Future>Annual summer campout at Camp Eagle</Description_Future>
+    <Description_Past></Description_Past>
+    <Agenda>Day 1: Setup camp. Day 2: Hike. Day 3: Pack out.</Agenda>
+    <Video_Conference_URL></Video_Conference_URL>
+    <Linked_Event_ID></Linked_Event_ID>
+    <SignUp_Deadline>7/1/2025 12:00:00 AM</SignUp_Deadline>
+    <SignUp_Start_Date>6/1/2025 12:00:00 AM</SignUp_Start_Date>
+    <Signup_Limit_Scouts>20</Signup_Limit_Scouts>
+    <Signup_Limit_Adults>5</Signup_Limit_Adults>
+    <Estimated_Cost_Per_Person>75</Estimated_Cost_Per_Person>
+    <Community_Service_Hours></Community_Service_Hours>
+    <Hiking_Miles>5</Hiking_Miles>
+    <Cycling_Miles></Cycling_Miles>
+    <Paddling_Miles></Paddling_Miles>
+    <Backpacking_Miles></Backpacking_Miles>
+    <Conservation_Hours></Conservation_Hours>
+    <Water_Hours></Water_Hours>
+  </Event>
+
+  <!-- All-day event -->
+  <Event>
+    <i>3</i>
+    <Event_Name>Court of Honor</Event_Name>
+    <Event_Type_ID>1</Event_Type_ID>
+    <Location>3</Location>
+    <New_Location_Name></New_Location_Name>
+    <Departure_Location></Departure_Location>
+    <Scheduled_Start>10/15/2025 12:00:00 AM</Scheduled_Start>
+    <Scheduled_End>10/15/2025 11:59:00 PM</Scheduled_End>
+    <Scheduled_All_Day_Flag>Y</Scheduled_All_Day_Flag>
+    <Attendance_Taken_Flag>N</Attendance_Taken_Flag>
+    <Tour_Permit_Submitted_Flag>N</Tour_Permit_Submitted_Flag>
+    <Description_Future></Description_Future>
+    <Description_Past></Description_Past>
+    <Agenda></Agenda>
+    <Video_Conference_URL></Video_Conference_URL>
+    <Linked_Event_ID>1</Linked_Event_ID>
+    <SignUp_Deadline></SignUp_Deadline>
+    <SignUp_Start_Date></SignUp_Start_Date>
+    <Signup_Limit_Scouts></Signup_Limit_Scouts>
+    <Signup_Limit_Adults></Signup_Limit_Adults>
+    <Estimated_Cost_Per_Person></Estimated_Cost_Per_Person>
+    <Community_Service_Hours></Community_Service_Hours>
+    <Hiking_Miles></Hiking_Miles>
+    <Cycling_Miles></Cycling_Miles>
+    <Paddling_Miles></Paddling_Miles>
+    <Backpacking_Miles></Backpacking_Miles>
+    <Conservation_Hours></Conservation_Hours>
+    <Water_Hours></Water_Hours>
+  </Event>
+
+  <!-- Event referencing unknown event type — should warn and skip -->
+  <Event>
+    <i>99</i>
+    <Event_Name>Bad Event</Event_Name>
+    <Event_Type_ID>999</Event_Type_ID>
+    <Location></Location>
+    <Scheduled_Start>1/1/2025 12:00:00 AM</Scheduled_Start>
+    <Scheduled_End>1/1/2025 11:59:00 PM</Scheduled_End>
+    <Scheduled_All_Day_Flag>N</Scheduled_All_Day_Flag>
+    <Attendance_Taken_Flag>N</Attendance_Taken_Flag>
+    <Tour_Permit_Submitted_Flag></Tour_Permit_Submitted_Flag>
+    <Description_Future></Description_Future>
+    <Description_Past></Description_Past>
+    <Linked_Event_ID></Linked_Event_ID>
+  </Event>
+
+  <!-- ===== Event Participants ===== -->
+
+  <!-- Scout #1 at meeting: attended (Y), attendance was taken -->
+  <Event_Participant>
+    <i>1</i>
+    <Event_ID>1</Event_ID>
+    <Person_ID>1</Person_ID>
+    <Sign_Up_Flag>Y</Sign_Up_Flag>
+    <Participation_Flag>Y</Participation_Flag>
+    <Driver_Flag>N</Driver_Flag>
+    <Number_Of_Guests></Number_Of_Guests>
+    <Seat_Count></Seat_Count>
+    <Comment></Comment>
+    <Signup_Date_Time></Signup_Date_Time>
+    <Permission_Slip_Submitted_Flag>N</Permission_Slip_Submitted_Flag>
+    <Electronic_Permission_Flag>N</Electronic_Permission_Flag>
+    <Electronic_Permission_Date_Time></Electronic_Permission_Date_Time>
+    <Camping_Nights_Override></Camping_Nights_Override>
+    <Hiking_Miles_Override></Hiking_Miles_Override>
+    <Cycling_Miles_Override></Cycling_Miles_Override>
+    <Paddling_Miles_Override></Paddling_Miles_Override>
+    <Backpacking_Miles_Override></Backpacking_Miles_Override>
+    <Conservation_Hours_Override></Conservation_Hours_Override>
+    <Water_Hours_Override></Water_Hours_Override>
+    <Community_Service_Hours_Override></Community_Service_Hours_Override>
+  </Event_Participant>
+
+  <!-- Scout #1 at campout: signed up, attendance not yet taken, permission slip, camping override -->
+  <Event_Participant>
+    <i>2</i>
+    <Event_ID>2</Event_ID>
+    <Person_ID>1</Person_ID>
+    <Sign_Up_Flag>Y</Sign_Up_Flag>
+    <Participation_Flag>?</Participation_Flag>
+    <Driver_Flag>N</Driver_Flag>
+    <Number_Of_Guests></Number_Of_Guests>
+    <Seat_Count></Seat_Count>
+    <Comment>Needs vegetarian meal</Comment>
+    <Signup_Date_Time>6/15/2025 3:00:00 PM</Signup_Date_Time>
+    <Permission_Slip_Submitted_Flag>Y</Permission_Slip_Submitted_Flag>
+    <Electronic_Permission_Flag>N</Electronic_Permission_Flag>
+    <Electronic_Permission_Date_Time></Electronic_Permission_Date_Time>
+    <Camping_Nights_Override>2</Camping_Nights_Override>
+    <Hiking_Miles_Override></Hiking_Miles_Override>
+    <Cycling_Miles_Override></Cycling_Miles_Override>
+    <Paddling_Miles_Override></Paddling_Miles_Override>
+    <Backpacking_Miles_Override></Backpacking_Miles_Override>
+    <Conservation_Hours_Override></Conservation_Hours_Override>
+    <Water_Hours_Override></Water_Hours_Override>
+    <Community_Service_Hours_Override></Community_Service_Hours_Override>
+  </Event_Participant>
+
+  <!-- Adult #3 at campout: driving (4 seats) -->
+  <Event_Participant>
+    <i>3</i>
+    <Event_ID>2</Event_ID>
+    <Person_ID>3</Person_ID>
+    <Sign_Up_Flag>Y</Sign_Up_Flag>
+    <Participation_Flag>?</Participation_Flag>
+    <Driver_Flag>Y</Driver_Flag>
+    <Number_Of_Guests></Number_Of_Guests>
+    <Seat_Count>4</Seat_Count>
+    <Comment></Comment>
+    <Signup_Date_Time></Signup_Date_Time>
+    <Permission_Slip_Submitted_Flag>N</Permission_Slip_Submitted_Flag>
+    <Electronic_Permission_Flag>N</Electronic_Permission_Flag>
+    <Electronic_Permission_Date_Time></Electronic_Permission_Date_Time>
+    <Camping_Nights_Override></Camping_Nights_Override>
+    <Hiking_Miles_Override></Hiking_Miles_Override>
+    <Cycling_Miles_Override></Cycling_Miles_Override>
+    <Paddling_Miles_Override></Paddling_Miles_Override>
+    <Backpacking_Miles_Override></Backpacking_Miles_Override>
+    <Conservation_Hours_Override></Conservation_Hours_Override>
+    <Water_Hours_Override></Water_Hours_Override>
+    <Community_Service_Hours_Override></Community_Service_Hours_Override>
+  </Event_Participant>
+
+  <!-- Participant referencing unknown person — should be skipped silently -->
+  <Event_Participant>
+    <i>99</i>
+    <Event_ID>1</Event_ID>
+    <Person_ID>999</Person_ID>
+    <Sign_Up_Flag>Y</Sign_Up_Flag>
+    <Participation_Flag>N</Participation_Flag>
+    <Driver_Flag>N</Driver_Flag>
+    <Number_Of_Guests></Number_Of_Guests>
+    <Seat_Count></Seat_Count>
+    <Comment></Comment>
+    <Signup_Date_Time></Signup_Date_Time>
+    <Permission_Slip_Submitted_Flag>N</Permission_Slip_Submitted_Flag>
+    <Electronic_Permission_Flag>N</Electronic_Permission_Flag>
+    <Electronic_Permission_Date_Time></Electronic_Permission_Date_Time>
+    <Camping_Nights_Override></Camping_Nights_Override>
+    <Hiking_Miles_Override></Hiking_Miles_Override>
+    <Cycling_Miles_Override></Cycling_Miles_Override>
+    <Paddling_Miles_Override></Paddling_Miles_Override>
+    <Backpacking_Miles_Override></Backpacking_Miles_Override>
+    <Conservation_Hours_Override></Conservation_Hours_Override>
+    <Water_Hours_Override></Water_Hours_Override>
+    <Community_Service_Hours_Override></Community_Service_Hours_Override>
+  </Event_Participant>
+
+</DataBase>

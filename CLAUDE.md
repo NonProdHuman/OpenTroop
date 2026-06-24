@@ -22,6 +22,7 @@ uv run python -m mypy app        # type-check
 uv run alembic revision --autogenerate -m "msg"   # create a migration from model changes
 uv run alembic upgrade head      # apply migrations (needs a live Postgres)
 uv run uvicorn app.main:app --reload  # run the API locally
+uv run python import_twh.py <tenant-id> <export.xml>  # import TWH XML into a tenant
 
 # Full stack (Postgres + backend) from repo root:
 docker compose up --build
@@ -189,6 +190,34 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   use HS256 (signed with `APP_SECRET`) to produce 7-day claim tokens. An admin calls
   `POST /members/{id}/invite`; the invitee signs in via OIDC then calls
   `POST /auth/claim` with the token to link their `User.id` to the `Member` row.
+
+### TroopWebHost XML importer (`app/importers/twh.py`)
+
+`TwhImporter(session, tenant_id).run(root)` imports a parsed TWH full-data XML
+export into the target tenant. Supported record types (in import order):
+
+| TWH element        | OpenTroop model      | Notes |
+|--------------------|----------------------|-------|
+| `Patrol`           | `Patrol`             | `Patrol_Name` → `name` |
+| `Person`           | `Member`             | `Adult_Flag`, `Alumni_Flag`, `Swim_Level`, `Patrol`, OA fields |
+| `Relationship`     | `MemberRelationship` | Only `Parent` seen in practice; `guardian`, `sibling` also mapped |
+| `Location`         | `Location`           | `Disabled_Flag=Y` skipped |
+| `Event_Type`       | `EventType`          | Capability flags translated 1-to-1; `is_system=False` |
+| `Event`            | `Event`              | `linked_event_id` resolved in a second pass |
+| `Event_Participant`| `EventParticipant`   | `?` flag → `None` for `attended`, `True` for `signed_up` |
+
+TWH datetime format: `M/D/YYYY H:MM:SS AM/PM` (parsed by `_parse_datetime` /
+`_parse_date`). TWH integer IDs never persist; every row gets a new UUIDv7.
+
+CLI: run from `backend/`:
+
+```bash
+uv run python import_twh.py <tenant-uuid> path/to/export.xml
+```
+
+Test fixture: `backend/tests/fixtures/sample_twh_minimal.xml` — safe to commit,
+all PII is fake.  The real TWH export and anonymized samples are blocked by
+`reference/.gitignore`.
 
 ### Conventions
 
