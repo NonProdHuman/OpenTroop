@@ -20,23 +20,35 @@ is partitioned by `tenant_id` for future multi-tenant SaaS.
 | Orchestration| docker-compose (db + backend) |
 
 ```
-backend/    FastAPI app, ORM models, Pydantic schemas, Alembic, tests
-frontend/   Next.js client (scaffolded in a later phase)
+apps/web/      Next.js 16 · Tailwind 4 · shadcn/ui · Clerk auth
+apps/mobile/   Expo (React Native) — stub, to be scaffolded
+backend/       FastAPI app, ORM models, Pydantic schemas, Alembic, tests
+packages/      Shared TypeScript packages (api-client)
 ```
 
 ## Quick start
 
 ```bash
-# Run the full stack
-docker compose up --build
+# Full stack (Postgres + backend + web)
+docker compose up --build   # backend on :8000
+pnpm dev                    # web app on :3000 (from repo root)
 ```
 
 ## Local development
 
-[uv](https://docs.astral.sh/uv/) manages the Python environment. Install it once:
+**Frontend** — requires [pnpm](https://pnpm.io) and Node 18+:
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+npm install -g pnpm
+pnpm install                            # install all workspace deps
+cp apps/web/.env.local.example apps/web/.env.local   # add Clerk keys
+pnpm dev                                # start web app on :3000
+```
+
+**Backend** — requires [uv](https://docs.astral.sh/uv/) and Python 3.12:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh   # install uv once
 ```
 
 Then from `backend/`:

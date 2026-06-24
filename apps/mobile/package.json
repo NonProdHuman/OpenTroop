@@ -1,0 +1,6 @@
+{
+  "name": "@opentroop/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenTroop native iOS/Android app (Expo) — to be scaffolded once the web API contract stabilizes"
+}

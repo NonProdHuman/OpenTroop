@@ -11,8 +11,18 @@ background sync from day one.
 
 ## Commands
 
-All backend commands run from `backend/`. Use `uv` — never `pip` directly.
-Requires **Python 3.12**.
+### Frontend (from repo root — requires pnpm)
+
+```bash
+pnpm install                             # install all workspace deps
+pnpm dev                                 # start web app on :3000
+pnpm --filter web dev                    # same, explicit
+pnpm --filter @opentroop/api-client generate   # regenerate TypeScript types from FastAPI OpenAPI spec
+```
+
+Copy `apps/web/.env.local.example` → `apps/web/.env.local` and fill in Clerk keys before running.
+
+### Backend (from `backend/`) — Use `uv`, never `pip` directly. Requires **Python 3.12**.
 
 ```bash
 uv sync                          # install backend + dev deps into .venv/
@@ -57,8 +67,14 @@ environment.
   in `app/core/database.py`.
 - **Database**: PostgreSQL, migrations via Alembic (`backend/alembic/`). `env.py`
   pulls the URL from `settings` and imports `app.models` so autogenerate sees every table.
-- **Frontend** (`frontend/`): reserved for Next.js + Tailwind + shadcn/ui; native
-  iOS/Android apps will own offline caching + sync. Not yet scaffolded.
+- **Frontend** (`apps/web/`): Next.js 16 (App Router) + Tailwind 4 + shadcn/ui
+  (`base-nova` style) + Clerk auth. Managed via Turborepo + pnpm workspaces.
+  Run with `pnpm dev` from repo root (or `pnpm --filter web dev`).
+- **Mobile** (`apps/mobile/`): Expo (React Native) — stub, to be scaffolded once
+  the web API contract stabilizes. Will share `@opentroop/api-client`.
+- **API client** (`packages/api-client/`): shared TypeScript package. Types are
+  generated from the FastAPI OpenAPI spec via `pnpm --filter @opentroop/api-client generate`
+  (requires the backend running on `:8000`). Used by both web and mobile.
 
 ### Sync-aware schema contract (critical)
 

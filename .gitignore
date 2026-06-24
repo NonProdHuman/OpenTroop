@@ -11,10 +11,16 @@ venv/
 .env
 .env.local
 
-# Node / Next.js
+# Node / Next.js / Turborepo
 node_modules/
 .next/
 out/
+.turbo/
+packages/*/dist/
+
+# Env (local overrides only — example files are committed)
+apps/web/.env.local
+apps/mobile/.env.local
 
 # OS
 .DS_Store
