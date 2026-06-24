@@ -134,3 +134,15 @@ export interface TenantAdminInviteResult {
   token: string
   expires_at: string
 }
+
+export interface PlatformAdmin {
+  user_id: string
+  email: string | null
+  display_name: string | null
+  platform_role: PlatformRole
+}
+
+export interface PlatformAdminGrantInput {
+  email: string
+  role: PlatformRole
+}

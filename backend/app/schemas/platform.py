@@ -5,6 +5,8 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.models.enums import PlatformRole
+
 
 class TenantAdminInvite(BaseModel):
     """Request body to invite a new administrator into an existing tenant."""
@@ -31,3 +33,19 @@ class TenantAdminRead(BaseModel):
     email: str | None
     user_id: uuid.UUID | None
     claimed: bool
+
+
+class PlatformAdminRead(BaseModel):
+    """A platform (global) administrator — a User with a platform_role set."""
+
+    user_id: uuid.UUID
+    email: str | None
+    display_name: str | None
+    platform_role: PlatformRole
+
+
+class PlatformAdminGrant(BaseModel):
+    """Grant a platform role to an existing (already signed-in) user, by email."""
+
+    email: str
+    role: PlatformRole = PlatformRole.SUPERADMIN

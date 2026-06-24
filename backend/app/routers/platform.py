@@ -13,14 +13,22 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 
-from app.core.deps import DbDep, get_platform_admin
+from app.core.deps import DbDep, get_platform_admin, get_superadmin
 from app.core.provisioning import invite_admin_member, provision_tenant
+from app.models.enums import PlatformRole
 from app.models.member import Member
 from app.models.role import MemberRoleAssignment, Role
 from app.models.tenant import Tenant
-from app.schemas.platform import TenantAdminInvite, TenantAdminInviteResult, TenantAdminRead
+from app.models.user import User
+from app.schemas.platform import (
+    PlatformAdminGrant,
+    PlatformAdminRead,
+    TenantAdminInvite,
+    TenantAdminInviteResult,
+    TenantAdminRead,
+)
 from app.schemas.tenant import TenantProvision, TenantProvisioned, TenantRead
 
 router = APIRouter(
@@ -201,4 +209,93 @@ def revoke_tenant_admin(tenant_id: uuid.UUID, member_id: uuid.UUID, db: DbDep) -
 
     for assignment in target:
         assignment.is_deleted = True
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Platform administrators (the global tier itself)
+# ---------------------------------------------------------------------------
+
+
+def _as_admin_read(user: User) -> PlatformAdminRead:
+    role = user.platform_role
+    if role is None:  # callers always filter on a non-null role
+        raise HTTPException(status_code=404, detail="User is not a platform administrator")
+    return PlatformAdminRead(
+        user_id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        platform_role=role,
+    )
+
+
+@router.get("/admins", response_model=list[PlatformAdminRead])
+def list_platform_admins(db: DbDep) -> list[PlatformAdminRead]:
+    """List every user holding a platform role (any platform admin may view)."""
+    users = db.scalars(
+        select(User)
+        .where(User.platform_role.is_not(None), User.is_deleted.is_(False))
+        .order_by(User.email)
+    ).all()
+    return [_as_admin_read(u) for u in users]
+
+
+@router.post(
+    "/admins",
+    response_model=PlatformAdminRead,
+    status_code=201,
+    dependencies=[Depends(get_superadmin)],
+)
+def grant_platform_admin(body: PlatformAdminGrant, db: DbDep) -> PlatformAdminRead:
+    """Grant a platform role to an existing user (superadmin only).
+
+    The target user must already exist — i.e. have signed in at least once.
+    Returns 404 if no user matches the email, 409 if the email is ambiguous.
+    """
+    users = db.scalars(
+        select(User).where(User.email == body.email, User.is_deleted.is_(False))
+    ).all()
+    if not users:
+        raise HTTPException(
+            status_code=404,
+            detail="No user with that email — they must sign in at least once first",
+        )
+    if len(users) > 1:
+        raise HTTPException(status_code=409, detail="Multiple users share that email")
+
+    user = users[0]
+    user.platform_role = body.role
+    db.commit()
+    db.refresh(user)
+    return _as_admin_read(user)
+
+
+@router.delete("/admins/{user_id}", status_code=204, dependencies=[Depends(get_superadmin)])
+def revoke_platform_admin(user_id: uuid.UUID, db: DbDep) -> None:
+    """Revoke a user's platform role (superadmin only).
+
+    Returns 404 if the user holds no platform role, and 409 if they are the last
+    remaining superadmin (the platform must keep at least one).
+    """
+    user = db.get(User, user_id)
+    if user is None or user.is_deleted or user.platform_role is None:
+        raise HTTPException(status_code=404, detail="User is not a platform administrator")
+
+    if user.platform_role is PlatformRole.SUPERADMIN:
+        other_superadmins = db.scalar(
+            select(func.count())
+            .select_from(User)
+            .where(
+                User.platform_role == PlatformRole.SUPERADMIN,
+                User.is_deleted.is_(False),
+                User.id != user_id,
+            )
+        )
+        if not other_superadmins:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot revoke the last superadmin",
+            )
+
+    user.platform_role = None
     db.commit()

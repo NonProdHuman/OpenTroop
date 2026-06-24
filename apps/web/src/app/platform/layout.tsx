@@ -2,12 +2,20 @@
 
 import { ArrowLeft, ShieldAlert } from "lucide-react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { UserButton } from "@clerk/nextjs"
 import { useMe } from "@/hooks/use-me"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
+
+const CONSOLE_NAV = [
+  { href: "/platform/tenants", label: "Tenants" },
+  { href: "/platform/admins", label: "Admins" },
+]
 
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
   const { data: me, isLoading, isError } = useMe()
   const authorized = Boolean(me?.platform_role)
 
@@ -25,6 +33,24 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
             </span>
           ) : null}
         </div>
+        {authorized ? (
+          <nav className="flex items-center gap-1">
+            {CONSOLE_NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  pathname.startsWith(item.href)
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        ) : null}
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" render={<Link href="/members" />}>
             <ArrowLeft className="h-4 w-4" />

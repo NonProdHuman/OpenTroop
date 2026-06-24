@@ -291,6 +291,11 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   - `POST /platform/tenants/{id}/admins` — invite another admin (unclaimed Member + claim token).
   - `DELETE /platform/tenants/{id}/admins/{member_id}` — revoke admin; 409 if it would remove
     the tenant's last administrator, 404 if the member isn't an admin here.
+  - `GET /platform/admins` — list users holding any `platform_role` (any platform admin may view).
+  - `POST /platform/admins` · `DELETE /platform/admins/{user_id}` — grant/revoke a platform role
+    by email / user id. **Superadmin only** (`SuperadminDep` / `get_superadmin` in `deps.py`):
+    `support`/`billing` are read-only here so they can't self-escalate. Grant 404s if the email
+    has never signed in; revoke 409s on the last remaining superadmin.
 
   The shared building blocks live in `app/core/provisioning.py` (`provision_tenant`,
   `invite_admin_member`, `ensure_administrators_role`, `seed_default_event_types` +

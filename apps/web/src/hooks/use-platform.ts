@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useApi } from "@/lib/api"
 import type {
+  PlatformAdmin,
+  PlatformAdminGrantInput,
   Tenant,
   TenantAdmin,
   TenantAdminInviteInput,
@@ -14,6 +16,7 @@ import type {
 const tenantsKey = ["platform", "tenants"] as const
 const tenantKey = (id: string) => ["platform", "tenant", id] as const
 const adminsKey = (id: string) => ["platform", "tenant", id, "admins"] as const
+const platformAdminsKey = ["platform", "admins"] as const
 
 export function useTenants() {
   const { request } = useApi()
@@ -89,5 +92,38 @@ export function useRevokeTenantAdmin(id: string) {
     mutationFn: (memberId: string) =>
       request<void>(`/platform/tenants/${id}/admins/${memberId}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: adminsKey(id) }),
+  })
+}
+
+// ── Platform administrators (the global tier) ────────────────────────────────
+
+export function usePlatformAdmins() {
+  const { request } = useApi()
+  return useQuery({
+    queryKey: platformAdminsKey,
+    queryFn: () => request<PlatformAdmin[]>("/platform/admins"),
+  })
+}
+
+export function useGrantPlatformAdmin() {
+  const { request } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: PlatformAdminGrantInput) =>
+      request<PlatformAdmin>("/platform/admins", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: platformAdminsKey }),
+  })
+}
+
+export function useRevokePlatformAdmin() {
+  const { request } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (userId: string) =>
+      request<void>(`/platform/admins/${userId}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: platformAdminsKey }),
   })
 }

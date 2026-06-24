@@ -65,6 +65,9 @@ membership model.
 - [x] Platform control-plane **UI** — global management console at `/platform` (admin-gated via
       `platform_role`): tenants list, provision-tenant dialog, tenant detail with suspend/unsuspend
       and admin invite/revoke; sidebar link shown only to platform admins
+- [x] Platform-admin management — `GET/POST/DELETE /platform/admins` (grant/revoke gated to
+      superadmins; last-superadmin guard) + `/platform/admins` console screen; promotes platform
+      admins through the UI instead of the `promote-platform-admin` CLI alone
 - [ ] Automated invite email delivery (depends on Pillar 4 notification infra) — until then
       provisioning returns the invite token for manual/out-of-band delivery
 

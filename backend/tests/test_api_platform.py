@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session
 from starlette.requests import Request
 
 from app.core.tenant import get_tenant_id
+from app.models.enums import PlatformRole
 from app.models.tenant import Tenant
+from app.models.user import User
 from tests.conftest import NEW_USER_ID
 
 
@@ -228,3 +230,88 @@ def test_admin_endpoints_require_platform_admin(
 ) -> None:
     tenant = _provision(platform_admin_client, "troop-gate")
     assert claim_client.get(f"/platform/tenants/{tenant['id']}/admins").status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Platform administrators (the global tier)
+# ---------------------------------------------------------------------------
+
+
+def _make_user(db: Session, email: str, role: PlatformRole | None = None) -> User:
+    user = User(id=uuid.uuid4(), email=email, display_name=email, platform_role=role)
+    db.add(user)
+    db.commit()
+    return user
+
+
+def test_list_platform_admins(platform_admin_client: TestClient, db_session: Session) -> None:
+    _make_user(db_session, "boss@test.com", PlatformRole.SUPERADMIN)
+    _make_user(db_session, "nobody@test.com", None)  # not an admin
+
+    r = platform_admin_client.get("/platform/admins")
+    assert r.status_code == 200
+    emails = {a["email"] for a in r.json()}
+    assert "boss@test.com" in emails
+    assert "nobody@test.com" not in emails
+
+
+def test_grant_platform_admin(platform_admin_client: TestClient, db_session: Session) -> None:
+    _make_user(db_session, "grantme@test.com", None)
+    r = platform_admin_client.post(
+        "/platform/admins", json={"email": "grantme@test.com", "role": "support"}
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["platform_role"] == "support"
+    assert r.json()["email"] == "grantme@test.com"
+
+
+def test_grant_unknown_email_returns_404(platform_admin_client: TestClient) -> None:
+    r = platform_admin_client.post(
+        "/platform/admins", json={"email": "ghost@test.com", "role": "superadmin"}
+    )
+    assert r.status_code == 404
+
+
+def test_grant_requires_superadmin(support_client: TestClient, db_session: Session) -> None:
+    """A support-tier platform admin cannot grant platform roles."""
+    _make_user(db_session, "target@test.com", None)
+    r = support_client.post(
+        "/platform/admins", json={"email": "target@test.com", "role": "superadmin"}
+    )
+    assert r.status_code == 403
+
+
+def test_support_admin_can_list_but_not_mutate(
+    support_client: TestClient, db_session: Session
+) -> None:
+    """Read access for any platform admin; mutation gated to superadmin."""
+    user = _make_user(db_session, "someadmin@test.com", PlatformRole.BILLING)
+    assert support_client.get("/platform/admins").status_code == 200
+    assert support_client.delete(f"/platform/admins/{user.id}").status_code == 403
+
+
+def test_revoke_platform_admin(platform_admin_client: TestClient, db_session: Session) -> None:
+    a = _make_user(db_session, "super-a@test.com", PlatformRole.SUPERADMIN)
+    _make_user(db_session, "super-b@test.com", PlatformRole.SUPERADMIN)
+
+    # Two superadmins exist, so revoking one is allowed.
+    assert platform_admin_client.delete(f"/platform/admins/{a.id}").status_code == 204
+    emails = {x["email"] for x in platform_admin_client.get("/platform/admins").json()}
+    assert "super-a@test.com" not in emails
+    assert "super-b@test.com" in emails
+
+
+def test_cannot_revoke_last_superadmin(
+    platform_admin_client: TestClient, db_session: Session
+) -> None:
+    only = _make_user(db_session, "lonely-super@test.com", PlatformRole.SUPERADMIN)
+    r = platform_admin_client.delete(f"/platform/admins/{only.id}")
+    assert r.status_code == 409
+
+
+def test_revoke_platform_non_admin_returns_404(
+    platform_admin_client: TestClient, db_session: Session
+) -> None:
+    plain = _make_user(db_session, "plain@test.com", None)
+    assert platform_admin_client.delete(f"/platform/admins/{plain.id}").status_code == 404
+    assert platform_admin_client.delete(f"/platform/admins/{uuid.uuid4()}").status_code == 404

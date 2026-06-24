@@ -35,6 +35,8 @@ NEW_USER_ID = uuid.UUID("c0000000-0000-0000-0000-000000000001")
 
 # A platform (global) admin — holds platform_role, no tenant membership.
 PLATFORM_ADMIN_USER_ID = uuid.UUID("d0000000-0000-0000-0000-000000000001")
+# A platform admin with a non-superadmin role — used to test the superadmin boundary.
+PLATFORM_SUPPORT_USER_ID = uuid.UUID("d0000000-0000-0000-0000-000000000002")
 
 _USERS = {
     str(ADMIN_USER_ID): User(id=ADMIN_USER_ID, email="admin@test.com", display_name="Test Admin"),
@@ -44,6 +46,12 @@ _USERS = {
         email="platform@test.com",
         display_name="Platform Admin",
         platform_role=PlatformRole.SUPERADMIN,
+    ),
+    str(PLATFORM_SUPPORT_USER_ID): User(
+        id=PLATFORM_SUPPORT_USER_ID,
+        email="support@test.com",
+        display_name="Support Admin",
+        platform_role=PlatformRole.SUPPORT,
     ),
 }
 
@@ -198,5 +206,17 @@ def platform_admin_client(db_session: Session) -> Generator[TestClient, None, No
     """
     _set_shared_overrides(db_session)
     with TestClient(app, headers={"X-Test-User-ID": str(PLATFORM_ADMIN_USER_ID)}) as c:
+        yield c
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def support_client(db_session: Session) -> Generator[TestClient, None, None]:
+    """TestClient authenticated as a non-superadmin platform admin (``support`` role).
+
+    Used to verify superadmin-only actions reject lower-tier platform roles.
+    """
+    _set_shared_overrides(db_session)
+    with TestClient(app, headers={"X-Test-User-ID": str(PLATFORM_SUPPORT_USER_ID)}) as c:
         yield c
     app.dependency_overrides.clear()

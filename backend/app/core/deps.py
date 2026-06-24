@@ -11,7 +11,7 @@ from app.core.database import get_db
 from app.core.permissions import resolve_permissions
 from app.core.tenant import get_tenant_id
 from app.models.base import TrackedBase
-from app.models.enums import Permission
+from app.models.enums import Permission, PlatformRole
 from app.models.member import Member
 from app.models.user import User
 
@@ -33,6 +33,21 @@ def get_platform_admin(user: CurrentUserDep) -> User:
 
 
 PlatformAdminDep = Annotated[User, Depends(get_platform_admin)]
+
+
+def get_superadmin(user: CurrentUserDep) -> User:
+    """Require the caller to be a platform **superadmin**.
+
+    Stricter than ``get_platform_admin``: gates the most sensitive control-plane
+    actions — granting and revoking platform roles. ``support``/``billing``
+    platform users are rejected (403) so they cannot escalate privileges.
+    """
+    if user.platform_role is not PlatformRole.SUPERADMIN:
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+    return user
+
+
+SuperadminDep = Annotated[User, Depends(get_superadmin)]
 
 
 def get_or_404[T: TrackedBase](
