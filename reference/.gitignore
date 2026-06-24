@@ -1,0 +1,3 @@
+# TWH exports and anonymized samples — keep local only, do not commit to a public repo.
+# Run anonymize_twh.py to regenerate sample files from your real export.
+*.xml
