@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Calendar, Users, Shield, Upload, Settings } from "lucide-react"
+import { Calendar, Users, Shield, Upload, Settings, Globe } from "lucide-react"
 import { UserButton } from "@clerk/nextjs"
 import {
   Sidebar,
@@ -13,6 +13,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { useMe } from "@/hooks/use-me"
 
 const navItems = [
   { title: "Members", url: "/members", icon: Users },
@@ -24,6 +25,8 @@ const navItems = [
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const { data: me } = useMe()
+  const isPlatformAdmin = Boolean(me?.platform_role)
 
   return (
     <Sidebar variant="inset">
@@ -50,6 +53,18 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
+          {isPlatformAdmin ? (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                render={<Link href="/platform" />}
+                isActive={pathname.startsWith("/platform")}
+                tooltip="Platform console"
+              >
+                <Globe />
+                <span>Platform</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ) : null}
         </SidebarMenu>
       </SidebarContent>
 

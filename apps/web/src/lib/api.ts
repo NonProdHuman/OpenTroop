@@ -25,6 +25,10 @@ export function useApi() {
         const detail = await res.text().catch(() => res.statusText)
         throw new Error(`${res.status}: ${detail}`)
       }
+      // 204 No Content (and other empty bodies) have nothing to parse.
+      if (res.status === 204 || res.headers.get("content-length") === "0") {
+        return undefined as T
+      }
       return res.json() as Promise<T>
     },
     [getToken],

@@ -62,7 +62,9 @@ membership model.
       inspect tenants; suspend/unsuspend (suspended tenants are locked out of tenant-scoped
       requests); list, invite, and revoke tenant admins (last-admin guard). Shared
       provisioning helpers in `app/core/provisioning.py`
-- [ ] Platform control-plane **UI** — a global management console over the `/platform/*` API
+- [x] Platform control-plane **UI** — global management console at `/platform` (admin-gated via
+      `platform_role`): tenants list, provision-tenant dialog, tenant detail with suspend/unsuspend
+      and admin invite/revoke; sidebar link shown only to platform admins
 - [ ] Automated invite email delivery (depends on Pillar 4 notification infra) — until then
       provisioning returns the invite token for manual/out-of-band delivery
 

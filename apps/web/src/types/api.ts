@@ -75,3 +75,62 @@ export interface Patrol {
   is_deleted: boolean
   name: string
 }
+
+// ── Platform (global) control plane ──────────────────────────────────────────
+
+export type PlatformRole = "superadmin" | "support" | "billing"
+
+export interface User {
+  id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  email: string | null
+  display_name: string | null
+  platform_role: PlatformRole | null
+}
+
+export interface Tenant {
+  id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  name: string
+  slug: string
+  suspended_at: string | null
+}
+
+export interface TenantProvisioned extends Tenant {
+  founder_member_id: string
+  invite_token: string
+  invite_expires_at: string
+}
+
+export interface TenantProvisionInput {
+  name: string
+  slug: string
+  founder_first_name: string
+  founder_last_name: string
+  founder_email?: string | null
+}
+
+export interface TenantAdmin {
+  member_id: string
+  first_name: string
+  last_name: string
+  email: string | null
+  user_id: string | null
+  claimed: boolean
+}
+
+export interface TenantAdminInviteInput {
+  first_name: string
+  last_name: string
+  email?: string | null
+}
+
+export interface TenantAdminInviteResult {
+  member_id: string
+  token: string
+  expires_at: string
+}
