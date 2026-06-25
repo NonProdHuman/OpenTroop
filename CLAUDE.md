@@ -209,7 +209,8 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   within a troop while permitting multiple null values. It is declared in
   `Member.__table_args__` and created by the initial Alembic migration.
   `user_id` (nullable FK → `users.id`) links the roster record to the platform
-  identity once a member claims their account.
+  identity once a member claims their account. `calendar_token` (nullable, unique) is
+  the secret bearer token for the member's personal iCal feed (`/calendar/{token}.ics`).
   OA (Order of the Arrow) fields: `oa_member`, `oa_active` (bools), plus
   `oa_election_date`, `oa_call_out_date`, `oa_ordeal_date`, `oa_brotherhood_date`,
   `oa_vigil_date`, `oa_vigil_name`, `oa_notes` (all nullable).
@@ -332,6 +333,15 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   either by tenant provisioning (for the founder) or by an admin calling
   `POST /members/{id}/invite`; the invitee signs in via OIDC then calls `POST /auth/claim`
   with the token to link their `User.id` to the `Member` row.
+- **iCal calendar feed** (`app/routers/calendar.py`, `app/core/ical.py`): a member's
+  personal calendar. `GET /calendar/{token}.ics` is **unauthenticated by design** — the
+  unguessable `Member.calendar_token` is the credential (calendar apps can't do OAuth);
+  it resolves the member by token, 404s on unknown/rotated tokens and suspended/deleted
+  tenants, and emits RFC 5545 VEVENTs for events the member can see
+  (`event_visibility`) minus ones they've **declined** (`rsvp_status`). The token is
+  minted/rotated via `POST`/`DELETE /calendar/subscription` (authenticated, current
+  member). The feed is audience-based (no manager bypass) — it's *my* calendar, not a
+  management view.
 
 ### TroopWebHost XML importer (`app/importers/twh.py`)
 

@@ -127,8 +127,9 @@ Model events generically with typed metadata rather than one-size-fits-all field
 - [x] RSVP status (going / declined / maybe / no-response) on `EventParticipant` —
       explicit member reply (distinct from `signed_up`); drives gray-out in the app and
       omission from personal iCal feeds (consumed by the iCal feed below)
-- [ ] Per-member iCal subscription feeds — tokenized `.ics` (`webcal://`) honoring
-      group visibility and RSVP; subscribable from Apple/Google Calendar
+- [x] Per-member iCal subscription feeds — tokenized `.ics` (`GET /calendar/{token}.ics`,
+      `webcal://`) honoring group visibility and excluding declined events; subscribable
+      from Apple/Google Calendar. Subscribe/rotate via `/calendar/subscription`.
 - [ ] Event notifications (email; push via mobile apps later)
 
 ### Pillar 3 — Advancement & Requirements
