@@ -41,7 +41,7 @@ export default function PlatformAdminsPage() {
             Couldn’t load admins: {error instanceof Error ? error.message : "unknown error"}
           </p>
         ) : (
-          <div className="rounded-md border">
+          <div className="rounded-lg border shadow-sm overflow-hidden">
             <AdminsTable
               admins={admins}
               isLoading={isLoading}

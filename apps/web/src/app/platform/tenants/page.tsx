@@ -20,7 +20,7 @@ export default function TenantsPage() {
             Couldn’t load tenants: {error instanceof Error ? error.message : "unknown error"}
           </p>
         ) : (
-          <div className="rounded-md border">
+          <div className="rounded-lg border shadow-sm overflow-hidden">
             <TenantsTable tenants={tenants} isLoading={isLoading} />
           </div>
         )}

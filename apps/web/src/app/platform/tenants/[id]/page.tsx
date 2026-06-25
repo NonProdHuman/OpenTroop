@@ -103,17 +103,17 @@ function AdminsSection({ tenantId }: { tenantId: string }) {
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Administrators</h2>
+        <h2 className="text-base font-semibold tracking-tight">Administrators</h2>
         <InviteAdminDialog tenantId={tenantId} />
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-lg border shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead><span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name</span></TableHead>
+              <TableHead><span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</span></TableHead>
+              <TableHead><span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</span></TableHead>
               <TableHead className="w-0" />
             </TableRow>
           </TableHeader>
@@ -126,25 +126,33 @@ function AdminsSection({ tenantId }: { tenantId: string }) {
               </TableRow>
             ) : admins.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
                   No administrators.
                 </TableCell>
               </TableRow>
             ) : (
               admins.map((a) => (
-                <TableRow key={a.member_id}>
+                <TableRow key={a.member_id} className="hover:bg-muted/40 transition-colors duration-75">
                   <TableCell className="font-medium">
                     {a.first_name} {a.last_name}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{a.email ?? "—"}</TableCell>
-                  <TableCell className="text-sm">
-                    {a.claimed ? "Claimed" : "Invited"}
+                  <TableCell>
+                    {a.claimed ? (
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-300">
+                        Claimed
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950 dark:text-amber-300">
+                        Invited
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-destructive"
+                      className="text-destructive hover:text-destructive"
                       onClick={() => handleRevoke(a.member_id, `${a.first_name} ${a.last_name}`)}
                       disabled={revoke.isPending}
                     >

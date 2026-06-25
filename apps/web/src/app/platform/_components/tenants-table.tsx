@@ -30,10 +30,10 @@ export function TenantsTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead>Slug</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Created</TableHead>
+          <TableHead><span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name</span></TableHead>
+          <TableHead><span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Slug</span></TableHead>
+          <TableHead><span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</span></TableHead>
+          <TableHead><span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Created</span></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -47,15 +47,15 @@ export function TenantsTable({
           ))
         ) : tenants.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+            <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
               No tenants yet. Create the first troop to get started.
             </TableCell>
           </TableRow>
         ) : (
           tenants.map((t) => (
-            <TableRow key={t.id}>
+            <TableRow key={t.id} className="hover:bg-muted/40 transition-colors duration-75">
               <TableCell className="font-medium">
-                <Link href={`/platform/tenants/${t.id}`} className="hover:underline">
+                <Link href={`/platform/tenants/${t.id}`} className="hover:underline underline-offset-4">
                   {t.name}
                 </Link>
               </TableCell>

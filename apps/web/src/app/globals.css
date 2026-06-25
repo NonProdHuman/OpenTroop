@@ -2,13 +2,14 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* System dark mode — responds to prefers-color-scheme */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -48,73 +49,149 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ─── Brand: Slate + Amber ─────────────────────────────────────────────────
+   Primary: warm slate (desaturated blue-gray with slight warm tilt)
+   Accent:  amber — used for active states, highlights, badges
+   ──────────────────────────────────────────────────────────────────────── */
+
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* Warm slate neutrals (hue 240, very low chroma + slight warmth) */
+  --slate-50:  oklch(0.985 0.004 250);
+  --slate-100: oklch(0.960 0.007 250);
+  --slate-200: oklch(0.912 0.010 250);
+  --slate-300: oklch(0.840 0.013 250);
+  --slate-400: oklch(0.720 0.016 250);
+  --slate-500: oklch(0.580 0.018 250);
+  --slate-600: oklch(0.460 0.018 250);
+  --slate-700: oklch(0.360 0.016 250);
+  --slate-800: oklch(0.265 0.012 250);
+  --slate-900: oklch(0.185 0.008 250);
+  --slate-950: oklch(0.130 0.006 250);
+
+  /* Amber accent */
+  --amber-100: oklch(0.950 0.060 80);
+  --amber-200: oklch(0.900 0.100 78);
+  --amber-300: oklch(0.840 0.140 75);
+  --amber-400: oklch(0.780 0.165 72);
+  --amber-500: oklch(0.720 0.175 68);   /* primary amber */
+  --amber-600: oklch(0.640 0.170 65);
+  --amber-700: oklch(0.540 0.155 63);
+
+  /* ── Semantic tokens: Light mode ─────────────────────────── */
+  --background:            var(--slate-50);
+  --foreground:            var(--slate-900);
+
+  --card:                  oklch(1 0 0);
+  --card-foreground:       var(--slate-900);
+
+  --popover:               oklch(1 0 0);
+  --popover-foreground:    var(--slate-900);
+
+  /* Primary = slate-700: conveys authority/reliability */
+  --primary:               var(--slate-700);
+  --primary-foreground:    oklch(1 0 0);
+
+  --secondary:             var(--slate-100);
+  --secondary-foreground:  var(--slate-700);
+
+  --muted:                 var(--slate-100);
+  --muted-foreground:      var(--slate-500);
+
+  /* Accent = amber: warm highlight that pops against slate */
+  --accent:                var(--amber-100);
+  --accent-foreground:     var(--amber-700);
+
+  --destructive:           oklch(0.577 0.245 27.325);
+
+  --border:                var(--slate-200);
+  --input:                 var(--slate-200);
+  --ring:                  var(--amber-400);
+
+  /* Charts — slate + amber gradient */
+  --chart-1: var(--amber-500);
+  --chart-2: var(--slate-500);
+  --chart-3: var(--amber-300);
+  --chart-4: var(--slate-700);
+  --chart-5: var(--amber-700);
+
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  /* ── Sidebar: always dark, regardless of color scheme ───── */
+  --sidebar:               var(--slate-900);
+  --sidebar-foreground:    var(--slate-200);
+  --sidebar-primary:       var(--amber-400);
+  --sidebar-primary-foreground: var(--slate-950);
+  --sidebar-accent:        var(--slate-800);
+  --sidebar-accent-foreground: var(--slate-100);
+  --sidebar-border:        oklch(1 0 0 / 8%);
+  --sidebar-ring:          var(--amber-500);
 }
 
+/* ── Dark mode: full system dark mode for content area ───────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background:            var(--slate-950);
+    --foreground:            var(--slate-100);
+
+    --card:                  var(--slate-900);
+    --card-foreground:       var(--slate-100);
+
+    --popover:               var(--slate-900);
+    --popover-foreground:    var(--slate-100);
+
+    --primary:               var(--slate-200);
+    --primary-foreground:    var(--slate-900);
+
+    --secondary:             var(--slate-800);
+    --secondary-foreground:  var(--slate-100);
+
+    --muted:                 var(--slate-800);
+    --muted-foreground:      var(--slate-400);
+
+    --accent:                oklch(0.540 0.155 63 / 20%);
+    --accent-foreground:     var(--amber-300);
+
+    --destructive:           oklch(0.704 0.191 22.216);
+
+    --border:                oklch(1 0 0 / 10%);
+    --input:                 oklch(1 0 0 / 12%);
+    --ring:                  var(--amber-500);
+
+    --chart-1: var(--amber-400);
+    --chart-2: var(--slate-400);
+    --chart-3: var(--amber-200);
+    --chart-4: var(--slate-300);
+    --chart-5: var(--amber-600);
+
+    /* Sidebar stays dark — same values, unchanged */
+  }
+}
+
+/* Also support explicit .dark class (e.g. for manual toggle in future) */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background:            var(--slate-950);
+  --foreground:            var(--slate-100);
+  --card:                  var(--slate-900);
+  --card-foreground:       var(--slate-100);
+  --popover:               var(--slate-900);
+  --popover-foreground:    var(--slate-100);
+  --primary:               var(--slate-200);
+  --primary-foreground:    var(--slate-900);
+  --secondary:             var(--slate-800);
+  --secondary-foreground:  var(--slate-100);
+  --muted:                 var(--slate-800);
+  --muted-foreground:      var(--slate-400);
+  --accent:                oklch(0.540 0.155 63 / 20%);
+  --accent-foreground:     var(--amber-300);
+  --destructive:           oklch(0.704 0.191 22.216);
+  --border:                oklch(1 0 0 / 10%);
+  --input:                 oklch(1 0 0 / 12%);
+  --ring:                  var(--amber-500);
+  --chart-1: var(--amber-400);
+  --chart-2: var(--slate-400);
+  --chart-3: var(--amber-200);
+  --chart-4: var(--slate-300);
+  --chart-5: var(--amber-600);
 }
 
 @layer base {
