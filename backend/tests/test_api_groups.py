@@ -51,7 +51,8 @@ def test_patch_group(client: TestClient) -> None:
 
 def test_delete_group(client: TestClient) -> None:
     g = _create_group(client, "Gone")
-    assert client.delete(f"/groups/{g['id']}").status_code == 204
+    deleted = client.delete(f"/groups/{g['id']}")
+    assert deleted.status_code == 204
     assert client.get(f"/groups/{g['id']}").status_code == 404
 
 
@@ -88,7 +89,8 @@ def test_remove_manual_member(client: TestClient) -> None:
     group = _create_group(client)
     member = _create_member(client)
     client.post(f"/groups/{group['id']}/members", json={"member_id": member["id"]})
-    assert client.delete(f"/groups/{group['id']}/members/{member['id']}").status_code == 204
+    deleted = client.delete(f"/groups/{group['id']}/members/{member['id']}")
+    assert deleted.status_code == 204
     resolved = client.get(f"/groups/{group['id']}/members").json()
     assert member["id"] not in {m["id"] for m in resolved}
 
@@ -139,7 +141,8 @@ def test_remove_role_rule(client: TestClient) -> None:
     group = _create_group(client, "Leaders", "dynamic")
     role_id = _admin_role_id(client)
     client.post(f"/groups/{group['id']}/rules", json={"role_id": role_id})
-    assert client.delete(f"/groups/{group['id']}/rules/{role_id}").status_code == 204
+    deleted = client.delete(f"/groups/{group['id']}/rules/{role_id}")
+    assert deleted.status_code == 204
     resolved = client.get(f"/groups/{group['id']}/members").json()
     assert not any(m["first_name"] == "Admin" for m in resolved)
 
@@ -159,6 +162,7 @@ def test_add_rule_unknown_role_422(client: TestClient) -> None:
 def test_tenant_isolation(client: TestClient, other_client: TestClient) -> None:
     group = _create_group(client)
     assert other_client.get(f"/groups/{group['id']}").status_code == 404
-    assert other_client.delete(f"/groups/{group['id']}").status_code == 404
+    cross_delete = other_client.delete(f"/groups/{group['id']}")
+    assert cross_delete.status_code == 404
     other_ids = {g["id"] for g in other_client.get("/groups/").json()}
     assert group["id"] not in other_ids
