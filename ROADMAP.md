@@ -93,7 +93,12 @@ lands before them (data model before UI).
 - [x] Groups API (`/groups`) — CRUD, manual membership, role rules, resolved members
 - [x] TWH importer maps `Patrol` → `PATROL` group and each scout's patrol → `GroupMember`
 - [x] Migration folds `patrols` + `members.patrol_id` into the group tables
-- [ ] Groups management UI (sidebar "Groups", replaces "Patrols")
+- [ ] Groups management UI (sidebar "Groups", replaces "Patrols") — spec: `docs/spec/groups-screen.md`
+- [ ] **Dynamic group rule editor** — UI for defining `GroupRoleRule` entries that drive
+      dynamic group membership. Phase 1: role-based rules (members holding role X belong to
+      group Y). Phase 2: additional dimensions — `member_type`, `membership_status`,
+      patrol-of-patrols. Requires a rule-builder component; spec deferred until the
+      Groups screen UI is complete and UX patterns for rule composition are clearer.
 - [ ] Additional dynamic rule dimensions (member_type, membership_status, patrol-of-patrols)
 
 ### Pillar 2 — Events & Calendar

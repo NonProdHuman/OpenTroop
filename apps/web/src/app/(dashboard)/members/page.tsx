@@ -2,6 +2,9 @@
 
 import { useMemo, useState } from "react"
 import { useMembers } from "@/hooks/use-members"
+import { useGroups, usePatrolMemberships } from "@/hooks/use-groups"
+import { useRoles } from "@/hooks/use-roles"
+import { useRoleAssignments } from "@/hooks/use-role-assignments"
 import { buildColumns } from "./columns"
 import { MemberFilters } from "./member-filters"
 import { MembersTable } from "./members-table"
@@ -13,21 +16,42 @@ import type { Member, MemberStatus, MemberType } from "@/types/api"
 
 export default function MembersPage() {
   const { data: members = [], isLoading: membersLoading } = useMembers()
+  const { data: groups = [] } = useGroups()
+  const { data: roles = [] } = useRoles()
+  const { data: allAssignments = [] } = useRoleAssignments()
+  const patrolMap = usePatrolMemberships()
+
+  const patrols = useMemo(() => groups.filter((g) => g.group_type === "patrol"), [groups])
+
+  // Map<memberId, primary role name> — first assignment wins
+  const roleMap = useMemo(() => {
+    const roleById = new Map(roles.map((r) => [r.id, r.name]))
+    const map = new Map<string, string>()
+    for (const a of allAssignments) {
+      if (!map.has(a.member_id)) {
+        const name = roleById.get(a.role_id)
+        if (name) map.set(a.member_id, name)
+      }
+    }
+    return map
+  }, [roles, allAssignments])
 
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState<MemberType[]>([])
   const [statusFilter, setStatusFilter] = useState<MemberStatus[]>(["active"])
+  const [patrolFilter, setPatrolFilter] = useState<string | null>(null)
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
   const filtered = useMemo(() => {
     return members.filter((m) => {
       if (m.is_deleted) return false
-
       if (typeFilter.length > 0 && !typeFilter.includes(m.member_type)) return false
-      if (statusFilter.length > 0 && !statusFilter.includes(m.membership_status))
-        return false
-
+      if (statusFilter.length > 0 && !statusFilter.includes(m.membership_status)) return false
+      if (patrolFilter !== null) {
+        const selectedPatrol = patrols.find((p) => p.id === patrolFilter)
+        if (!selectedPatrol || patrolMap.get(m.id)?.id !== selectedPatrol.id) return false
+      }
       if (search) {
         const q = search.toLowerCase()
         const fullName = `${m.first_name} ${m.last_name}`.toLowerCase()
@@ -42,12 +66,11 @@ export default function MembersPage() {
         )
           return false
       }
-
       return true
     })
-  }, [members, typeFilter, statusFilter, search])
+  }, [members, typeFilter, statusFilter, patrolFilter, patrolMap, patrols, search])
 
-  const columns = useMemo(() => buildColumns(), [])
+  const columns = useMemo(() => buildColumns(patrolMap, roleMap), [patrolMap, roleMap])
 
   function toggleType(v: MemberType) {
     setTypeFilter((prev) =>
@@ -65,6 +88,7 @@ export default function MembersPage() {
     setSearch("")
     setTypeFilter([])
     setStatusFilter([])
+    setPatrolFilter(null)
   }
 
   function handleRowClick(member: Member) {
@@ -86,9 +110,12 @@ export default function MembersPage() {
           search={search}
           types={typeFilter}
           statuses={statusFilter}
+          patrolId={patrolFilter}
+          patrols={patrols}
           onSearchChange={setSearch}
           onTypeToggle={toggleType}
           onStatusToggle={toggleStatus}
+          onPatrolChange={setPatrolFilter}
           onClear={handleClear}
         />
 

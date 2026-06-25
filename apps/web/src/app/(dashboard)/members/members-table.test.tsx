@@ -59,7 +59,7 @@ function makeMember(overrides: Partial<Member> = {}): Member {
 }
 
 describe("MembersTable", () => {
-  const columns = buildColumns()
+  const columns = buildColumns(new Map<string, { id: string; name: string }>(), new Map())
 
   it("renders member rows", () => {
     render(

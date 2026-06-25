@@ -1,15 +1,1 @@
-{
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cd /home/user/OpenTroop/backend && uv run pytest"
-          }
-        ]
-      }
-    ]
-  }
-}
+{}

@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+See also: [`backend/CLAUDE.md`](backend/CLAUDE.md) · [`apps/web/CLAUDE.md`](apps/web/CLAUDE.md)
+
 ## Project
 
 OpenTroop — an offline-first, mobile-first open-source replacement for TroopWebHost.
@@ -33,44 +35,18 @@ Clerk was chosen as the auth platform. Practical implications for all work:
 ./start.sh   # validates Clerk alignment, starts Postgres + backend + frontend
 ```
 
-### Frontend (from repo root — requires pnpm)
-
 ```bash
-pnpm install                             # install all workspace deps
-pnpm dev                                 # start web app on :3000
-pnpm --filter web dev                    # same, explicit
-pnpm --filter web test                   # run tests in watch mode
-pnpm --filter web test:run               # run tests once (CI mode)
-pnpm --filter web test:coverage          # run tests + coverage report
-pnpm --filter @opentroop/api-client generate   # regenerate TypeScript types from FastAPI OpenAPI spec
-```
-
-Copy `apps/web/.env.local.example` → `apps/web/.env.local` and fill in Clerk keys before running.
-
-### Backend (from `backend/`) — Use `uv`, never `pip` directly. Requires **Python 3.12**.
-
-```bash
-uv sync                          # install backend + dev deps into .venv/
-uv run pytest                    # run the test suite (in-memory SQLite, no DB needed)
-uv run pytest tests/test_models.py::test_parent_child_relationship  # run a single test
-uv run python -m mypy app        # type-check
-uv run alembic revision --autogenerate -m "msg"   # create a migration from model changes
-uv run alembic upgrade head      # apply migrations (needs a live Postgres)
-uv run uvicorn app.main:app --reload  # run the API locally
-uv run provision-tenant --troop-name "Troop 123" --slug troop123 --admin-first A --admin-last B  # sign in first!
-uv run promote-platform-admin --email you@example.com   # grant global/platform admin (sign in first)
-uv run import-twh <tenant-id> <export.xml>  # import TWH XML into a tenant
-uv run anonymize-twh <real.xml> <out.xml>   # scrub PII from a TWH export for use as test fixture
-
-# Dev data management (from backend/):
-uv run reset-tenant <tenant-id>   # clear imported data, keep Clerk admin — then re-import
-uv run reset-db                   # nuclear: drop all tables + re-migrate (prompts for confirmation)
-uv run reset-db --yes             # same, no prompt (CI/scripts)
-
 # Full stack (Postgres + backend) from repo root:
 docker compose up --build
 # Ports are bound to 127.0.0.1 via docker-compose.override.yml (auto-merged on local dev).
 ```
+
+For backend-only commands see `backend/CLAUDE.md`. For frontend-only commands see `apps/web/CLAUDE.md`.
+
+## Conventions
+
+- **Bug fixes must include a test.** When fixing a bug, add a test that would have caught it before writing the fix.
+- **New features get a spec first.** For any non-trivial new feature, write a spec in `docs/spec/` before implementing. See [`docs/spec/members-screen.md`](docs/spec/members-screen.md) for the expected format and depth. Skip the spec for bug fixes, small UI tweaks, and cases where the user explicitly asks for a direct implementation.
 
 ## Pre-commit hooks
 
@@ -103,28 +79,6 @@ Backend tools run via `uv run` (pinned to `uv.lock`); frontend tools run via
 `pnpm exec` (pinned to `pnpm-lock.yaml`). Neither requires a separately-managed
 pre-commit environment.
 
-## Conventions
-
-### Backend scripts
-
-All one-off CLI scripts live in `backend/scripts/` and are registered as
-`[project.scripts]` entry points in `backend/pyproject.toml`. Always invoke them
-via `uv run <command-name>` — never `python scripts/foo.py` or
-`uv run python scripts/foo.py`.
-
-To add a new script:
-1. Create `backend/scripts/your_script.py` with a `main()` function.
-2. Add an entry to `[project.scripts]` in `pyproject.toml`:
-   ```toml
-   your-command = "scripts.your_script:main"
-   ```
-3. Run `uv sync` to install the entry point.
-4. Invoke via `uv run your-command`.
-
-### Frontend
-
-All one-off frontend tooling runs via `pnpm exec <tool>` (never `npx`).
-
 ## Architecture
 
 - **Backend** (`backend/app/`): FastAPI + SQLAlchemy 2.0 (typed `Mapped` style) +
@@ -139,7 +93,7 @@ All one-off frontend tooling runs via `pnpm exec <tool>` (never `npx`).
   the web API contract stabilizes. Will share `@opentroop/api-client`.
 - **API client** (`packages/api-client/`): shared TypeScript package. Types are
   generated from the FastAPI OpenAPI spec via `pnpm --filter @opentroop/api-client generate`
-  (requires the backend running on `:8000`). Used by both web and mobile.
+  (requires the backend running on `:8000`). Used by mobile; web uses hand-written types.
 
 ### Sync-aware schema contract (critical)
 
@@ -342,41 +296,3 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   minted/rotated via `POST`/`DELETE /calendar/subscription` (authenticated, current
   member). The feed is audience-based (no manager bypass) — it's *my* calendar, not a
   management view.
-
-### TroopWebHost XML importer (`app/importers/twh.py`)
-
-`TwhImporter(session, tenant_id).run(root)` imports a parsed TWH full-data XML
-export into the target tenant. Supported record types (in import order):
-
-| TWH element        | OpenTroop model      | Notes |
-|--------------------|----------------------|-------|
-| `Patrol`           | `Group` (`group_type=patrol`) | `Patrol_Name` → `name`; each scout's patrol → `GroupMember` |
-| `Person`           | `Member`             | `Adult_Flag`, `Alumni_Flag`, `Swim_Level`, `Patrol`, OA fields |
-| `Relationship`     | `MemberRelationship` | Only `Parent` seen in practice; `guardian`, `sibling` also mapped |
-| `Location`         | `Location`           | `Disabled_Flag=Y` skipped |
-| `Event_Type`       | `EventType`          | Capability flags translated 1-to-1; `is_system=False` |
-| `Event`            | `Event`              | `linked_event_id` resolved in a second pass |
-| `Event_Participant`| `EventParticipant`   | `?` flag → `None` for `attended`, `True` for `signed_up` |
-
-TWH datetime format: `M/D/YYYY H:MM:SS AM/PM` (parsed by `_parse_datetime` /
-`_parse_date`). TWH integer IDs never persist; every row gets a new UUIDv7.
-
-CLI: run from `backend/`:
-
-```bash
-uv run python import_twh.py <tenant-uuid> path/to/export.xml
-```
-
-Test fixture: `backend/tests/fixtures/sample_twh_minimal.xml` — all PII is fake.
-The real TWH export and any anonymized samples are blocked by `reference/.gitignore`.
-
-### Conventions
-
-- ORM models in `app/models/`, Pydantic schemas in `app/schemas/` (kept separate).
-  Each resource exposes `*Base` / `*Create` / `*Update` / `*Read` schemas.
-  `*Read` for tenant-scoped models inherits `TrackedRead`; for platform models it
-  inherits `PlatformRead`. Both use `from_attributes=True`.
-- New tenant-scoped models: subclass `TrackedBase`, then add the class to
-  `app/models/__init__.py` so it registers on `Base.metadata` for tests and Alembic
-  autogenerate.
-- New platform-level models: subclass `PlatformBase` instead (no `tenant_id`).
