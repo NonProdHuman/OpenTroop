@@ -14,7 +14,6 @@ import { formatDate } from "@/lib/format"
 
 interface MemberDetailSheetProps {
   member: Member | null
-  patrolMap: Map<string, string>
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -42,7 +41,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function MemberDetailSheet({
   member,
-  patrolMap,
   open,
   onOpenChange,
 }: MemberDetailSheetProps) {
@@ -61,8 +59,6 @@ export function MemberDetailSheet({
   ]
     .filter(Boolean)
     .join("\n")
-
-  const patrolName = member.patrol_id ? patrolMap.get(member.patrol_id) : null
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -86,9 +82,6 @@ export function MemberDetailSheet({
               {member.membership_status.charAt(0).toUpperCase() +
                 member.membership_status.slice(1)}
             </Badge>
-            {patrolName && (
-              <span className="text-sm text-muted-foreground">{patrolName}</span>
-            )}
           </div>
         </SheetHeader>
 

@@ -9,6 +9,22 @@ Phase 1 covers Membership/Contact Management and Event Management. Leaders must 
 able to work at camps without connectivity, so the data layer is built for
 background sync from day one.
 
+**SaaS-first (primary design target).** OpenTroop is built first and foremost as a
+hosted multi-tenant SaaS platform serving many troops; self-hosting (one troop, one
+instance) is a supported secondary mode, not the design center. This was decided when
+Clerk was chosen as the auth platform. Practical implications for all work:
+- Every design decision assumes a shared platform with many tenants on it. The
+  `tenant_id` partition key, subdomain tenant routing, and per-tenant rate limiting
+  are first-class, not afterthoughts.
+- There is a **platform/global tier above tenants** (creating tenants, inviting and
+  administering tenant admins, billing/ops) that is distinct from tenant-scoped RBAC.
+  Tenant creation belongs to platform (global) admins, not arbitrary signed-in users.
+- New cross-tenant capabilities subclass `PlatformBase`; tenant features subclass
+  `TrackedBase`. When in doubt, ask "does this row belong to one troop or to the
+  platform?" — that determines the base class.
+- Self-hosted mode must keep working, but where the two modes conflict, optimize for
+  SaaS and degrade gracefully for single-tenant.
+
 ## Commands
 
 ### Start everything
@@ -42,6 +58,7 @@ uv run alembic revision --autogenerate -m "msg"   # create a migration from mode
 uv run alembic upgrade head      # apply migrations (needs a live Postgres)
 uv run uvicorn app.main:app --reload  # run the API locally
 uv run provision-tenant --troop-name "Troop 123" --slug troop123 --admin-first A --admin-last B  # sign in first!
+uv run promote-platform-admin --email you@example.com   # grant global/platform admin (sign in first)
 uv run import-twh <tenant-id> <export.xml>  # import TWH XML into a tenant
 uv run anonymize-twh <real.xml> <out.xml>   # scrub PII from a TWH export for use as test fixture
 
@@ -146,10 +163,18 @@ unmodified on SQLite, which is how the test suite stays DB-free.
 **Platform-level (PlatformBase, no tenant_id):**
 
 - `Tenant` — one row per troop. Fields: `name`, `slug` (unique; used for subdomain
-  routing). `Tenant.id` is the value stored in `tenant_id` on all `TrackedBase` rows.
-- `User` — a platform-level person identity. Fields: `email`, `display_name`. One
-  `User` may have `Member` records in multiple tenants. To fetch a user's members,
-  query `Member.user_id == user.id`; there is no ORM backref to avoid a cyclic import.
+  routing), `suspended_at` (nullable; SaaS suspension marker, distinct from `is_deleted` —
+  a suspended tenant still exists but is locked out of all tenant-scoped requests).
+  `Tenant.id` is the value stored in `tenant_id` on all `TrackedBase` rows.
+- `User` — a platform-level person identity. Fields: `email`, `display_name`,
+  `platform_role`. One `User` may have `Member` records in multiple tenants. To fetch
+  a user's members, query `Member.user_id == user.id`; there is no ORM backref to avoid
+  a cyclic import. `platform_role` (nullable `PlatformRole` enum: `superadmin`/`support`/
+  `billing`) marks the handful of **platform (global) admins** who own the SaaS control
+  plane — creating tenants and administering tenant admins. It is **null for all ordinary
+  users** and is entirely distinct from tenant-scoped RBAC (`Role`/`Permission`), which
+  governs what a member can do inside one troop. Bootstrap the first one with
+  `uv run promote-platform-admin --email <addr>` (the user must have signed in once first).
 - `Identity` — a single OIDC credential bound to a `User`. Unique on
   `(issuer, provider_sub)` — the JWT `iss` + `sub` pair. Supports any compliant
   OIDC provider (Clerk, Authentik, Google, Apple, …).
@@ -241,19 +266,47 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
 - **Tenant resolution** (`app/core/tenant.py`): `get_tenant_id` resolves the tenant
   from the request subdomain first (`troop123.opentroop.app` → slug lookup), then
   falls back to the `X-Tenant-ID` header (raw UUID → DB validation). Nested
-  subdomains are rejected to prevent Host-header spoofing.
+  subdomains are rejected to prevent Host-header spoofing. A **suspended** tenant
+  (`Tenant.suspended_at` set) is rejected with 403 on both resolution paths.
 - **FastAPI dependencies** (`app/core/deps.py`): `TenantDep`, `DbDep`,
   `CurrentUserDep` — wire these into route handlers to enforce auth and tenant scope.
   `require(permission)` — dependency factory used as `dependencies=[Depends(require(Permission.X))]`
   on each route; resolves the caller's `Member` in the current tenant and checks
   their effective permission set via `resolve_permissions()`. Raises 403 if the user
   has no Member row in this tenant or lacks the required permission.
-- **Tenant provisioning** (`POST /tenants/`): creates Tenant + founding admin Member
-  + administrators Role atomically. No tenant context required; only `CurrentUserDep`.
+  `get_platform_admin` / `PlatformAdminDep` — gates the SaaS control plane: requires the
+  caller's `User.platform_role` to be set (any value), independent of any tenant. Raises
+  403 for ordinary users.
+- **Platform control plane** (`app/routers/platform.py`, prefix `/platform`, every route
+  gated by `PlatformAdminDep`): the SaaS control plane.
+  - `POST /platform/tenants` — **provision a tenant**: atomically creates the Tenant, an
+    **unclaimed** founding admin Member (`user_id` null, named/emailed via the request body),
+    the administrators Role, the role assignment, and the six default event types. Returns the
+    tenant plus a 7-day invite token for the founder. The provisioning admin does **not**
+    become a member of the new tenant.
+  - `GET /platform/tenants`, `GET /platform/tenants/{id}` — list / inspect tenants.
+  - `POST /platform/tenants/{id}/suspend` · `/unsuspend` — set/clear `suspended_at`
+    (idempotent); a suspended tenant rejects all tenant-scoped requests.
+  - `GET /platform/tenants/{id}/admins` — members holding the is_admin role.
+  - `POST /platform/tenants/{id}/admins` — invite another admin (unclaimed Member + claim token).
+  - `DELETE /platform/tenants/{id}/admins/{member_id}` — revoke admin; 409 if it would remove
+    the tenant's last administrator, 404 if the member isn't an admin here.
+  - `GET /platform/admins` — list users holding any `platform_role` (any platform admin may view).
+  - `POST /platform/admins` · `DELETE /platform/admins/{user_id}` — grant/revoke a platform role
+    by email / user id. **Superadmin only** (`SuperadminDep` / `get_superadmin` in `deps.py`):
+    `support`/`billing` are read-only here so they can't self-escalate. Grant 404s if the email
+    has never signed in; revoke 409s on the last remaining superadmin.
+
+  The shared building blocks live in `app/core/provisioning.py` (`provision_tenant`,
+  `invite_admin_member`, `ensure_administrators_role`, `seed_default_event_types` +
+  `DEFAULT_EVENT_TYPES`). The `provision-tenant` CLI is the separate dev/self-host path: it
+  writes the DB directly, bypassing the API gate, and auto-links the single signed-in `User`
+  as founder.
 - **Invite/claim flow** (`app/core/invite.py`): `create_invite_token` / `decode_invite_token`
-  use HS256 (signed with `APP_SECRET`) to produce 7-day claim tokens. An admin calls
-  `POST /members/{id}/invite`; the invitee signs in via OIDC then calls
-  `POST /auth/claim` with the token to link their `User.id` to the `Member` row.
+  use HS256 (signed with `APP_SECRET`) to produce 7-day claim tokens. Tokens are minted
+  either by tenant provisioning (for the founder) or by an admin calling
+  `POST /members/{id}/invite`; the invitee signs in via OIDC then calls `POST /auth/claim`
+  with the token to link their `User.id` to the `Member` row.
 
 ### TroopWebHost XML importer (`app/importers/twh.py`)
 

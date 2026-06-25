@@ -36,7 +36,7 @@ Validates that your Clerk configuration is consistent between frontend and backe
 
 ## Local development
 
-**Frontend** — requires [pnpm](https://pnpm.io) and Node 18+:
+**Frontend** — requires [pnpm](https://pnpm.io) and Node 22.13+ (pnpm 11 needs it):
 
 ```bash
 npm install -g pnpm
@@ -72,8 +72,9 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-Hooks cover trailing whitespace, YAML/TOML validation, secret scanning (gitleaks),
-and Python linting/formatting via ruff (pinned to the version in `uv.lock`).
+Hooks cover trailing whitespace, YAML/TOML/JSON validation, secret scanning
+(gitleaks), Python linting/formatting + types (ruff, mypy — pinned via `uv.lock`),
+and frontend type-checking + linting (`tsc`, `eslint` — pinned via `pnpm-lock.yaml`).
 
 ## Data model (Phase 1)
 

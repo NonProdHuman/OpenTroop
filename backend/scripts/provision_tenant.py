@@ -2,7 +2,7 @@
 """
 provision_tenant.py — Bootstrap a new tenant directly in the database.
 
-This script is the CLI equivalent of POST /tenants/: it creates the Tenant
+This script is the CLI equivalent of POST /platform/tenants: it creates the Tenant
 row, a founding admin Member, the Administrators role, and the six default
 event types — all atomically, without requiring a Clerk JWT.
 

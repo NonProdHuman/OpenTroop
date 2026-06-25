@@ -22,9 +22,18 @@ vi.mock("@clerk/nextjs", () => ({
   UserButton: () => <div data-testid="user-button" />,
 }))
 
+vi.mock("@/hooks/use-me", () => ({
+  useMe: vi.fn(() => ({ data: undefined })),
+}))
+
 import { usePathname } from "next/navigation"
+import { useMe } from "@/hooks/use-me"
 import { AppSidebar } from "./app-sidebar"
 import { SidebarProvider } from "./ui/sidebar"
+
+function mockMe(value: unknown) {
+  vi.mocked(useMe).mockReturnValue(value as ReturnType<typeof useMe>)
+}
 
 function renderSidebar() {
   return render(
@@ -38,7 +47,7 @@ describe("AppSidebar", () => {
   it("renders all five nav items", () => {
     renderSidebar()
     expect(screen.getByText("Members")).toBeInTheDocument()
-    expect(screen.getByText("Patrols")).toBeInTheDocument()
+    expect(screen.getByText("Groups")).toBeInTheDocument()
     expect(screen.getByText("Events")).toBeInTheDocument()
     expect(screen.getByText("Import")).toBeInTheDocument()
     expect(screen.getByText("Settings")).toBeInTheDocument()
@@ -69,5 +78,18 @@ describe("AppSidebar", () => {
     renderSidebar()
     expect(screen.getByText("OpenTroop")).toBeInTheDocument()
     expect(screen.getByText("OT")).toBeInTheDocument()
+  })
+
+  it("hides the Platform link for non-platform-admins", () => {
+    mockMe({ data: { platform_role: null } })
+    renderSidebar()
+    expect(screen.queryByText("Platform")).not.toBeInTheDocument()
+  })
+
+  it("shows the Platform link for platform admins", () => {
+    mockMe({ data: { platform_role: "superadmin" } })
+    renderSidebar()
+    const link = screen.getByText("Platform").closest("a")
+    expect(link).toHaveAttribute("href", "/platform")
   })
 })

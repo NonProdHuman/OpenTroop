@@ -39,7 +39,8 @@ The load-bearing foundation. Everything else depends on a correct, sync-capable
 membership model.
 
 - [x] `TrackedBase` mixin: UUIDv7 PK, `tenant_id`, timestamps, soft-delete
-- [x] `Patrol`, `Member` (type + role + BSA swim classification), `MemberRelationship` guardian graph
+- [x] `Member` (type + role + BSA swim classification), `MemberRelationship` guardian graph;
+      `Patrol` folded into the general `Group` model (see **Groups & Audiences** below)
 - [x] Pydantic v2 schemas, Alembic setup, pytest suite on SQLite
 - [x] Initial Alembic migration (requires live Postgres)
 - [x] FastAPI CRUD endpoints for Patrol, Member, MemberRelationship
@@ -54,6 +55,46 @@ membership model.
 - [x] Multi-tenant provisioning — `POST /tenants/` bootstraps Tenant + founding admin
       Member + administrators Role atomically; invite/claim flow links existing
       roster entries to login accounts via signed tokens
+- [x] Platform (global) admin tier — `User.platform_role` gates the SaaS control plane;
+      `POST /tenants/` is platform-admin-only and creates an *unclaimed* founding admin
+      Member invited by email (the provisioning admin doesn't join the troop);
+      `promote-platform-admin` CLI bootstraps the first global admin
+- [x] Platform control-plane API (`/platform/*`, platform-admin only) — provision/list/
+      inspect tenants; suspend/unsuspend (suspended tenants are locked out of tenant-scoped
+      requests); list, invite, and revoke tenant admins (last-admin guard). Shared
+      provisioning helpers in `app/core/provisioning.py`
+- [x] Platform control-plane **UI** — global management console at `/platform` (admin-gated via
+      `platform_role`): tenants list, provision-tenant dialog, tenant detail with suspend/unsuspend
+      and admin invite/revoke; sidebar link shown only to platform admins
+- [x] Platform-admin management — `GET/POST/DELETE /platform/admins` (grant/revoke gated to
+      superadmins; last-superadmin guard) + `/platform/admins` console screen; promotes platform
+      admins through the UI instead of the `promote-platform-admin` CLI alone
+- [ ] Automated invite email delivery (depends on Pillar 4 notification infra) — until then
+      provisioning returns the invite token for manual/out-of-band delivery
+
+#### Groups & Audiences *(foundational — folds Patrol)*
+
+A **Group** is a named, *resolvable set of members* — the single primitive behind
+event visibility, email/SMS distribution lists, and report scoping. Rather than
+hard-coding "patrol" as the only axis to scope things, every audience is a group,
+and a patrol is just one kind of group. TWH's strength is exactly this: dynamic
+*and* manual groups (e.g. a PLC of everyone holding a leadership role) that drive
+both messaging and visibility. This is the layer those features consume, so it
+lands before them (data model before UI).
+
+- [x] `Group` model (`name`, `description`, `group_type`, `color`, `is_system`)
+      replacing the standalone `Patrol` model — a patrol is a `PATROL`-type group
+- [x] **Manual** membership — explicit `GroupMember` rows (also stores patrol
+      membership; a member belongs to at most one `PATROL` group)
+- [x] **Dynamic** membership — rule-based; v1 is role-driven (`GroupRoleRule`),
+      so the PLC resolves to everyone holding PL / SPL / ASM / SM
+- [x] `resolve_group_members(group_id, session)` — unions manual + rule-derived
+      members (mirrors `resolve_permissions`); the one function every consumer calls
+- [x] Groups API (`/groups`) — CRUD, manual membership, role rules, resolved members
+- [x] TWH importer maps `Patrol` → `PATROL` group and each scout's patrol → `GroupMember`
+- [x] Migration folds `patrols` + `members.patrol_id` into the group tables
+- [ ] Groups management UI (sidebar "Groups", replaces "Patrols")
+- [ ] Additional dynamic rule dimensions (member_type, membership_status, patrol-of-patrols)
 
 ### Pillar 2 — Events & Calendar
 
@@ -77,7 +118,15 @@ Model events generically with typed metadata rather than one-size-fits-all field
 - [ ] Packing lists — deferred (feature creep risk before UI exists)
 - [ ] Digital permission slips (fillable forms attached to events; parent signature flow)
 - [ ] Health form collection and storage (per-event or per-member)
-- [ ] Calendar view (monthly/weekly; iCal export)
+- [~] Calendar view — month grid done (`apps/web/.../events`, List/Calendar toggle);
+      weekly/day views (calendar library swap) still pending
+- [ ] Event visibility / audiences — `EventAudience` links events to Groups
+      (empty = troop-wide); the list, calendar, and iCal feed all filter by the
+      viewer's group membership (e.g. patrol-only events)
+- [ ] RSVP status (going / declined / maybe / no-response) on `EventParticipant` —
+      drives gray-out in the app and omission from personal iCal feeds
+- [ ] Per-member iCal subscription feeds — tokenized `.ics` (`webcal://`) honoring
+      group visibility and RSVP; subscribable from Apple/Google Calendar
 - [ ] Event notifications (email; push via mobile apps later)
 
 ### Pillar 3 — Advancement & Requirements
@@ -136,7 +185,9 @@ vendor lock-in.
 
 #### Messaging features
 
-- [ ] Troop-wide and patrol-scoped announcements (email + optional SMS)
+- [ ] Group-targeted announcements (email + optional SMS) — distribution lists are
+      Groups; recipients resolve via `resolve_group_members` (replaces the former
+      troop-/patrol-only scoping)
 - [ ] Event-triggered notifications: RSVP reminders, permission slip requests,
       last-minute cancellations
 - [ ] Weekly digest / newsletter template
@@ -221,7 +272,8 @@ Pillars 1 and 2 are complete at the API layer. The web app shell is scaffolded
 
 1. **Members screen** — searchable/filterable roster list + inline detail panel;
    the highest-impact screen for demonstrating the UX difference from TroopWebHost.
-2. **Events screen** — event list and detail view; reuses the same data-table patterns.
+2. ~~**Events screen** — event list and detail view; reuses the same data-table patterns.~~
+   *(done — `apps/web/.../events`: searchable/type/time-filtered list + detail sheet)*
 3. **Attendance screen** — the key field UX moment; optimistic updates, fast tap targets.
 4. **Pillar 3 analysis** — export Scoutbook advancement data from a real troop before
    designing the advancement model; let the data shape the schema.

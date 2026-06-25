@@ -10,3 +10,44 @@ export function formatDate(value: string | null | undefined): string | null {
     return value
   }
 }
+
+/** Format an ISO datetime, optionally date-only (for all-day events). */
+export function formatDateTime(value: string, opts: { dateOnly?: boolean } = {}): string {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    ...(opts.dateOnly ? {} : { hour: "numeric", minute: "2-digit" }),
+  })
+}
+
+/**
+ * Human "when" string for an event. Collapses same-day ranges to a single date
+ * with a start–end time; all-day events drop the time entirely.
+ */
+export function formatEventWhen(start: string, end: string, allDay = false): string {
+  const s = new Date(start)
+  const e = new Date(end)
+  if (Number.isNaN(s.getTime())) return start
+  if (allDay) {
+    const sd = formatDateTime(start, { dateOnly: true })
+    const ed = formatDateTime(end, { dateOnly: true })
+    return sd === ed ? sd : `${sd} – ${ed}`
+  }
+  const sameDay = s.toDateString() === e.toDateString()
+  if (sameDay && !Number.isNaN(e.getTime())) {
+    const time = e.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    return `${formatDateTime(start)} – ${time}`
+  }
+  return `${formatDateTime(start)} – ${formatDateTime(end)}`
+}
+
+/** Format a Decimal money string (or number) as e.g. "$25.00". Null → null. */
+export function formatMoney(value: string | number | null | undefined): string | null {
+  if (value === null || value === undefined || value === "") return null
+  const n = Number(value)
+  if (Number.isNaN(n)) return null
+  return `$${n.toFixed(2)}`
+}

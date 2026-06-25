@@ -12,7 +12,6 @@ from app.models.base import TrackedBase
 from app.models.enums import MemberStatus, MemberType, SwimClassification
 
 if TYPE_CHECKING:
-    from app.models.patrol import Patrol
     from app.models.relationship import MemberRelationship
     from app.models.role import MemberRoleAssignment
     from app.models.user import User  # User does not import Member, so no cycle
@@ -94,8 +93,8 @@ class Member(TrackedBase):
     )
     user: Mapped[User | None] = relationship("User")
 
-    patrol_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("patrols.id"), nullable=True)
-    patrol: Mapped[Patrol | None] = relationship(back_populates="members")
+    # Patrol membership is folded into the general Group model: a member's patrol
+    # is a GroupMember row whose Group is of type PATROL. See app.models.group.
 
     role_assignments: Mapped[list[MemberRoleAssignment]] = relationship(
         "MemberRoleAssignment",

@@ -1,5 +1,6 @@
 import uuid
 
+from app.models.enums import PlatformRole
 from app.schemas.base import PlatformRead
 
 
@@ -13,4 +14,5 @@ class IdentityRead(PlatformRead):
 class UserRead(PlatformRead):
     email: str | None
     display_name: str | None
+    platform_role: PlatformRole | None = None
     identities: list[IdentityRead] = []

@@ -2,17 +2,19 @@
 
 from app.models.base import Base, PlatformBase, TrackedBase
 from app.models.enums import (
+    GroupType,
     MemberStatus,
     MemberType,
     Permission,
+    PlatformRole,
     RelationshipType,
     SwimClassification,
 )
 from app.models.event import Event, EventOrganizer, EventParticipant
 from app.models.event_type import EventType
+from app.models.group import Group, GroupMember, GroupRoleRule
 from app.models.location import Location
 from app.models.member import Member
-from app.models.patrol import Patrol
 from app.models.relationship import MemberRelationship
 from app.models.role import MemberRoleAssignment, Role, RoleMembership, RolePermission
 from app.models.tenant import Tenant
@@ -26,9 +28,11 @@ __all__ = [
     "EventOrganizer",
     "EventParticipant",
     "EventType",
+    "Group",
+    "GroupMember",
+    "GroupRoleRule",
     "Location",
     "Member",
-    "Patrol",
     "MemberRelationship",
     "Role",
     "RolePermission",
@@ -37,9 +41,11 @@ __all__ = [
     "Tenant",
     "User",
     "Identity",
+    "GroupType",
     "MemberStatus",
     "MemberType",
     "Permission",
+    "PlatformRole",
     "SwimClassification",
     "RelationshipType",
 ]

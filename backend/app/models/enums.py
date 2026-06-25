@@ -65,6 +65,23 @@ class Permission(enum.StrEnum):
     REPORT_READ = "report:read"
 
 
+class GroupType(enum.StrEnum):
+    """How a Group's membership is primarily managed.
+
+    MANUAL  — members are added and removed explicitly.
+    DYNAMIC — membership is computed from rules (e.g. role-based).
+    PATROL  — the roster's unit-of-belonging: a manual group a member belongs to
+              at most one of. Folds the former standalone Patrol model.
+
+    Resolution always unions manual inclusions with any rule-derived members,
+    regardless of type; the type is a management/UI hint, not a hard switch.
+    """
+
+    MANUAL = "manual"
+    DYNAMIC = "dynamic"
+    PATROL = "patrol"
+
+
 class SwimClassification(enum.StrEnum):
     """Official BSA aquatics classification."""
 
@@ -85,3 +102,21 @@ class RelationshipType(enum.StrEnum):
     GUARDIAN_OF = "guardian_of"  # legal/non-biological guardian
     SIBLING_OF = "sibling_of"  # symmetric
     OTHER = "other"
+
+
+class PlatformRole(enum.StrEnum):
+    """Global (cross-tenant) role held by a platform User.
+
+    Distinct from tenant-scoped RBAC (Role / Permission), which governs what a
+    member can do *inside one troop*. A platform role governs the SaaS control
+    plane: creating/suspending tenants and administering tenant admins. Most
+    users have no platform role (``User.platform_role is None``).
+
+    SUPERADMIN — full platform control (create tenants, manage tenant admins).
+    SUPPORT    — read-oriented operator access for troubleshooting (future use).
+    BILLING    — billing/subscription administration (future use).
+    """
+
+    SUPERADMIN = "superadmin"
+    SUPPORT = "support"
+    BILLING = "billing"

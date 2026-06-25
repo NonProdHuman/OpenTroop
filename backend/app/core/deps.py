@@ -11,13 +11,43 @@ from app.core.database import get_db
 from app.core.permissions import resolve_permissions
 from app.core.tenant import get_tenant_id
 from app.models.base import TrackedBase
-from app.models.enums import Permission
+from app.models.enums import Permission, PlatformRole
 from app.models.member import Member
 from app.models.user import User
 
 TenantDep = Annotated[uuid.UUID, Depends(get_tenant_id)]
 DbDep = Annotated[Session, Depends(get_db)]
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
+
+
+def get_platform_admin(user: CurrentUserDep) -> User:
+    """Require the caller to hold a platform (global, cross-tenant) role.
+
+    Gates the SaaS control plane — tenant provisioning and tenant-admin
+    administration — independently of any tenant-scoped permission. Raises 403
+    for ordinary users (``platform_role is None``).
+    """
+    if user.platform_role is None:
+        raise HTTPException(status_code=403, detail="Platform administrator access required")
+    return user
+
+
+PlatformAdminDep = Annotated[User, Depends(get_platform_admin)]
+
+
+def get_superadmin(user: CurrentUserDep) -> User:
+    """Require the caller to be a platform **superadmin**.
+
+    Stricter than ``get_platform_admin``: gates the most sensitive control-plane
+    actions — granting and revoking platform roles. ``support``/``billing``
+    platform users are rejected (403) so they cannot escalate privileges.
+    """
+    if user.platform_role is not PlatformRole.SUPERADMIN:
+        raise HTTPException(status_code=403, detail="Superadmin access required")
+    return user
+
+
+SuperadminDep = Annotated[User, Depends(get_superadmin)]
 
 
 def get_or_404[T: TrackedBase](

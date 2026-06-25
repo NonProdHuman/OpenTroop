@@ -9,7 +9,7 @@ Complete walkthrough from a fresh clone to a running stack with real data.
 | [uv](https://docs.astral.sh/uv/) | latest | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | Python | 3.12 | managed by uv — no manual install needed |
 | [pnpm](https://pnpm.io) | 9+ | `npm install -g pnpm` |
-| Node.js | 18+ | [nodejs.org](https://nodejs.org) |
+| Node.js | 22.13+ | [nodejs.org](https://nodejs.org) (pnpm 11 requires it) |
 | Docker Desktop | latest | [docker.com](https://www.docker.com) |
 
 ## 1. Clone and install
@@ -193,6 +193,7 @@ All run from `backend/`:
 |---------|---------|
 | `uv run anonymize-twh <real.xml> <out.xml>` | Scrub PII from a real TWH export to produce a safe test fixture |
 | `uv run provision-tenant --troop-name … --slug … --admin-first … --admin-last …` | Create a new tenant + admin member + event type defaults; auto-links to your Clerk identity if you signed in first |
+| `uv run promote-platform-admin --email you@example.com` | Grant a signed-in user the global **platform-admin** role (needed to create tenants via `POST /tenants/`); `--revoke` to remove |
 | `uv run import-twh <tenant-id> <file>` | Import a TWH XML export into an existing tenant |
 | `uv run reset-tenant <tenant-id>` | Clear imported data for one tenant (keep admin) |
 | `uv run reset-db` | Nuclear: drop all tables + re-migrate |

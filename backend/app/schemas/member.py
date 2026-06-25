@@ -50,7 +50,6 @@ class MemberBase(BaseModel):
     oa_vigil_date: date | None = None
     oa_vigil_name: str | None = None
     oa_notes: str | None = None
-    patrol_id: uuid.UUID | None = None
 
 
 class MemberCreate(MemberBase):
@@ -100,7 +99,6 @@ class MemberUpdate(BaseModel):
     oa_vigil_date: date | None = None
     oa_vigil_name: str | None = None
     oa_notes: str | None = None
-    patrol_id: uuid.UUID | None = None
 
 
 class MemberRead(MemberBase, TrackedRead):

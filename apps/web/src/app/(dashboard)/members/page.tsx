@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react"
 import { useMembers } from "@/hooks/use-members"
-import { usePatrols } from "@/hooks/use-patrols"
 import { buildColumns } from "./columns"
 import { MemberFilters } from "./member-filters"
 import { MembersTable } from "./members-table"
@@ -14,18 +13,12 @@ import type { Member, MemberStatus, MemberType } from "@/types/api"
 
 export default function MembersPage() {
   const { data: members = [], isLoading: membersLoading } = useMembers()
-  const { data: patrols = [], isLoading: patrolsLoading } = usePatrols()
 
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState<MemberType[]>([])
   const [statusFilter, setStatusFilter] = useState<MemberStatus[]>(["active"])
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
-
-  const patrolMap = useMemo(
-    () => new Map(patrols.map((p) => [p.id, p.name])),
-    [patrols],
-  )
 
   const filtered = useMemo(() => {
     return members.filter((m) => {
@@ -54,7 +47,7 @@ export default function MembersPage() {
     })
   }, [members, typeFilter, statusFilter, search])
 
-  const columns = useMemo(() => buildColumns(patrolMap), [patrolMap])
+  const columns = useMemo(() => buildColumns(), [])
 
   function toggleType(v: MemberType) {
     setTypeFilter((prev) =>
@@ -102,14 +95,13 @@ export default function MembersPage() {
         <MembersTable
           data={filtered}
           columns={columns}
-          isLoading={membersLoading || patrolsLoading}
+          isLoading={membersLoading}
           onRowClick={handleRowClick}
         />
       </div>
 
       <MemberDetailSheet
         member={selectedMember}
-        patrolMap={patrolMap}
         open={sheetOpen}
         onOpenChange={setSheetOpen}
       />

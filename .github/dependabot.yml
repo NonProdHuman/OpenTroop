@@ -11,6 +11,17 @@ updates:
       dev-dependencies:
         patterns: ["pytest*", "ruff*", "mypy*", "pip-audit*"]
 
+  # Frontend dependencies (pnpm workspace)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies:
+        dependency-type: development
+
   # GitHub Actions
   - package-ecosystem: github-actions
     directory: /

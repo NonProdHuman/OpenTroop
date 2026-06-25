@@ -4,8 +4,8 @@ reset_db.py — Nuclear full-database reset: drops all tables and re-applies
 every Alembic migration from scratch.
 
 This destroys ALL data: tenants, users, members, events — everything.
-You will need to POST /tenants/ again to provision a new tenant before
-importing or using the app.
+You will need to provision a new tenant again (POST /platform/tenants, or the
+provision-tenant CLI) before importing or using the app.
 
 Run from backend/ (requires a running Postgres, same connection as alembic.ini):
     uv run reset-db
