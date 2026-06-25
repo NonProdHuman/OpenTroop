@@ -157,6 +157,27 @@ A full-page form with the core event fields. Sections, in order:
 - On success: navigate to `/events`. React Query invalidates `["events"]`.
 - On error: inline error message (same pattern as the member/group forms).
 
+### Time handling (UTC)
+
+All times are stored and exchanged as **UTC ISO-8601**; the UI renders them in
+the **viewer's local timezone**. This keeps a single canonical instant on the
+backend while every leader sees times in their own zone.
+
+- **Submit:** the form's `datetime-local` inputs are local wall-clock time. On
+  submit they are converted to UTC via `new Date(value).toISOString()` (yields a
+  trailing `Z`).
+- **All-day events** have no time/zone. They are pinned to **UTC midnight**
+  (`YYYY-MM-DDT00:00:00Z`) on submit and rendered using the **UTC** date (not
+  local) so the calendar date never slips across timezones.
+- **Backend:** a shared `UtcDateTime` Pydantic type (`app/schemas/types.py`)
+  normalizes every inbound datetime to timezone-aware UTC (aware → converted;
+  naive → assumed UTC) and guarantees read models emit UTC. Applied to event
+  scheduled times, participant timestamps, and the `created_at`/`updated_at`
+  tracking fields on every resource.
+- **Display:** timed events use `formatDateTime` (local); all-day events pass
+  `utc: true`. The calendar buckets all-day events by their UTC date
+  (`eventsByDay`).
+
 ---
 
 ## Data hooks

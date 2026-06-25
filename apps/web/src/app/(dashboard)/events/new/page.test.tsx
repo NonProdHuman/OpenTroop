@@ -67,8 +67,9 @@ describe("NewEventPage", () => {
       event_type_id: "type-1",
       all_day: false,
     })
-    expect(payload.scheduled_start).toBeTruthy()
-    expect(payload.scheduled_end).toBeTruthy()
+    // Times are sent to the backend as UTC ISO instants.
+    expect(payload.scheduled_start).toMatch(/Z$/)
+    expect(payload.scheduled_end).toMatch(/Z$/)
     expect(push).toHaveBeenCalledWith("/events")
   })
 })

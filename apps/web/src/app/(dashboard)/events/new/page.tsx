@@ -45,6 +45,16 @@ function plusOneHour(start: string): string {
   return toLocalInput(d)
 }
 
+/**
+ * Convert a form value to a UTC ISO instant for the API. Timed values are local
+ * wall-clock times → convert through `Date` to UTC. All-day values are a bare
+ * calendar date → pin to UTC midnight so the date is preserved across timezones.
+ */
+function toUtcInstant(value: string, allDay: boolean): string {
+  if (allDay) return `${value.slice(0, 10)}T00:00:00Z`
+  return new Date(value).toISOString()
+}
+
 type FormState = {
   name: string
   event_type_id: string
@@ -104,8 +114,8 @@ function toApiPayload(form: FormState, eventTypeId: string): Partial<Event> {
     departure_location: nullify(form.departure_location),
     return_location: nullify(form.return_location),
     video_conference_url: nullify(form.video_conference_url),
-    scheduled_start: form.scheduled_start,
-    scheduled_end: form.scheduled_end,
+    scheduled_start: toUtcInstant(form.scheduled_start, form.all_day),
+    scheduled_end: toUtcInstant(form.scheduled_end, form.all_day),
     all_day: form.all_day,
     signup_start: nullify(form.signup_start),
     signup_deadline: nullify(form.signup_deadline),

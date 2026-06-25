@@ -57,8 +57,9 @@ export function buildMonthGrid(month: Date, today: Date = new Date()): DayCell[]
 
 /**
  * Map each local day key to the events occurring on it. Multi-day events appear
- * on every day they span (by local calendar date). Capped to avoid runaway
- * iteration on malformed ranges.
+ * on every day they span. Timed events bucket by local calendar date; all-day
+ * events bucket by their UTC date so they stay on the intended day regardless of
+ * the viewer's timezone. Capped to avoid runaway iteration on malformed ranges.
  */
 export function eventsByDay(events: Event[]): Map<string, Event[]> {
   const map = new Map<string, Event[]>()
@@ -68,8 +69,14 @@ export function eventsByDay(events: Event[]): Map<string, Event[]> {
     const endRaw = new Date(e.scheduled_end)
     const end = Number.isNaN(endRaw.getTime()) ? start : endRaw
 
-    const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate())
-    const last = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+    // For all-day events read the date from the UTC instant; dayKey then formats
+    // those numbers into the same "YYYY-M-D" string the (local) grid cells use.
+    const cursor = e.all_day
+      ? new Date(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate())
+      : new Date(start.getFullYear(), start.getMonth(), start.getDate())
+    const last = e.all_day
+      ? new Date(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate())
+      : new Date(end.getFullYear(), end.getMonth(), end.getDate())
     for (let guard = 0; cursor <= last && guard < 366; guard++) {
       const key = dayKey(cursor)
       const bucket = map.get(key)
