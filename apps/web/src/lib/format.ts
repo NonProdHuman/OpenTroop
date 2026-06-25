@@ -11,8 +11,15 @@ export function formatDate(value: string | null | undefined): string | null {
   }
 }
 
-/** Format an ISO datetime, optionally date-only (for all-day events). */
-export function formatDateTime(value: string, opts: { dateOnly?: boolean } = {}): string {
+/**
+ * Format a UTC ISO datetime for display. Timed values render in the user's
+ * local timezone; all-day values pass `utc: true` so the calendar date is read
+ * straight from the stored UTC instant and doesn't drift across timezones.
+ */
+export function formatDateTime(
+  value: string,
+  opts: { dateOnly?: boolean; utc?: boolean } = {},
+): string {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return value
   return d.toLocaleString("en-US", {
@@ -20,6 +27,7 @@ export function formatDateTime(value: string, opts: { dateOnly?: boolean } = {})
     day: "numeric",
     year: "numeric",
     ...(opts.dateOnly ? {} : { hour: "numeric", minute: "2-digit" }),
+    ...(opts.utc ? { timeZone: "UTC" } : {}),
   })
 }
 
@@ -32,8 +40,9 @@ export function formatEventWhen(start: string, end: string, allDay = false): str
   const e = new Date(end)
   if (Number.isNaN(s.getTime())) return start
   if (allDay) {
-    const sd = formatDateTime(start, { dateOnly: true })
-    const ed = formatDateTime(end, { dateOnly: true })
+    // All-day events are timezone-stable: read the date from the UTC instant.
+    const sd = formatDateTime(start, { dateOnly: true, utc: true })
+    const ed = formatDateTime(end, { dateOnly: true, utc: true })
     return sd === ed ? sd : `${sd} – ${ed}`
   }
   const sameDay = s.toDateString() === e.toDateString()

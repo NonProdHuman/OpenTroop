@@ -1,7 +1,8 @@
 import uuid
-from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
+
+from app.schemas.types import UtcDateTime
 
 
 class PlatformRead(BaseModel):
@@ -10,8 +11,8 @@ class PlatformRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcDateTime
+    updated_at: UtcDateTime
     is_deleted: bool
 
 
@@ -22,6 +23,6 @@ class TrackedRead(BaseModel):
 
     id: uuid.UUID
     tenant_id: uuid.UUID
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcDateTime
+    updated_at: UtcDateTime
     is_deleted: bool

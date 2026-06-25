@@ -81,11 +81,17 @@ export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheet
           <Section title="When">
             <Field
               label="Starts"
-              value={formatDateTime(event.scheduled_start, { dateOnly: event.all_day })}
+              value={formatDateTime(event.scheduled_start, {
+                dateOnly: event.all_day,
+                utc: event.all_day,
+              })}
             />
             <Field
               label="Ends"
-              value={formatDateTime(event.scheduled_end, { dateOnly: event.all_day })}
+              value={formatDateTime(event.scheduled_end, {
+                dateOnly: event.all_day,
+                utc: event.all_day,
+              })}
             />
             <Field label="All day" value={event.all_day ? "Yes" : null} />
           </Section>

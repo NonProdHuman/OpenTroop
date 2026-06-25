@@ -14,12 +14,17 @@ Supported record types
     Event           → Event  (linked_event_id resolved in a second pass)
     Event_Participant → EventParticipant
 
+TWH exports store naive *local* wall-clock times. Pass the troop's source
+timezone so they are converted to UTC on import (the platform stores everything
+in UTC); it defaults to UTC, which preserves the literal wall-clock.
+
 Usage:
     from xml.etree import ElementTree as ET
+    from zoneinfo import ZoneInfo
     from app.importers.twh import TwhImporter
 
     root = ET.parse("export.xml").getroot()
-    result = TwhImporter(session, tenant_id).run(root)
+    result = TwhImporter(session, tenant_id, source_tz=ZoneInfo("America/New_York")).run(root)
 """
 
 from __future__ import annotations
@@ -27,9 +32,10 @@ from __future__ import annotations
 import contextlib
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, tzinfo
 from decimal import Decimal, InvalidOperation
 from xml.etree import ElementTree as ET
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import update
 from sqlalchemy.orm import Session
@@ -95,15 +101,34 @@ def _parse_date(value: str) -> date | None:
         return None
 
 
-def _parse_datetime(value: str) -> datetime | None:
-    """Parse a TWH datetime string (M/D/YYYY H:MM:SS AM) into a UTC-aware datetime."""
+def resolve_source_tz(name: str) -> tzinfo:
+    """Resolve an IANA timezone name (e.g. ``America/New_York``) to a ``tzinfo``.
+
+    Raises :class:`ValueError` for an unknown or malformed name so callers can
+    surface a clean error (CLI exit / HTTP 422).
+    """
+    try:
+        return ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        raise ValueError(f"Unknown timezone: {name!r}") from exc
+
+
+def _parse_datetime(value: str, tz: tzinfo = UTC) -> datetime | None:
+    """Parse a TWH datetime string (M/D/YYYY H:MM:SS AM) into a UTC-aware datetime.
+
+    TWH exports store naive *local* wall-clock times. The value is interpreted in
+    *tz* (the troop's source timezone) and converted to UTC for storage, so the
+    platform's UTC-everywhere contract holds. Defaults to UTC when no source
+    timezone is supplied (a no-op shift that preserves the literal wall-clock).
+    """
     value = value.strip()
     if not value:
         return None
     try:
-        return datetime.strptime(value, "%m/%d/%Y %I:%M:%S %p").replace(tzinfo=UTC)
+        naive = datetime.strptime(value, "%m/%d/%Y %I:%M:%S %p")
     except ValueError:
         return None
+    return naive.replace(tzinfo=tz).astimezone(UTC)
 
 
 def _parse_decimal(elem: ET.Element, tag: str) -> Decimal | None:
@@ -149,9 +174,12 @@ class TwhImporter:
     The caller is responsible for ``session.commit()`` (or rollback on error).
     """
 
-    def __init__(self, session: Session, tenant_id: uuid.UUID) -> None:
+    def __init__(self, session: Session, tenant_id: uuid.UUID, source_tz: tzinfo = UTC) -> None:
         self.session = session
         self.tenant_id = tenant_id
+        # Timezone the TWH export's naive datetimes are expressed in. Times are
+        # converted from this zone to UTC on import.
+        self.source_tz = source_tz
         self.result = TwhImportResult()
 
         # TWH string ID → OpenTroop UUID  (built during import, used for FK resolution)
@@ -465,8 +493,8 @@ class TwhImporter:
                 self.result.skipped += 1
                 continue
 
-            scheduled_start = _parse_datetime(_text(elem, "Scheduled_Start"))
-            scheduled_end = _parse_datetime(_text(elem, "Scheduled_End"))
+            scheduled_start = _parse_datetime(_text(elem, "Scheduled_Start"), self.source_tz)
+            scheduled_end = _parse_datetime(_text(elem, "Scheduled_End"), self.source_tz)
             if scheduled_start is None or scheduled_end is None:
                 self.result.warnings.append(
                     f"Event {twh_id!r}: missing/invalid start or end datetime — skipped"
@@ -592,7 +620,7 @@ class TwhImporter:
                     seat_count=_parse_int(elem, "Seat_Count"),
                     guest_count=_parse_int(elem, "Number_Of_Guests") or 0,
                     comment=_text(elem, "Comment") or None,
-                    signed_up_at=_parse_datetime(_text(elem, "Signup_Date_Time")),
+                    signed_up_at=_parse_datetime(_text(elem, "Signup_Date_Time"), self.source_tz),
                     hiking_miles_override=_parse_decimal(elem, "Hiking_Miles_Override"),
                     backpacking_miles_override=_parse_decimal(elem, "Backpacking_Miles_Override"),
                     paddling_miles_override=_parse_decimal(elem, "Paddling_Miles_Override"),
@@ -606,7 +634,7 @@ class TwhImporter:
                     permission_slip_submitted=_flag(elem, "Permission_Slip_Submitted_Flag"),
                     electronic_permission=_flag(elem, "Electronic_Permission_Flag"),
                     electronic_permission_at=_parse_datetime(
-                        _text(elem, "Electronic_Permission_Date_Time")
+                        _text(elem, "Electronic_Permission_Date_Time"), self.source_tz
                     ),
                 )
             )

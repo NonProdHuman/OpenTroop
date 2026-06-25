@@ -115,4 +115,18 @@ describe("eventsByDay", () => {
     ]
     for (const d of days) expect(map.get(d)?.some((e) => e.id === "camp")).toBe(true)
   })
+
+  it("buckets an all-day event by its UTC date, not the local date", () => {
+    const map = eventsByDay([
+      evt({
+        id: "ad",
+        all_day: true,
+        scheduled_start: "2026-07-10T00:00:00Z",
+        scheduled_end: "2026-07-10T00:00:00Z",
+      }),
+    ])
+    // Key is built from the UTC calendar date (Jul 10) so it never slips a day.
+    const key = dayKey(new Date(2026, 6, 10))
+    expect(map.get(key)?.map((e) => e.id)).toEqual(["ad"])
+  })
 })

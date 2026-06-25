@@ -1,5 +1,7 @@
 """API tests for /events/ endpoints — Events, Organizers, and Participants."""
 
+from datetime import UTC, datetime, timedelta
+
 from fastapi.testclient import TestClient
 
 # ---------------------------------------------------------------------------
@@ -54,6 +56,49 @@ def test_create_event(client: TestClient) -> None:
     assert data["attendance_taken"] is False
     assert data["is_deleted"] is False
     assert data["event_type"]["name"] == "Campout"
+
+
+def _parse_iso(value: str) -> datetime:
+    # Python's fromisoformat handles a trailing "Z" from 3.11 onward.
+    return datetime.fromisoformat(value)
+
+
+def test_create_event_normalizes_offset_to_utc(client: TestClient) -> None:
+    """A non-UTC offset in the request is stored and returned as UTC."""
+    et = _create_event_type(client)
+    # 09:00 at -05:00 == 14:00 UTC.
+    data = _create_event(
+        client,
+        et["id"],
+        scheduled_start="2026-07-10T09:00:00-05:00",
+        scheduled_end="2026-07-10T17:00:00-05:00",
+    )
+    start = _parse_iso(data["scheduled_start"])
+    end = _parse_iso(data["scheduled_end"])
+    assert start.utcoffset() == timedelta(0)
+    assert start == datetime(2026, 7, 10, 14, 0, tzinfo=UTC)
+    assert end == datetime(2026, 7, 10, 22, 0, tzinfo=UTC)
+
+
+def test_create_event_naive_datetime_assumed_utc(client: TestClient) -> None:
+    """A naive datetime (no offset) is treated as UTC and returned with a zone."""
+    et = _create_event_type(client)
+    data = _create_event(
+        client,
+        et["id"],
+        scheduled_start="2026-07-10T09:00:00",
+        scheduled_end="2026-07-10T17:00:00",
+    )
+    start = _parse_iso(data["scheduled_start"])
+    assert start.utcoffset() == timedelta(0)
+    assert start == datetime(2026, 7, 10, 9, 0, tzinfo=UTC)
+
+
+def test_event_read_timestamps_are_utc(client: TestClient) -> None:
+    """Server-managed timestamps surface as timezone-aware UTC."""
+    et = _create_event_type(client)
+    data = _create_event(client, et["id"])
+    assert _parse_iso(data["created_at"]).utcoffset() == timedelta(0)
 
 
 def test_create_event_with_location(client: TestClient) -> None:

@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 
 from pydantic import BaseModel
@@ -8,6 +8,7 @@ from app.models.enums import RsvpStatus
 from app.schemas.base import TrackedRead
 from app.schemas.event_type import EventTypeRead
 from app.schemas.location import LocationRead
+from app.schemas.types import UtcDateTime
 
 
 class EventBase(BaseModel):
@@ -17,8 +18,8 @@ class EventBase(BaseModel):
     location_notes: str | None = None
     departure_location: str | None = None
     return_location: str | None = None
-    scheduled_start: datetime
-    scheduled_end: datetime
+    scheduled_start: UtcDateTime
+    scheduled_end: UtcDateTime
     all_day: bool = False
     signup_start: date | None = None
     signup_deadline: date | None = None
@@ -48,8 +49,8 @@ class EventUpdate(BaseModel):
     location_notes: str | None = None
     departure_location: str | None = None
     return_location: str | None = None
-    scheduled_start: datetime | None = None
-    scheduled_end: datetime | None = None
+    scheduled_start: UtcDateTime | None = None
+    scheduled_end: UtcDateTime | None = None
     all_day: bool | None = None
     signup_start: date | None = None
     signup_deadline: date | None = None
@@ -95,7 +96,7 @@ class EventParticipantBase(BaseModel):
     driver: bool = False
     seat_count: int | None = None
     comment: str | None = None
-    signed_up_at: datetime | None = None
+    signed_up_at: UtcDateTime | None = None
     hiking_miles_override: Decimal | None = None
     backpacking_miles_override: Decimal | None = None
     paddling_miles_override: Decimal | None = None
@@ -106,7 +107,7 @@ class EventParticipantBase(BaseModel):
     camping_nights_override: int | None = None
     permission_slip_submitted: bool = False
     electronic_permission: bool = False
-    electronic_permission_at: datetime | None = None
+    electronic_permission_at: UtcDateTime | None = None
     electronic_permission_by_id: uuid.UUID | None = None
     electronic_permission_signature: str | None = None
 
@@ -129,7 +130,7 @@ class EventParticipantUpdate(BaseModel):
     camping_nights_override: int | None = None
     permission_slip_submitted: bool | None = None
     electronic_permission: bool | None = None
-    electronic_permission_at: datetime | None = None
+    electronic_permission_at: UtcDateTime | None = None
     electronic_permission_by_id: uuid.UUID | None = None
     electronic_permission_signature: str | None = None
 

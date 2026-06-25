@@ -2,6 +2,7 @@
 
 import { CalendarDays, CalendarPlus, List } from "lucide-react"
 import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { useEvents, useEventTypes } from "@/hooks/use-events"
@@ -17,6 +18,7 @@ import { EventsTable } from "./events-table"
 type View = "list" | "calendar"
 
 export default function EventsPage() {
+  const router = useRouter()
   const { data: events = [], isLoading: eventsLoading } = useEvents()
   const { data: eventTypes = [], isLoading: typesLoading } = useEventTypes()
 
@@ -91,7 +93,7 @@ export default function EventsPage() {
             Calendar
           </ViewButton>
         </div>
-        <Button size="sm">
+        <Button size="sm" onClick={() => router.push("/events/new")}>
           <CalendarPlus className="mr-2 h-4 w-4" />
           Add Event
         </Button>

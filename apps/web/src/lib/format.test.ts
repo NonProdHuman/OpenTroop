@@ -34,4 +34,11 @@ describe("formatEventWhen", () => {
     const out = formatEventWhen("2026-07-10T12:00:00Z", "2026-07-12T12:00:00Z", true)
     expect(out).toContain("–")
   })
+
+  it("keeps an all-day event on its UTC date regardless of local timezone", () => {
+    // Stored at UTC midnight; without UTC-stable formatting this would slip to
+    // Jul 9 in any negative-offset zone. It must always read as Jul 10.
+    const out = formatEventWhen("2026-07-10T00:00:00Z", "2026-07-10T00:00:00Z", true)
+    expect(out).toContain("Jul 10")
+  })
 })

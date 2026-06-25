@@ -117,8 +117,11 @@ export into the target tenant. Supported record types (in import order):
 | `Event_Participant` | `EventParticipant` | `?` flag → `None` for `attended`, `True` for `signed_up` |
 
 TWH datetime format: `M/D/YYYY H:MM:SS AM/PM` (parsed by `_parse_datetime` /
-`_parse_date`). TWH integer IDs never persist; every row gets a new UUIDv7.
+`_parse_date`). These are naive *local* times; `_parse_datetime` interprets them
+in the importer's `source_tz` and converts to UTC for storage (`source_tz`
+defaults to UTC). TWH integer IDs never persist; every row gets a new UUIDv7.
 
-Invoke via `uv run import-twh <tenant-uuid> path/to/export.xml`.
+Invoke via `uv run import-twh <tenant-uuid> path/to/export.xml [--timezone America/New_York]`.
+The same `timezone` is accepted as a form field on `POST /import/twh`.
 Test fixture: `backend/tests/fixtures/sample_twh_minimal.xml` — all PII is fake.
 The real TWH export and any anonymized samples are blocked by `reference/.gitignore`.
