@@ -84,8 +84,8 @@ and frontend type-checking + linting (`tsc`, `eslint` — pinned via `pnpm-lock.
 - **Identity** — one OIDC provider credential per User (Google, Apple, passkeys, etc.).
 
 **Tenant-scoped (every row carries `tenant_id`):**
-- **Patrol** — a named unit grouping scouts.
-- **Member** — scouts and adults, with BSA `swim_classification`, optional patrol, OA fields, and a nullable link to a `User` login account.
+- **Group** — a resolvable set of members (manual and/or dynamic role-based); patrols are groups too. Drives event visibility and messaging.
+- **Member** — scouts and adults, with BSA `swim_classification`, group memberships, OA fields, and a nullable link to a `User` login account.
 - **MemberRelationship** — guardian/parent/sibling graph linking members.
 - **Role / RolePermission / RoleMembership** — two-tier RBAC: functional groups hold permissions; positions inherit from groups.
 - **MemberRoleAssignment** — assigns a member to a role, with a soft-delete audit trail.

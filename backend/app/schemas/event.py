@@ -134,3 +134,12 @@ class EventParticipantUpdate(BaseModel):
 class EventParticipantRead(EventParticipantBase, TrackedRead):
     event_id: uuid.UUID
     attended: bool | None = None
+
+
+class EventAudienceCreate(BaseModel):
+    group_id: uuid.UUID
+
+
+class EventAudienceRead(TrackedRead):
+    event_id: uuid.UUID
+    group_id: uuid.UUID

@@ -4,13 +4,27 @@ from collections.abc import Sequence
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
-from app.core.deps import DbDep, TenantDep, get_or_404, require, require_tenant_fk
+from app.core.deps import (
+    CurrentMemberDep,
+    DbDep,
+    TenantDep,
+    get_or_404,
+    require,
+    require_tenant_fk,
+)
+from app.core.event_visibility import event_visible_to_member, visibility_clause
+from app.core.groups import member_group_ids
+from app.core.permissions import resolve_permissions
 from app.models.enums import Permission
 from app.models.event import Event, EventOrganizer, EventParticipant
+from app.models.event_audience import EventAudience
 from app.models.event_type import EventType
+from app.models.group import Group
 from app.models.location import Location
 from app.models.member import Member
 from app.schemas.event import (
+    EventAudienceCreate,
+    EventAudienceRead,
     EventBase,
     EventOrganizerBase,
     EventOrganizerRead,
@@ -32,10 +46,16 @@ router = APIRouter(prefix="/events", tags=["events"])
 @router.get(
     "/", response_model=list[EventRead], dependencies=[Depends(require(Permission.EVENT_READ))]
 )
-def list_events(tenant_id: TenantDep, db: DbDep) -> Sequence[Event]:
-    return db.scalars(
-        select(Event).where(Event.tenant_id == tenant_id, Event.is_deleted.is_(False))
-    ).all()
+def list_events(tenant_id: TenantDep, db: DbDep, member: CurrentMemberDep) -> Sequence[Event]:
+    """List events visible to the caller.
+
+    Event managers (``event:write``) see every event; everyone else sees troop-wide
+    events plus events whose audience includes one of their groups.
+    """
+    query = select(Event).where(Event.tenant_id == tenant_id, Event.is_deleted.is_(False))
+    if Permission.EVENT_WRITE not in resolve_permissions(member.id, db):
+        query = query.where(visibility_clause(member_group_ids(member.id, db), tenant_id))
+    return db.scalars(query).all()
 
 
 @router.post(
@@ -62,8 +82,17 @@ def create_event(body: EventBase, tenant_id: TenantDep, db: DbDep) -> Event:
     response_model=EventRead,
     dependencies=[Depends(require(Permission.EVENT_READ))],
 )
-def get_event(event_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Event:
-    return get_or_404(db, Event, event_id, tenant_id, "Event not found")
+def get_event(
+    event_id: uuid.UUID, tenant_id: TenantDep, db: DbDep, member: CurrentMemberDep
+) -> Event:
+    event = get_or_404(db, Event, event_id, tenant_id, "Event not found")
+    # Hide audience-scoped events from members outside the audience (404, not 403,
+    # so their existence isn't leaked). Managers bypass.
+    if Permission.EVENT_WRITE not in resolve_permissions(member.id, db) and (
+        not event_visible_to_member(event_id, member_group_ids(member.id, db), db)
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    return event
 
 
 @router.patch(
@@ -95,6 +124,82 @@ def update_event(event_id: uuid.UUID, body: EventUpdate, tenant_id: TenantDep, d
 def delete_event(event_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
     event = get_or_404(db, Event, event_id, tenant_id, "Event not found")
     event.is_deleted = True
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Audiences (visibility)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/{event_id}/audiences",
+    response_model=list[EventAudienceRead],
+    dependencies=[Depends(require(Permission.EVENT_READ))],
+)
+def list_event_audiences(
+    event_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
+) -> Sequence[EventAudience]:
+    """List the groups an event is scoped to. Empty = troop-wide."""
+    get_or_404(db, Event, event_id, tenant_id, "Event not found")
+    return db.scalars(
+        select(EventAudience).where(
+            EventAudience.event_id == event_id, EventAudience.is_deleted.is_(False)
+        )
+    ).all()
+
+
+@router.post(
+    "/{event_id}/audiences",
+    response_model=EventAudienceRead,
+    status_code=201,
+    dependencies=[Depends(require(Permission.EVENT_WRITE))],
+)
+def add_event_audience(
+    event_id: uuid.UUID, body: EventAudienceCreate, tenant_id: TenantDep, db: DbDep
+) -> EventAudience:
+    """Scope an event to a group. Idempotent. The first audience makes the event
+    non-troop-wide."""
+    get_or_404(db, Event, event_id, tenant_id, "Event not found")
+    require_tenant_fk(db, Group, body.group_id, tenant_id, "group_id")
+    existing = db.scalar(
+        select(EventAudience).where(
+            EventAudience.event_id == event_id,
+            EventAudience.group_id == body.group_id,
+            EventAudience.is_deleted.is_(False),
+        )
+    )
+    if existing is not None:
+        return existing
+    audience = EventAudience(tenant_id=tenant_id, event_id=event_id, group_id=body.group_id)
+    db.add(audience)
+    db.commit()
+    db.refresh(audience)
+    return audience
+
+
+@router.delete(
+    "/{event_id}/audiences/{group_id}",
+    status_code=204,
+    dependencies=[Depends(require(Permission.EVENT_WRITE))],
+)
+def remove_event_audience(
+    event_id: uuid.UUID, group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
+) -> None:
+    """Remove a group from an event's audience. Removing the last one makes the
+    event troop-wide again."""
+    get_or_404(db, Event, event_id, tenant_id, "Event not found")
+    audience = db.scalar(
+        select(EventAudience).where(
+            EventAudience.event_id == event_id,
+            EventAudience.group_id == group_id,
+            EventAudience.tenant_id == tenant_id,
+            EventAudience.is_deleted.is_(False),
+        )
+    )
+    if audience is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audience not found")
+    audience.is_deleted = True
     db.commit()
 
 

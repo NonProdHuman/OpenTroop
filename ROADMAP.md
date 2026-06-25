@@ -120,9 +120,10 @@ Model events generically with typed metadata rather than one-size-fits-all field
 - [ ] Health form collection and storage (per-event or per-member)
 - [~] Calendar view — month grid done (`apps/web/.../events`, List/Calendar toggle);
       weekly/day views (calendar library swap) still pending
-- [ ] Event visibility / audiences — `EventAudience` links events to Groups
-      (empty = troop-wide); the list, calendar, and iCal feed all filter by the
-      viewer's group membership (e.g. patrol-only events)
+- [x] Event visibility / audiences — `EventAudience` links events to Groups
+      (empty = troop-wide); the list + detail endpoints filter by the viewer's group
+      membership (managers bypass), backing patrol-only events. Calendar + iCal reuse
+      the same `app/core/event_visibility.py` rules.
 - [ ] RSVP status (going / declined / maybe / no-response) on `EventParticipant` —
       drives gray-out in the app and omission from personal iCal feeds
 - [ ] Per-member iCal subscription feeds — tokenized `.ics` (`webcal://`) honoring

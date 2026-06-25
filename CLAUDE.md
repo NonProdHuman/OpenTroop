@@ -181,7 +181,20 @@ unmodified on SQLite, which is how the test suite stays DB-free.
 
 **Tenant-scoped (TrackedBase):**
 
-- `Patrol` — named unit; one-to-many to `Member`.
+- `Group` — the unifying *resolvable set of members*; **folds the former `Patrol`**.
+  `group_type` (`manual`/`dynamic`/`patrol`) classifies how membership is managed — a
+  patrol is a `PATROL`-type group a member belongs to **at most one of** (enforced in the
+  API). Membership resolves as the **union** of manual inclusions (`GroupMember`) and
+  **dynamic**, rule-based members (`GroupRoleRule` — everyone *directly* holding a role,
+  e.g. PLC = PL/SPL/ASM/SM). Groups drive event visibility (audiences) and, later, email/
+  SMS distribution lists and report scoping.
+- `GroupMember` — an explicit (manual) inclusion of a member in a group; also stores patrol
+  membership. Soft-deletable. `GroupRoleRule` — a dynamic rule: members assigned `role_id`
+  belong to the group.
+- `resolve_group_members(group_id, session)` in `app/core/groups.py` — walks manual + role
+  rules and returns the resolved `frozenset[member_id]` (mirrors `resolve_permissions`,
+  excludes soft-deleted). `member_group_ids(member_id, session)` is the inverse (which groups
+  a member is in) — used by event visibility.
 - `Member` — scouts and adults. Key enums: `member_type` (scout/adult),
   `membership_status` (active/inactive/alumni — distinct from `is_deleted`; alumni
   records remain visible to leaders for history while `is_deleted=True` purges the
@@ -246,6 +259,15 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   `conservation_hours`, `hiking_miles`, `backpacking_miles`, `paddling_miles`,
   `cycling_miles`, `water_hours`, `camping_nights`.
 - `EventOrganizer` — many-to-many: `event_id` + `member_id`. Soft-deletable.
+- `EventAudience` — scopes event **visibility** to Groups: `event_id` + `group_id`
+  (`uq_event_audiences_event_group`). **No** audience rows = troop-wide (visible to all
+  `event:read`); any rows = visible only to members of those groups, **plus** event
+  managers (`event:write`) who bypass the filter. `GET /events/` filters by the caller's
+  groups and `GET /events/{id}` 404s a hidden event (existence not leaked).
+  `app/core/event_visibility.py` (`visibility_clause` for the list query,
+  `event_visible_to_member` for one event) + `member_group_ids` in `app/core/groups.py`
+  drive it; the calendar and per-member iCal feed will reuse the same rules. Audience
+  CRUD: `/events/{id}/audiences` (GET/POST/DELETE).
 - `EventParticipant` — RSVP + attendance per member per event. Fields: `signed_up`,
   `attended` (nullable — null until `Event.attendance_taken` is set True), `guest_count`,
   `driver`, `seat_count`, `comment`, `signed_up_at`. Per-person activity overrides
@@ -315,7 +337,7 @@ export into the target tenant. Supported record types (in import order):
 
 | TWH element        | OpenTroop model      | Notes |
 |--------------------|----------------------|-------|
-| `Patrol`           | `Patrol`             | `Patrol_Name` → `name` |
+| `Patrol`           | `Group` (`group_type=patrol`) | `Patrol_Name` → `name`; each scout's patrol → `GroupMember` |
 | `Person`           | `Member`             | `Adult_Flag`, `Alumni_Flag`, `Swim_Level`, `Patrol`, OA fields |
 | `Relationship`     | `MemberRelationship` | Only `Parent` seen in practice; `guardian`, `sibling` also mapped |
 | `Location`         | `Location`           | `Disabled_Flag=Y` skipped |

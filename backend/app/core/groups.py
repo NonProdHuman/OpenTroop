@@ -69,3 +69,42 @@ def resolve_group_members(group_id: uuid.UUID, session: Session) -> frozenset[uu
         )
     ).all()
     return frozenset(live)
+
+
+def member_group_ids(member_id: uuid.UUID, session: Session) -> frozenset[uuid.UUID]:
+    """Return the set of group IDs a member belongs to — the inverse of resolution.
+
+    Unions the member's manual ``GroupMember`` inclusions with the dynamic groups
+    whose ``GroupRoleRule`` names a role the member is directly assigned. Used by
+    event-visibility filtering (and, later, the per-member iCal feed).
+    """
+    manual = set(
+        session.scalars(
+            select(GroupMember.group_id).where(
+                GroupMember.member_id == member_id,
+                GroupMember.is_deleted.is_(False),
+            )
+        ).all()
+    )
+
+    role_ids = set(
+        session.scalars(
+            select(MemberRoleAssignment.role_id).where(
+                MemberRoleAssignment.member_id == member_id,
+                MemberRoleAssignment.is_deleted.is_(False),
+            )
+        ).all()
+    )
+
+    dynamic: set[uuid.UUID] = set()
+    if role_ids:
+        dynamic = set(
+            session.scalars(
+                select(GroupRoleRule.group_id).where(
+                    GroupRoleRule.role_id.in_(role_ids),
+                    GroupRoleRule.is_deleted.is_(False),
+                )
+            ).all()
+        )
+
+    return frozenset(manual | dynamic)
