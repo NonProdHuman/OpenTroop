@@ -21,6 +21,21 @@ export function useMember(id: string | null) {
   })
 }
 
+export function useCreateMember() {
+  const { request } = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Partial<Member>) =>
+      request<Member>("/members/", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["members"] })
+    },
+  })
+}
+
 export function useUpdateMember() {
   const { request } = useApi()
   const queryClient = useQueryClient()

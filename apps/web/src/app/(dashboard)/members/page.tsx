@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useMembers } from "@/hooks/use-members"
 import { useGroups, usePatrolMemberships } from "@/hooks/use-groups"
 import { useRoles } from "@/hooks/use-roles"
@@ -15,6 +16,7 @@ import { UserPlus } from "lucide-react"
 import type { Member, MemberStatus, MemberType } from "@/types/api"
 
 export default function MembersPage() {
+  const router = useRouter()
   const { data: members = [], isLoading: membersLoading } = useMembers()
   const { data: groups = [] } = useGroups()
   const { data: roles = [] } = useRoles()
@@ -99,7 +101,7 @@ export default function MembersPage() {
   return (
     <>
       <PageHeader title={`Members (${filtered.length})`}>
-        <Button size="sm">
+        <Button size="sm" onClick={() => router.push("/members/new")}>
           <UserPlus className="h-4 w-4 mr-2" />
           Add Member
         </Button>
