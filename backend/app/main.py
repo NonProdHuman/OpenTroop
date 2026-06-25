@@ -6,10 +6,10 @@ from app.routers import (
     auth,
     event_types,
     events,
+    groups,
     imports,
     locations,
     members,
-    patrols,
     platform,
     relationships,
     role_assignments,
@@ -26,7 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(patrols.router)
+app.include_router(groups.router)
 app.include_router(members.router)
 app.include_router(relationships.router)
 app.include_router(roles.router)

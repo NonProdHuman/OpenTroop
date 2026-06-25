@@ -7,13 +7,34 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app.importers.twh import TwhImporter, _parse_date, _parse_datetime
-from app.models.enums import MemberStatus, MemberType, RelationshipType, SwimClassification
+from app.models.enums import (
+    GroupType,
+    MemberStatus,
+    MemberType,
+    RelationshipType,
+    SwimClassification,
+)
 from app.models.event import Event, EventParticipant
 from app.models.event_type import EventType
+from app.models.group import Group, GroupMember
 from app.models.location import Location
 from app.models.member import Member
-from app.models.patrol import Patrol
 from app.models.relationship import MemberRelationship
+
+
+def _patrol_of(session: Session, member: Member) -> Group | None:
+    """Return the PATROL-type group a member belongs to (or None)."""
+    return (
+        session.query(Group)
+        .join(GroupMember, GroupMember.group_id == Group.id)
+        .filter(
+            GroupMember.member_id == member.id,
+            GroupMember.is_deleted.is_(False),
+            Group.group_type == GroupType.PATROL,
+        )
+        .first()
+    )
+
 
 _FIXTURE = Path(__file__).parent / "fixtures" / "sample_twh_minimal.xml"
 _TENANT = __import__("uuid").UUID("10000000-0000-0000-0000-000000000001")
@@ -65,7 +86,7 @@ def test_parse_datetime_empty() -> None:
 def test_patrols_imported(result_and_session) -> None:
     result, session = result_and_session
     assert result.patrols == 2
-    patrols = session.query(Patrol).filter_by(tenant_id=_TENANT).all()
+    patrols = session.query(Group).filter_by(tenant_id=_TENANT, group_type=GroupType.PATROL).all()
     names = {p.name for p in patrols}
     assert names == {"Eagle Patrol", "Hawk Patrol"}
 
@@ -103,8 +124,7 @@ def test_scout_fields(result_and_session) -> None:
 def test_scout_patrol_assignment(result_and_session) -> None:
     _, session = result_and_session
     alice = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Alice").one()
-    assert alice.patrol_id is not None
-    patrol = session.get(Patrol, alice.patrol_id)
+    patrol = _patrol_of(session, alice)
     assert patrol is not None
     assert patrol.name == "Eagle Patrol"
 
@@ -144,7 +164,7 @@ def test_non_swimmer_classification(result_and_session) -> None:
     assert dave.swim_classification == SwimClassification.NONSWIMMER
     assert dave.member_type == MemberType.SCOUT
     # Patrol 2
-    patrol = session.get(Patrol, dave.patrol_id)
+    patrol = _patrol_of(session, dave)
     assert patrol is not None
     assert patrol.name == "Hawk Patrol"
 
@@ -154,7 +174,7 @@ def test_adult_member(result_and_session) -> None:
     bob = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Bob").one()
     assert bob.member_type == MemberType.ADULT
     assert bob.membership_status == MemberStatus.ACTIVE
-    assert bob.patrol_id is None
+    assert _patrol_of(session, bob) is None
 
 
 def test_adult_no_bsa_id(result_and_session) -> None:

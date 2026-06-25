@@ -63,17 +63,27 @@ export interface Member {
   oa_vigil_name: string | null
   oa_notes: string | null
 
-  patrol_id: string | null
   user_id: string | null
 }
 
-export interface Patrol {
+// ── Groups ───────────────────────────────────────────────────────────────────
+// A Group is the unifying "set of members" primitive. Patrols are folded in as
+// PATROL-type groups; membership is manual and/or rule-driven (see backend
+// app/models/group.py).
+
+export type GroupType = "manual" | "dynamic" | "patrol"
+
+export interface Group {
   id: string
   tenant_id: string
   created_at: string
   updated_at: string
   is_deleted: boolean
   name: string
+  description: string | null
+  group_type: GroupType
+  color: string | null
+  is_system: boolean
 }
 
 // ── Events ───────────────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Calendar, Users, Shield, Upload, Settings, Globe } from "lucide-react"
+import { Calendar, Users, UsersRound, Upload, Settings, Globe } from "lucide-react"
 import { UserButton } from "@clerk/nextjs"
 import {
   Sidebar,
@@ -17,7 +17,7 @@ import { useMe } from "@/hooks/use-me"
 
 const navItems = [
   { title: "Members", url: "/members", icon: Users },
-  { title: "Patrols", url: "/patrols", icon: Shield },
+  { title: "Groups", url: "/groups", icon: UsersRound },
   { title: "Events", url: "/events", icon: Calendar },
   { title: "Import", url: "/import", icon: Upload },
   { title: "Settings", url: "/settings", icon: Settings },

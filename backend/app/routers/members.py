@@ -4,11 +4,10 @@ from collections.abc import Sequence
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
-from app.core.deps import DbDep, TenantDep, get_or_404, require, require_tenant_fk
+from app.core.deps import DbDep, TenantDep, get_or_404, require
 from app.core.invite import create_invite_token
 from app.models.enums import Permission
 from app.models.member import Member
-from app.models.patrol import Patrol
 from app.schemas.member import MemberBase, MemberInviteRead, MemberRead, MemberUpdate
 
 router = APIRouter(prefix="/members", tags=["members"])
@@ -30,8 +29,6 @@ def list_members(tenant_id: TenantDep, db: DbDep) -> Sequence[Member]:
     dependencies=[Depends(require(Permission.MEMBER_WRITE))],
 )
 def create_member(body: MemberBase, tenant_id: TenantDep, db: DbDep) -> Member:
-    if body.patrol_id is not None:
-        require_tenant_fk(db, Patrol, body.patrol_id, tenant_id, "patrol_id")
     member = Member(tenant_id=tenant_id, **body.model_dump())
     db.add(member)
     db.commit()
@@ -58,8 +55,6 @@ def update_member(
 ) -> Member:
     member = get_or_404(db, Member, member_id, tenant_id, "Member not found")
     updates = body.model_dump(exclude_unset=True)
-    if "patrol_id" in updates and updates["patrol_id"] is not None:
-        require_tenant_fk(db, Patrol, updates["patrol_id"], tenant_id, "patrol_id")
     for k, v in updates.items():
         setattr(member, k, v)
     db.commit()

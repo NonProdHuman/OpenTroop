@@ -62,9 +62,9 @@ def main() -> None:
     from app.models import Base  # noqa: F401 — registers all tables
     from app.models.event import Event, EventOrganizer, EventParticipant
     from app.models.event_type import EventType
+    from app.models.group import Group, GroupMember, GroupRoleRule
     from app.models.location import Location
     from app.models.member import Member
-    from app.models.patrol import Patrol
     from app.models.relationship import MemberRelationship
     from app.models.role import MemberRoleAssignment, Role, RoleMembership, RolePermission
     from app.models.tenant import Tenant
@@ -100,6 +100,13 @@ def main() -> None:
 
         n = _run(session, delete(Event).where(Event.tenant_id == tid))
         print(f"  Deleted {n} events")
+
+        # Group membership + rules — clear before members/roles/groups (FK order).
+        n = _run(session, delete(GroupMember).where(GroupMember.tenant_id == tid))
+        print(f"  Deleted {n} group memberships")
+
+        n = _run(session, delete(GroupRoleRule).where(GroupRoleRule.tenant_id == tid))
+        print(f"  Deleted {n} group role rules")
 
         # Role assignments — drop for members we're about to delete.
         if linked_ids:
@@ -164,8 +171,8 @@ def main() -> None:
         n = _run(session, delete(Location).where(Location.tenant_id == tid))
         print(f"  Deleted {n} locations")
 
-        n = _run(session, delete(Patrol).where(Patrol.tenant_id == tid))
-        print(f"  Deleted {n} patrols")
+        n = _run(session, delete(Group).where(Group.tenant_id == tid))
+        print(f"  Deleted {n} groups")
 
         session.commit()
         print()

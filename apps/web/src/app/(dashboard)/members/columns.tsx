@@ -23,9 +23,7 @@ const TYPE_LABELS: Record<string, string> = {
   adult: "Adult",
 }
 
-export function buildColumns(
-  patrolMap: Map<string, string>,
-): ColumnDef<Member>[] {
+export function buildColumns(): ColumnDef<Member>[] {
   return [
     {
       id: "name",
@@ -72,17 +70,6 @@ export function buildColumns(
             {STATUS_LABELS[val] ?? val}
           </Badge>
         )
-      },
-    },
-    {
-      id: "patrol",
-      accessorFn: (row) => (row.patrol_id ? patrolMap.get(row.patrol_id) : ""),
-      header: "Patrol",
-      cell: ({ row }) => {
-        const name = row.original.patrol_id
-          ? patrolMap.get(row.original.patrol_id)
-          : null
-        return <span className="text-muted-foreground">{name ?? "—"}</span>
       },
     },
     {

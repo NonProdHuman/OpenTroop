@@ -15,12 +15,6 @@ def _create_member(client: TestClient, **overrides: object) -> dict:
     return r.json()
 
 
-def _create_patrol(client: TestClient, name: str = "Eagle") -> dict:
-    r = client.post("/patrols/", json={"name": name})
-    assert r.status_code == 201
-    return r.json()
-
-
 def test_create_member(client: TestClient) -> None:
     data = _create_member(client)
     assert data["first_name"] == "Alice"
@@ -66,46 +60,6 @@ def test_deleted_excluded_from_list(client: TestClient) -> None:
     client.delete(f"/members/{m['id']}")
     ids = [x["id"] for x in client.get("/members/").json()]
     assert m["id"] not in ids
-
-
-def test_create_member_with_patrol(client: TestClient) -> None:
-    patrol = _create_patrol(client)
-    m = _create_member(client, patrol_id=patrol["id"])
-    assert m["patrol_id"] == patrol["id"]
-
-
-def test_create_member_patrol_wrong_tenant(client: TestClient, other_client: TestClient) -> None:
-    patrol = _create_patrol(other_client)
-    r = client.post(
-        "/members/",
-        json={
-            "first_name": "X",
-            "last_name": "Y",
-            "member_type": "scout",
-            "patrol_id": patrol["id"],
-        },
-    )
-    assert r.status_code == 422
-
-
-def test_create_member_patrol_not_found(client: TestClient) -> None:
-    r = client.post(
-        "/members/",
-        json={
-            "first_name": "X",
-            "last_name": "Y",
-            "member_type": "scout",
-            "patrol_id": "00000000-0000-0000-0000-000000000099",
-        },
-    )
-    assert r.status_code == 422
-
-
-def test_patch_member_patrol_wrong_tenant(client: TestClient, other_client: TestClient) -> None:
-    m = _create_member(client)
-    patrol = _create_patrol(other_client)
-    r = client.patch(f"/members/{m['id']}", json={"patrol_id": patrol["id"]})
-    assert r.status_code == 422
 
 
 def test_tenant_isolation(client: TestClient, other_client: TestClient) -> None:

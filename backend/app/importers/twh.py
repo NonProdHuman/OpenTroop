@@ -6,7 +6,7 @@ All TWH integer IDs are tracked in local maps and converted to UUIDv7 during imp
 the original IDs are never stored.
 
 Supported record types
-    Patrol          → Patrol
+    Patrol          → Group  (group_type=PATROL); each scout's Patrol → GroupMember
     Person          → Member  (Adult_Flag, Alumni_Flag, Swim_Level, Patrol, OA fields)
     Relationship    → MemberRelationship  (only "Parent" seen in practice; extended types mapped)
     Location        → Location
@@ -34,12 +34,18 @@ from xml.etree import ElementTree as ET
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
-from app.models.enums import MemberStatus, MemberType, RelationshipType, SwimClassification
+from app.models.enums import (
+    GroupType,
+    MemberStatus,
+    MemberType,
+    RelationshipType,
+    SwimClassification,
+)
 from app.models.event import Event, EventParticipant
 from app.models.event_type import EventType
+from app.models.group import Group, GroupMember
 from app.models.location import Location
 from app.models.member import Member
-from app.models.patrol import Patrol
 from app.models.relationship import MemberRelationship
 
 
@@ -178,7 +184,8 @@ class TwhImporter:
             if not twh_id:
                 continue
             name = _text(elem, "Patrol_Name") or f"Patrol {twh_id}"
-            patrol = Patrol(tenant_id=self.tenant_id, name=name)
+            # Patrols are folded into the general Group model as PATROL-type groups.
+            patrol = Group(tenant_id=self.tenant_id, name=name, group_type=GroupType.PATROL)
             self.session.add(patrol)
             self.session.flush()
             self._patrol_map[twh_id] = patrol.id
@@ -222,7 +229,7 @@ class TwhImporter:
                 swim = SwimClassification.NONSWIMMER
 
             patrol_twh = _text(elem, "Patrol")
-            patrol_id = self._patrol_map.get(patrol_twh) if patrol_twh else None
+            patrol_group_id = self._patrol_map.get(patrol_twh) if patrol_twh else None
 
             # Combine first + last for emergency contact names
             ec1_name = (
@@ -275,7 +282,6 @@ class TwhImporter:
                 state=_text(elem, "Mailing_Address_State") or None,
                 postal_code=_text(elem, "Mailing_Address_Zip") or None,
                 country=_text(elem, "Mailing_Address_Country") or None,
-                patrol_id=patrol_id,
                 troop_membership_start_date=_parse_date(_text(elem, "Troop_Membership_Start_Date")),
                 troop_membership_end_date=_parse_date(_text(elem, "Troop_Membership_End_Date")),
                 swim_date=_parse_date(_text(elem, "Swim_Date")),
@@ -300,6 +306,16 @@ class TwhImporter:
             self.session.flush()
             self._person_map[twh_id] = member.id
             self.result.members += 1
+
+            # Patrol assignment is now a membership in the PATROL-type group.
+            if patrol_group_id is not None:
+                self.session.add(
+                    GroupMember(
+                        tenant_id=self.tenant_id,
+                        group_id=patrol_group_id,
+                        member_id=member.id,
+                    )
+                )
 
     # ------------------------------------------------------------------
     # Relationships

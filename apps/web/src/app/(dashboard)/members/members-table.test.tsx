@@ -4,8 +4,6 @@ import { MembersTable } from "./members-table"
 import { buildColumns } from "./columns"
 import type { Member } from "@/types/api"
 
-const makePatrolMap = () => new Map<string, string>()
-
 function makeMember(overrides: Partial<Member> = {}): Member {
   return {
     id: "m1",
@@ -55,14 +53,13 @@ function makeMember(overrides: Partial<Member> = {}): Member {
     oa_vigil_date: null,
     oa_vigil_name: null,
     oa_notes: null,
-    patrol_id: null,
     user_id: null,
     ...overrides,
   }
 }
 
 describe("MembersTable", () => {
-  const columns = buildColumns(makePatrolMap())
+  const columns = buildColumns()
 
   it("renders member rows", () => {
     render(
@@ -116,19 +113,5 @@ describe("MembersTable", () => {
     )
     await userEvent.click(screen.getByText("Alice Smith"))
     expect(onRowClick).toHaveBeenCalledWith(member)
-  })
-
-  it("renders patrol name from patrolMap", () => {
-    const patrolMap = new Map([["patrol-1", "Eagle Patrol"]])
-    const cols = buildColumns(patrolMap)
-    render(
-      <MembersTable
-        data={[makeMember({ patrol_id: "patrol-1" })]}
-        columns={cols}
-        isLoading={false}
-        onRowClick={vi.fn()}
-      />,
-    )
-    expect(screen.getByText("Eagle Patrol")).toBeInTheDocument()
   })
 })

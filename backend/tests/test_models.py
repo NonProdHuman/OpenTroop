@@ -4,11 +4,13 @@ from datetime import date
 from sqlalchemy import inspect
 
 from app.models import (
+    Group,
+    GroupMember,
+    GroupType,
     Member,
     MemberRelationship,
     MemberStatus,
     MemberType,
-    Patrol,
     RelationshipType,
     SwimClassification,
 )
@@ -18,7 +20,9 @@ def test_all_tables_created(db_session):
     """Every declared model produces a physical table."""
     table_names = set(inspect(db_session.get_bind()).get_table_names())
     assert {
-        "patrols",
+        "groups",
+        "group_members",
+        "group_role_rules",
         "members",
         "member_relationships",
         "roles",
@@ -31,35 +35,38 @@ def test_all_tables_created(db_session):
 def test_tracking_fields_have_defaults(db_session):
     """The TrackedBase contract populates id/timestamps/is_deleted automatically."""
     tenant_id = uuid.uuid4()
-    patrol = Patrol(name="Eagle", tenant_id=tenant_id)
-    db_session.add(patrol)
+    group = Group(name="Eagle", tenant_id=tenant_id, group_type=GroupType.PATROL)
+    db_session.add(group)
     db_session.commit()
-    db_session.refresh(patrol)
+    db_session.refresh(group)
 
-    assert isinstance(patrol.id, uuid.UUID)
-    assert patrol.tenant_id == tenant_id
-    assert patrol.created_at is not None
-    assert patrol.updated_at is not None
-    assert patrol.is_deleted is False
+    assert isinstance(group.id, uuid.UUID)
+    assert group.tenant_id == tenant_id
+    assert group.created_at is not None
+    assert group.updated_at is not None
+    assert group.is_deleted is False
 
 
-def test_patrol_member_relationship(db_session):
-    """Member <-> Patrol back-populates resolve in both directions."""
+def test_group_membership(db_session):
+    """A member belongs to a group via a GroupMember row."""
     tenant_id = uuid.uuid4()
-    patrol = Patrol(name="Hawk", tenant_id=tenant_id)
+    group = Group(name="Hawk", tenant_id=tenant_id, group_type=GroupType.PATROL)
     scout = Member(
         tenant_id=tenant_id,
         first_name="Sam",
         last_name="Scout",
         member_type=MemberType.SCOUT,
         swim_classification=SwimClassification.SWIMMER,
-        patrol=patrol,
     )
-    db_session.add(scout)
+    db_session.add_all([group, scout])
+    db_session.flush()
+    membership = GroupMember(tenant_id=tenant_id, group_id=group.id, member_id=scout.id)
+    db_session.add(membership)
     db_session.commit()
 
-    assert scout.patrol is patrol
-    assert patrol.members == [scout]
+    assert group.members[0].member_id == scout.id
+    assert membership.member is scout
+    assert membership.group is group
 
 
 def test_parent_child_relationship(db_session):
@@ -154,14 +161,14 @@ def test_member_status_defaults_to_active(db_session):
 def test_soft_delete_flag_is_settable(db_session):
     """is_deleted tombstone can be toggled for sync reconciliation."""
     tenant_id = uuid.uuid4()
-    patrol = Patrol(name="Fox", tenant_id=tenant_id)
-    db_session.add(patrol)
+    group = Group(name="Fox", tenant_id=tenant_id, group_type=GroupType.PATROL)
+    db_session.add(group)
     db_session.commit()
 
-    patrol.is_deleted = True
+    group.is_deleted = True
     db_session.commit()
-    db_session.refresh(patrol)
-    assert patrol.is_deleted is True
+    db_session.refresh(group)
+    assert group.is_deleted is True
 
 
 def test_member_extended_fields(db_session):
