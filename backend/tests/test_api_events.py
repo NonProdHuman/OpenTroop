@@ -258,11 +258,38 @@ def test_add_and_list_participant(client: TestClient) -> None:
     body = r.json()
     assert body["member_id"] == member["id"]
     assert body["signed_up"] is True
+    assert body["rsvp_status"] == "no_response"
     assert body["attended"] is None
     assert body["permission_slip_submitted"] is False
 
     listed = client.get(f"/events/{ev['id']}/participants").json()
     assert any(p["member_id"] == member["id"] for p in listed)
+
+
+def test_update_participant_rsvp_status(client: TestClient) -> None:
+    et = _create_event_type(client)
+    ev = _create_event(client, et["id"])
+    member = _create_member(client)
+    client.post(f"/events/{ev['id']}/participants", json={"member_id": member["id"]})
+
+    r = client.patch(
+        f"/events/{ev['id']}/participants/{member['id']}",
+        json={"rsvp_status": "declined"},
+    )
+    assert r.status_code == 200
+    assert r.json()["rsvp_status"] == "declined"
+
+
+def test_create_participant_with_rsvp_status(client: TestClient) -> None:
+    et = _create_event_type(client)
+    ev = _create_event(client, et["id"])
+    member = _create_member(client)
+    r = client.post(
+        f"/events/{ev['id']}/participants",
+        json={"member_id": member["id"], "rsvp_status": "going"},
+    )
+    assert r.status_code == 201
+    assert r.json()["rsvp_status"] == "going"
 
 
 def test_add_participant_duplicate(client: TestClient) -> None:

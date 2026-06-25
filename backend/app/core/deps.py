@@ -50,6 +50,29 @@ def get_superadmin(user: CurrentUserDep) -> User:
 SuperadminDep = Annotated[User, Depends(get_superadmin)]
 
 
+def get_current_member(user: CurrentUserDep, tenant_id: TenantDep, db: DbDep) -> Member:
+    """Resolve the caller's ``Member`` row in the current tenant.
+
+    Complements ``require(...)`` (which gates by permission but doesn't expose the
+    member) for handlers that need the member itself — e.g. to compute event
+    visibility from the caller's group memberships. Raises 403 if the signed-in
+    user has no Member in this tenant.
+    """
+    member = db.scalar(
+        select(Member).where(
+            Member.user_id == user.id,
+            Member.tenant_id == tenant_id,
+            Member.is_deleted.is_(False),
+        )
+    )
+    if member is None:
+        raise HTTPException(status_code=403, detail="Not a member of this tenant")
+    return member
+
+
+CurrentMemberDep = Annotated[Member, Depends(get_current_member)]
+
+
 def get_or_404[T: TrackedBase](
     db: Session, model: type[T], obj_id: uuid.UUID, tenant_id: uuid.UUID, detail: str
 ) -> T:

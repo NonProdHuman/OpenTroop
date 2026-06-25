@@ -8,9 +8,11 @@ from app.models.enums import (
     Permission,
     PlatformRole,
     RelationshipType,
+    RsvpStatus,
     SwimClassification,
 )
 from app.models.event import Event, EventOrganizer, EventParticipant
+from app.models.event_audience import EventAudience
 from app.models.event_type import EventType
 from app.models.group import Group, GroupMember, GroupRoleRule
 from app.models.location import Location
@@ -25,6 +27,7 @@ __all__ = [
     "PlatformBase",
     "TrackedBase",
     "Event",
+    "EventAudience",
     "EventOrganizer",
     "EventParticipant",
     "EventType",
@@ -46,6 +49,7 @@ __all__ = [
     "MemberType",
     "Permission",
     "PlatformRole",
+    "RsvpStatus",
     "SwimClassification",
     "RelationshipType",
 ]

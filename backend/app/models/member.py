@@ -93,6 +93,12 @@ class Member(TrackedBase):
     )
     user: Mapped[User | None] = relationship("User")
 
+    # Secret bearer token for the member's personal iCal subscription feed
+    # (GET /calendar/{token}.ics). Null until the member subscribes; rotatable.
+    calendar_token: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, unique=True, index=True
+    )
+
     # Patrol membership is folded into the general Group model: a member's patrol
     # is a GroupMember row whose Group is of type PATROL. See app.models.group.
 

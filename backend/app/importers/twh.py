@@ -39,6 +39,7 @@ from app.models.enums import (
     MemberStatus,
     MemberType,
     RelationshipType,
+    RsvpStatus,
     SwimClassification,
 )
 from app.models.event import Event, EventParticipant
@@ -564,6 +565,12 @@ class TwhImporter:
             # '?' = unknown/pre-import state — treat as signed up, attendance unknown
             sign_up_raw = _text(elem, "Sign_Up_Flag").upper()
             signed_up = sign_up_raw != "N"
+            if sign_up_raw == "N":
+                rsvp_status = RsvpStatus.DECLINED
+            elif sign_up_raw in ("", "?"):
+                rsvp_status = RsvpStatus.NO_RESPONSE
+            else:
+                rsvp_status = RsvpStatus.GOING
 
             part_raw = _text(elem, "Participation_Flag").upper()
             if part_raw == "Y":
@@ -579,6 +586,7 @@ class TwhImporter:
                     event_id=event_id,
                     member_id=member_id,
                     signed_up=signed_up,
+                    rsvp_status=rsvp_status,
                     attended=attended,
                     driver=_flag(elem, "Driver_Flag"),
                     seat_count=_parse_int(elem, "Seat_Count"),

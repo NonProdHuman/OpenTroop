@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.routers import (
     auth,
+    calendar,
     event_types,
     events,
     groups,
@@ -36,6 +37,7 @@ app.include_router(platform.router)
 app.include_router(locations.router)
 app.include_router(event_types.router)
 app.include_router(events.router)
+app.include_router(calendar.router)
 app.include_router(imports.router)
 
 

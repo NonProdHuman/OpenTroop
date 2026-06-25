@@ -6,9 +6,11 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import TrackedBase
+from app.models.enums import RsvpStatus
 
 if TYPE_CHECKING:
     from app.models.event_type import EventType
@@ -92,6 +94,11 @@ class EventParticipant(TrackedBase):
     )
 
     signed_up: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Explicit member response, distinct from signed_up/attended. DECLINED drives
+    # gray-out in the app and omission from the member's personal iCal feed.
+    rsvp_status: Mapped[RsvpStatus] = mapped_column(
+        SAEnum(RsvpStatus), default=RsvpStatus.NO_RESPONSE, nullable=False, index=True
+    )
     attended: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     guest_count: Mapped[int] = mapped_column(default=0, nullable=False)
     driver: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

@@ -12,6 +12,7 @@ from app.models.enums import (
     MemberStatus,
     MemberType,
     RelationshipType,
+    RsvpStatus,
     SwimClassification,
 )
 from app.models.event import Event, EventParticipant
@@ -374,6 +375,41 @@ def test_participant_attended(result_and_session) -> None:
     )
     assert ep.signed_up is True
     assert ep.attended is True
+    assert ep.rsvp_status is RsvpStatus.GOING
+
+
+def test_participant_rsvp_status_mapping(db_session: Session) -> None:
+    """TWH Sign_Up_Flag maps onto rsvp_status: N→declined, ?→no_response, Y→going."""
+    xml = """
+    <root>
+      <Event_Type><i>1</i><Event_Type_Name>Meeting</Event_Type_Name></Event_Type>
+      <Person><i>10</i><Name_First>Dee</Name_First><Name_Last>Clined</Name_Last></Person>
+      <Person><i>11</i><Name_First>May</Name_First><Name_Last>Be</Name_Last></Person>
+      <Event>
+        <i>100</i><Event_Type_ID>1</Event_Type_ID><Event_Name>Meet</Event_Name>
+        <Scheduled_Start>7/1/2026 9:00:00 AM</Scheduled_Start>
+        <Scheduled_End>7/1/2026 11:00:00 AM</Scheduled_End>
+      </Event>
+      <Event_Participant>
+        <Event_ID>100</Event_ID><Person_ID>10</Person_ID><Sign_Up_Flag>N</Sign_Up_Flag>
+      </Event_Participant>
+      <Event_Participant>
+        <Event_ID>100</Event_ID><Person_ID>11</Person_ID><Sign_Up_Flag>?</Sign_Up_Flag>
+      </Event_Participant>
+    </root>
+    """
+    root = ET.fromstring(xml)  # noqa: S314 — test-local literal, not web input
+    TwhImporter(db_session, _TENANT).run(root)
+
+    declined = db_session.query(Member).filter_by(first_name="Dee").one()
+    maybe = db_session.query(Member).filter_by(first_name="May").one()
+    ep_declined = db_session.query(EventParticipant).filter_by(member_id=declined.id).one()
+    ep_no_response = db_session.query(EventParticipant).filter_by(member_id=maybe.id).one()
+
+    assert ep_declined.rsvp_status is RsvpStatus.DECLINED
+    assert ep_declined.signed_up is False
+    assert ep_no_response.rsvp_status is RsvpStatus.NO_RESPONSE
+    assert ep_no_response.signed_up is True
 
 
 def test_participant_unknown_attendance(result_and_session) -> None:
