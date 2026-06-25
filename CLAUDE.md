@@ -269,6 +269,9 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   drive it; the calendar and per-member iCal feed will reuse the same rules. Audience
   CRUD: `/events/{id}/audiences` (GET/POST/DELETE).
 - `EventParticipant` — RSVP + attendance per member per event. Fields: `signed_up`,
+  `rsvp_status` (`RsvpStatus`: `no_response`/`going`/`declined`/`maybe`, default
+  `no_response` — the member's explicit reply, distinct from the `signed_up` headcount
+  flag; `declined` drives gray-out and personal-iCal omission),
   `attended` (nullable — null until `Event.attendance_taken` is set True), `guest_count`,
   `driver`, `seat_count`, `comment`, `signed_up_at`. Per-person activity overrides
   (nullable, same names as Event metrics with `_override` suffix). Permission slip:

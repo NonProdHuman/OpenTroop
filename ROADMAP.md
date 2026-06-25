@@ -124,8 +124,9 @@ Model events generically with typed metadata rather than one-size-fits-all field
       (empty = troop-wide); the list + detail endpoints filter by the viewer's group
       membership (managers bypass), backing patrol-only events. Calendar + iCal reuse
       the same `app/core/event_visibility.py` rules.
-- [ ] RSVP status (going / declined / maybe / no-response) on `EventParticipant` —
-      drives gray-out in the app and omission from personal iCal feeds
+- [x] RSVP status (going / declined / maybe / no-response) on `EventParticipant` —
+      explicit member reply (distinct from `signed_up`); drives gray-out in the app and
+      omission from personal iCal feeds (consumed by the iCal feed below)
 - [ ] Per-member iCal subscription feeds — tokenized `.ics` (`webcal://`) honoring
       group visibility and RSVP; subscribable from Apple/Google Calendar
 - [ ] Event notifications (email; push via mobile apps later)

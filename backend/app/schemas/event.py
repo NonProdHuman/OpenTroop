@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel
 
+from app.models.enums import RsvpStatus
 from app.schemas.base import TrackedRead
 from app.schemas.event_type import EventTypeRead
 from app.schemas.location import LocationRead
@@ -89,6 +90,7 @@ class EventOrganizerRead(EventOrganizerBase, TrackedRead):
 class EventParticipantBase(BaseModel):
     member_id: uuid.UUID
     signed_up: bool = True
+    rsvp_status: RsvpStatus = RsvpStatus.NO_RESPONSE
     guest_count: int = 0
     driver: bool = False
     seat_count: int | None = None
@@ -111,6 +113,7 @@ class EventParticipantBase(BaseModel):
 
 class EventParticipantUpdate(BaseModel):
     signed_up: bool | None = None
+    rsvp_status: RsvpStatus | None = None
     attended: bool | None = None
     guest_count: int | None = None
     driver: bool | None = None

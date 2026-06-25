@@ -8,6 +8,7 @@ from app.models.enums import (
     Permission,
     PlatformRole,
     RelationshipType,
+    RsvpStatus,
     SwimClassification,
 )
 from app.models.event import Event, EventOrganizer, EventParticipant
@@ -48,6 +49,7 @@ __all__ = [
     "MemberType",
     "Permission",
     "PlatformRole",
+    "RsvpStatus",
     "SwimClassification",
     "RelationshipType",
 ]

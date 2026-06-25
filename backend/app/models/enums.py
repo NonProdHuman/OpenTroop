@@ -90,6 +90,25 @@ class SwimClassification(enum.StrEnum):
     SWIMMER = "swimmer"
 
 
+class RsvpStatus(enum.StrEnum):
+    """A member's explicit response to an event invitation.
+
+    Distinct from ``EventParticipant.signed_up`` (the roster/headcount flag) and
+    ``attended`` (post-event actuals): ``rsvp_status`` is the member-facing reply.
+
+    NO_RESPONSE — invited / on the list but hasn't replied (the default).
+    GOING       — will attend.
+    DECLINED    — will not attend; grayed out in the app and omitted from the
+                  member's personal iCal feed.
+    MAYBE       — tentative.
+    """
+
+    NO_RESPONSE = "no_response"
+    GOING = "going"
+    DECLINED = "declined"
+    MAYBE = "maybe"
+
+
 class RelationshipType(enum.StrEnum):
     """Nature of a relationship between two members.
 
