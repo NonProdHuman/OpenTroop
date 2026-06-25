@@ -1,6 +1,12 @@
 """API tests for /groups/ endpoints (CRUD, membership, role rules, resolution)."""
 
+import uuid
+
+import sqlalchemy as sa
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from tests.conftest import TENANT_A
 
 
 def _create_group(client: TestClient, name: str = "PLC", group_type: str = "manual") -> dict:
@@ -39,6 +45,34 @@ def test_list_groups(client: TestClient) -> None:
     _create_group(client, "Beta")
     names = {g["name"] for g in client.get("/groups/").json()}
     assert {"Alpha", "Beta"} <= names
+
+
+def test_list_groups_with_migration_written_lowercase_group_type(
+    client: TestClient, db_session: Session
+) -> None:
+    """Regression: fold_patrol_into_groups migration inserts 'patrol' (lowercase) via raw
+    SQL.  SAEnum(GroupType) without values_callable looked up by enum name ('PATROL') not
+    value, so GET /groups/ crashed with a 500 on any tenant that had patrol data."""
+    group_id = uuid.uuid4()
+    db_session.execute(
+        sa.text(
+            "INSERT INTO groups "
+            "  (id, tenant_id, name, group_type, color, description, "
+            "   is_system, created_at, updated_at, is_deleted) "
+            "VALUES "
+            "  (:id, :tenant_id, 'Raw Patrol', 'patrol', NULL, NULL, "
+            "   0, datetime('now'), datetime('now'), 0)"
+        ),
+        # SQLAlchemy's Uuid type stores without hyphens in SQLite — match that format.
+        {"id": group_id.hex, "tenant_id": TENANT_A.hex},
+    )
+    db_session.commit()
+
+    r = client.get("/groups/")
+    assert r.status_code == 200, r.text
+    match = next((g for g in r.json() if g["id"] == str(group_id)), None)
+    assert match is not None, "raw-SQL-inserted group missing from list"
+    assert match["group_type"] == "patrol"
 
 
 def test_patch_group(client: TestClient) -> None:

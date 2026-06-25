@@ -6,9 +6,12 @@ const defaultProps = {
   search: "",
   types: [] as ("scout" | "adult")[],
   statuses: [] as ("active" | "inactive" | "alumni")[],
+  patrolId: null,
+  patrols: [],
   onSearchChange: vi.fn(),
   onTypeToggle: vi.fn(),
   onStatusToggle: vi.fn(),
+  onPatrolChange: vi.fn(),
   onClear: vi.fn(),
 }
 

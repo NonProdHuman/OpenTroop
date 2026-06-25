@@ -38,7 +38,9 @@ class Group(TrackedBase):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     group_type: Mapped[GroupType] = mapped_column(
-        SAEnum(GroupType), default=GroupType.MANUAL, nullable=False
+        SAEnum(GroupType, values_callable=lambda x: [e.value for e in x]),
+        default=GroupType.MANUAL,
+        nullable=False,
     )
     color: Mapped[str | None] = mapped_column(String(20), nullable=True)
     is_system: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

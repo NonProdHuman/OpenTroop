@@ -2,8 +2,15 @@
 
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Search, X } from "lucide-react"
-import type { MemberStatus, MemberType } from "@/types/api"
+import type { Group, MemberStatus, MemberType } from "@/types/api"
 import { cn } from "@/lib/utils"
 
 const TYPE_OPTIONS: { value: MemberType; label: string }[] = [
@@ -21,9 +28,12 @@ interface MemberFiltersProps {
   search: string
   types: MemberType[]
   statuses: MemberStatus[]
+  patrolId: string | null
+  patrols: Group[]
   onSearchChange: (v: string) => void
   onTypeToggle: (v: MemberType) => void
   onStatusToggle: (v: MemberStatus) => void
+  onPatrolChange: (v: string | null) => void
   onClear: () => void
 }
 
@@ -31,12 +41,16 @@ export function MemberFilters({
   search,
   types,
   statuses,
+  patrolId,
+  patrols,
   onSearchChange,
   onTypeToggle,
   onStatusToggle,
+  onPatrolChange,
   onClear,
 }: MemberFiltersProps) {
-  const isDirty = search !== "" || types.length > 0 || statuses.length > 0
+  const isDirty =
+    search !== "" || types.length > 0 || statuses.length > 0 || patrolId !== null
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
@@ -49,6 +63,25 @@ export function MemberFilters({
           className="pl-9"
         />
       </div>
+
+      {patrols.length > 0 && (
+        <Select
+          value={patrolId ?? "all"}
+          onValueChange={(v) => onPatrolChange(v === "all" ? null : v)}
+        >
+          <SelectTrigger className="w-40 h-8">
+            <SelectValue placeholder="All patrols" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All patrols</SelectItem>
+            {patrols.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       <div className="flex items-center gap-1">
         {TYPE_OPTIONS.map((opt) => (

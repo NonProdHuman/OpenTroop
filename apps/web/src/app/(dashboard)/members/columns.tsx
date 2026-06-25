@@ -2,15 +2,10 @@
 
 import { type ColumnDef } from "@tanstack/react-table"
 import type { Member } from "@/types/api"
+import type { PatrolInfo } from "@/hooks/use-groups"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ArrowUpDown } from "lucide-react"
-
-const STATUS_LABELS: Record<string, string> = {
-  active: "Active",
-  inactive: "Inactive",
-  alumni: "Alumni",
-}
 
 const STATUS_VARIANTS: Record<string, "default" | "secondary" | "outline"> = {
   active: "default",
@@ -23,7 +18,10 @@ const TYPE_LABELS: Record<string, string> = {
   adult: "Adult",
 }
 
-export function buildColumns(): ColumnDef<Member>[] {
+export function buildColumns(
+  patrolMap: Map<string, PatrolInfo>,
+  roleMap: Map<string, string>,
+): ColumnDef<Member>[] {
   return [
     {
       id: "name",
@@ -47,6 +45,30 @@ export function buildColumns(): ColumnDef<Member>[] {
       },
     },
     {
+      id: "patrol",
+      header: "Patrol",
+      cell: ({ row }) => {
+        const patrol = patrolMap.get(row.original.id)
+        return patrol ? (
+          <span>{patrol.name}</span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )
+      },
+    },
+    {
+      id: "role",
+      header: "Role",
+      cell: ({ row }) => {
+        const role = roleMap.get(row.original.id)
+        return role ? (
+          <span className="text-sm">{role}</span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )
+      },
+    },
+    {
       id: "member_type",
       accessorKey: "member_type",
       header: "Type",
@@ -65,9 +87,10 @@ export function buildColumns(): ColumnDef<Member>[] {
       header: "Status",
       cell: ({ getValue }) => {
         const val = getValue<string>()
+        if (val === "active") return null
         return (
           <Badge variant={STATUS_VARIANTS[val] ?? "outline"}>
-            {STATUS_LABELS[val] ?? val}
+            {val.charAt(0).toUpperCase() + val.slice(1)}
           </Badge>
         )
       },

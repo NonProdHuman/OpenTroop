@@ -3,6 +3,7 @@
 export type MemberType = "scout" | "adult"
 export type MemberStatus = "active" | "inactive" | "alumni"
 export type SwimClassification = "nonswimmer" | "beginner" | "swimmer"
+export type RelationshipType = "parent_of" | "guardian_of" | "sibling_of" | "other"
 
 export interface Member {
   id: string
@@ -66,6 +67,44 @@ export interface Member {
   user_id: string | null
 }
 
+// ── Roles ────────────────────────────────────────────────────────────────────
+
+export interface Role {
+  id: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  name: string
+  slug: string
+  is_system: boolean
+  is_admin: boolean
+}
+
+export interface MemberRoleAssignment {
+  id: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  member_id: string
+  role_id: string
+  assigned_by_id: string | null
+}
+
+// ── Relationships ─────────────────────────────────────────────────────────────
+
+export interface MemberRelationship {
+  id: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  from_member_id: string
+  to_member_id: string
+  relationship_type: RelationshipType
+}
+
 // ── Groups ───────────────────────────────────────────────────────────────────
 // A Group is the unifying "set of members" primitive. Patrols are folded in as
 // PATROL-type groups; membership is manual and/or rule-driven (see backend
@@ -84,6 +123,16 @@ export interface Group {
   group_type: GroupType
   color: string | null
   is_system: boolean
+}
+
+export interface GroupRoleRule {
+  id: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  group_id: string
+  role_id: string
 }
 
 // ── Events ───────────────────────────────────────────────────────────────────

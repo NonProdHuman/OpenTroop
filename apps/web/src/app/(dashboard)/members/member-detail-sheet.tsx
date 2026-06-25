@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import {
   Sheet,
   SheetContent,
@@ -8,9 +9,14 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import type { Member } from "@/types/api"
 import { formatDate } from "@/lib/format"
+import { useMemberRoleAssignments } from "@/hooks/use-role-assignments"
+import { useRoles } from "@/hooks/use-roles"
+import { useUpdateMember, useInviteMember } from "@/hooks/use-members"
+import { Pencil, UserCheck, UserMinus, Mail } from "lucide-react"
 
 interface MemberDetailSheetProps {
   member: Member | null
@@ -39,11 +45,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-export function MemberDetailSheet({
-  member,
-  open,
-  onOpenChange,
-}: MemberDetailSheetProps) {
+export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSheetProps) {
+  const router = useRouter()
+  const { data: assignments = [] } = useMemberRoleAssignments(member?.id ?? null)
+  const { data: roles = [] } = useRoles()
+  const roleById = new Map(roles.map((r) => [r.id, r.name]))
+  const updateMember = useUpdateMember()
+  const inviteMember = useInviteMember()
+
   if (!member) return null
 
   const displayName = member.nickname
@@ -60,6 +69,28 @@ export function MemberDetailSheet({
     .filter(Boolean)
     .join("\n")
 
+  function handleEdit() {
+    onOpenChange(false)
+    router.push(`/members/${member!.id}/edit`)
+  }
+
+  function handleDeactivate() {
+    updateMember.mutate({
+      id: member!.id,
+      data: {
+        membership_status:
+          member!.membership_status === "active" ? "inactive" : "active",
+      },
+    })
+  }
+
+  function handleInvite() {
+    inviteMember.mutate(member!.id)
+  }
+
+  const isActive = member.membership_status === "active"
+  const isClaimed = member.user_id !== null
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
@@ -70,19 +101,55 @@ export function MemberDetailSheet({
             <Badge variant={member.member_type === "adult" ? "secondary" : "default"}>
               {member.member_type === "adult" ? "Adult" : "Scout"}
             </Badge>
-            <Badge
-              variant={
-                member.membership_status === "active"
-                  ? "default"
-                  : member.membership_status === "alumni"
-                    ? "outline"
-                    : "secondary"
-              }
-            >
-              {member.membership_status.charAt(0).toUpperCase() +
-                member.membership_status.slice(1)}
-            </Badge>
+            {member.membership_status !== "active" && (
+              <Badge
+                variant={member.membership_status === "alumni" ? "outline" : "secondary"}
+              >
+                {member.membership_status.charAt(0).toUpperCase() +
+                  member.membership_status.slice(1)}
+              </Badge>
+            )}
           </div>
+          <div className="flex items-center gap-2 pt-1 flex-wrap">
+            <Button size="sm" variant="outline" onClick={handleEdit}>
+              <Pencil className="h-3.5 w-3.5 mr-1.5" />
+              Edit
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleDeactivate}
+              disabled={updateMember.isPending}
+            >
+              {isActive ? (
+                <>
+                  <UserMinus className="h-3.5 w-3.5 mr-1.5" />
+                  Deactivate
+                </>
+              ) : (
+                <>
+                  <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                  Reactivate
+                </>
+              )}
+            </Button>
+            {!isClaimed && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleInvite}
+                disabled={inviteMember.isPending}
+              >
+                <Mail className="h-3.5 w-3.5 mr-1.5" />
+                Send Invite
+              </Button>
+            )}
+          </div>
+          {inviteMember.isSuccess && (
+            <p className="text-xs text-muted-foreground pt-1">
+              Invite token copied — share with member to claim their account.
+            </p>
+          )}
         </SheetHeader>
 
         <div className="space-y-6">
@@ -127,14 +194,8 @@ export function MemberDetailSheet({
             <>
               <Separator />
               <Section title="Medical">
-                <Field
-                  label="Form A/B"
-                  value={formatDate(member.medical_form_ab_date)}
-                />
-                <Field
-                  label="Form C"
-                  value={formatDate(member.medical_form_c_date)}
-                />
+                <Field label="Form A/B" value={formatDate(member.medical_form_ab_date)} />
+                <Field label="Form C" value={formatDate(member.medical_form_c_date)} />
                 <Field label="Swim" value={member.swim_classification} />
                 <Field label="Swim date" value={formatDate(member.swim_date)} />
                 <Field label="Allergies" value={member.allergies} />
@@ -151,15 +212,28 @@ export function MemberDetailSheet({
                 <Field label="Election" value={formatDate(member.oa_election_date)} />
                 <Field label="Call-out" value={formatDate(member.oa_call_out_date)} />
                 <Field label="Ordeal" value={formatDate(member.oa_ordeal_date)} />
-                <Field
-                  label="Brotherhood"
-                  value={formatDate(member.oa_brotherhood_date)}
-                />
+                <Field label="Brotherhood" value={formatDate(member.oa_brotherhood_date)} />
                 <Field label="Vigil" value={formatDate(member.oa_vigil_date)} />
                 <Field label="Vigil name" value={member.oa_vigil_name} />
-                {member.oa_notes && (
-                  <Field label="Notes" value={member.oa_notes} />
-                )}
+                {member.oa_notes && <Field label="Notes" value={member.oa_notes} />}
+              </Section>
+            </>
+          )}
+
+          {assignments.length > 0 && (
+            <>
+              <Separator />
+              <Section title="Roles">
+                <div className="flex flex-wrap gap-1.5">
+                  {assignments.map((a) => {
+                    const name = roleById.get(a.role_id)
+                    return name ? (
+                      <Badge key={a.id} variant="outline">
+                        {name}
+                      </Badge>
+                    ) : null
+                  })}
+                </div>
               </Section>
             </>
           )}
