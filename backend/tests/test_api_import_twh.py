@@ -1,5 +1,6 @@
 """API tests for POST /import/twh."""
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -41,6 +42,32 @@ def test_import_is_tenant_scoped(client: TestClient, other_client: TestClient) -
     # other_client's tenant has no imported members (only the seeded admin)
     names = {m["first_name"] for m in r.json()}
     assert "Alice" not in names
+
+
+def test_import_with_timezone_converts_event_times_to_utc(client: TestClient) -> None:
+    with open(_FIXTURE, "rb") as f:
+        r = client.post(
+            "/import/twh",
+            files={"file": ("export.xml", f, "application/xml")},
+            data={"timezone": "America/New_York"},
+        )
+    assert r.status_code == 200, r.text
+
+    events = client.get("/events/").json()
+    meeting = next(e for e in events if e["name"] == "Weekly Meeting")
+    # 7PM EDT (UTC-4 in September) → 23:00 UTC.
+    assert datetime.fromisoformat(meeting["scheduled_start"]).astimezone(UTC).hour == 23
+
+
+def test_import_invalid_timezone_returns_422(client: TestClient) -> None:
+    with open(_FIXTURE, "rb") as f:
+        r = client.post(
+            "/import/twh",
+            files={"file": ("export.xml", f, "application/xml")},
+            data={"timezone": "Not/AZone"},
+        )
+    assert r.status_code == 422
+    assert "Unknown timezone" in r.json()["detail"]
 
 
 def test_import_invalid_xml_returns_422(client: TestClient) -> None:

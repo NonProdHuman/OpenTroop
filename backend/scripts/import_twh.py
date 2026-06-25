@@ -32,6 +32,16 @@ def main() -> None:
     )
     parser.add_argument("tenant_id", help="UUID of the target tenant")
     parser.add_argument("xml_file", type=Path, help="Path to the TWH full-data XML export")
+    parser.add_argument(
+        "--timezone",
+        "-tz",
+        default="UTC",
+        help=(
+            "IANA timezone the TWH export's local times are in "
+            "(e.g. America/New_York). Times are converted to UTC on import. "
+            "Default: UTC"
+        ),
+    )
     args = parser.parse_args()
 
     try:
@@ -44,16 +54,21 @@ def main() -> None:
 
     # Import here so the module can be discovered by mypy without a live DB.
     from app.core.database import SessionLocal
-    from app.importers.twh import TwhImporter
+    from app.importers.twh import TwhImporter, resolve_source_tz
     from app.models import Base  # noqa: F401 — registers all tables
+
+    try:
+        source_tz = resolve_source_tz(args.timezone)
+    except ValueError as exc:
+        sys.exit(f"Error: {exc}")
 
     print(f"Parsing {args.xml_file} ...")
     root = ET.parse(args.xml_file).getroot()  # noqa: S314 — admin-supplied file, not web input
 
-    print(f"Importing into tenant {tenant_id} ...")
+    print(f"Importing into tenant {tenant_id} (source timezone: {args.timezone}) ...")
     session = SessionLocal()
     try:
-        result = TwhImporter(session, tenant_id).run(root)
+        result = TwhImporter(session, tenant_id, source_tz=source_tz).run(root)
         session.commit()
     except Exception:
         session.rollback()

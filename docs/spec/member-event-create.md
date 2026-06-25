@@ -212,5 +212,4 @@ useLocations()     // GET  /locations/ (query, for the event location picker)
 - Event create form: renders; end-before-start validation blocks submit; a valid submit
   calls the create hook and navigates to `/events`.
 - Both list pages: the Add button navigates to the corresponding `/new` route.
-</content>
 </invoke>
