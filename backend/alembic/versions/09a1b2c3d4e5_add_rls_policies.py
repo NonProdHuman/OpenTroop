@@ -36,7 +36,7 @@ from alembic import op
 from app.models.base import TrackedBase
 
 revision: str = "09a1b2c3d4e5"
-down_revision: Union[str, None] = "f8a9b0c1d2e3"
+down_revision: Union[str, None] = "b0c1d2e3f4a5"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -39,7 +39,7 @@ def pg_engine() -> Engine:
     # Apply migrations so roles and policies are present.
     env = {**os.environ, "DATABASE_URL": PG_URL}
     subprocess.run(
-        ["uv", "run", "alembic", "upgrade", "head"],
+        ["uv", "run", "alembic", "upgrade", "head"],  # noqa: S607
         cwd=os.path.join(os.path.dirname(__file__), "..", ".."),
         env=env,
         check=True,
@@ -90,7 +90,7 @@ def two_tenant_seed(owner_conn):  # type: ignore[type-arg]
     now = "NOW()"
 
     owner_conn.execute(
-        text(
+        text(  # noqa: S608
             f"""
             INSERT INTO tenants (id, name, slug, created_at, updated_at, is_deleted)
             VALUES
@@ -100,7 +100,7 @@ def two_tenant_seed(owner_conn):  # type: ignore[type-arg]
         )
     )
     owner_conn.execute(
-        text(
+        text(  # noqa: S608
             f"""
             INSERT INTO members
               (id, tenant_id, first_name, last_name, member_type,
