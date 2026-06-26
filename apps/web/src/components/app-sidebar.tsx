@@ -31,6 +31,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useMe } from "@/hooks/use-me"
 import { usePermissions } from "@/hooks/use-session"
+import { TenantSwitcher } from "@/components/tenant-switcher"
 import type { Permission } from "@/types/api"
 
 /**
@@ -184,6 +185,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
+        <TenantSwitcher />
         <SidebarMenu>
           <SidebarMenuItem>
             <div className="flex items-center gap-3 px-2 py-1">

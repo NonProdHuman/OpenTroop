@@ -2,15 +2,16 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { useApi } from "@/lib/api"
+import { useActiveTenant } from "@/lib/tenant-context"
 import type { Permission, Session } from "@/types/api"
-
-const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID ?? ""
 
 export function useSession() {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: ["session", TENANT_ID],
+    queryKey: ["session", activeTenantId],
     queryFn: () => request<Session>("/auth/session"),
+    enabled: Boolean(activeTenantId),
   })
 }
 

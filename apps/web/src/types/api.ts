@@ -326,3 +326,13 @@ export interface CalendarSubscriptionRead {
   token: string
   feed_path: string
 }
+
+// ── Tenant switcher ───────────────────────────────────────────────────────────
+
+export interface Membership {
+  tenant_id: string
+  tenant_name: string
+  tenant_slug: string
+  member_id: string
+  is_admin: boolean
+}

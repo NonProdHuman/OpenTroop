@@ -3,42 +3,49 @@
 import { useMemo } from "react"
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useApi } from "@/lib/api"
+import { useActiveTenant } from "@/lib/tenant-context"
 import type { Group, GroupRoleRule, Member } from "@/types/api"
 
 export function useGroups() {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: ["groups"],
+    queryKey: [activeTenantId, "groups"],
     queryFn: () => request<Group[]>("/groups/"),
+    enabled: Boolean(activeTenantId),
   })
 }
 
 export function useGroup(id: string | null) {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: ["groups", id],
+    queryKey: [activeTenantId, "groups", id],
     queryFn: () => request<Group>(`/groups/${id}`),
-    enabled: id !== null,
+    enabled: id !== null && Boolean(activeTenantId),
   })
 }
 
 /** Members of a single group (resolved). Shares cache with group-level queries. */
 export function useGroupMembers(groupId: string | null) {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: ["group-members", groupId],
+    queryKey: [activeTenantId, "group-members", groupId],
     queryFn: () => request<Member[]>(`/groups/${groupId}/members`),
-    enabled: groupId !== null,
+    enabled: groupId !== null && Boolean(activeTenantId),
   })
 }
 
 /** Returns a Map<groupId, memberCount> for all provided groups. */
 export function useGroupMemberCounts(groups: Group[]): Map<string, number> {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   const results = useQueries({
     queries: groups.map((g) => ({
-      queryKey: ["group-members", g.id],
+      queryKey: [activeTenantId, "group-members", g.id],
       queryFn: () => request<Member[]>(`/groups/${g.id}/members`),
+      enabled: Boolean(activeTenantId),
     })),
   })
   return useMemo(() => {
@@ -56,14 +63,16 @@ export type PatrolInfo = { id: string; name: string }
 /** Returns a Map<memberId, PatrolInfo> built from all PATROL-type groups. */
 export function usePatrolMemberships(): Map<string, PatrolInfo> {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   const { data: groups = [] } = useGroups()
 
   const patrols = useMemo(() => groups.filter((g) => g.group_type === "patrol"), [groups])
 
   const memberResults = useQueries({
     queries: patrols.map((patrol) => ({
-      queryKey: ["group-members", patrol.id],
+      queryKey: [activeTenantId, "group-members", patrol.id],
       queryFn: () => request<Member[]>(`/groups/${patrol.id}/members`),
+      enabled: Boolean(activeTenantId),
     })),
   })
 
@@ -80,13 +89,14 @@ export function usePatrolMemberships(): Map<string, PatrolInfo> {
 /** Returns all groups a given member belongs to (resolved membership). */
 export function useMemberGroups(memberId: string | null) {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   const { data: groups = [] } = useGroups()
 
   const memberResults = useQueries({
     queries: groups.map((group) => ({
-      queryKey: ["group-members", group.id],
+      queryKey: [activeTenantId, "group-members", group.id],
       queryFn: () => request<Member[]>(`/groups/${group.id}/members`),
-      enabled: memberId !== null,
+      enabled: memberId !== null && Boolean(activeTenantId),
     })),
   })
 
@@ -101,12 +111,14 @@ export function useMemberGroups(memberId: string | null) {
 /** Returns a Map<memberId, Group[]> built from all active groups. */
 export function useGroupMemberships(): Map<string, Group[]> {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   const { data: groups = [] } = useGroups()
 
   const memberResults = useQueries({
     queries: groups.map((group) => ({
-      queryKey: ["group-members", group.id],
+      queryKey: [activeTenantId, "group-members", group.id],
       queryFn: () => request<Member[]>(`/groups/${group.id}/members`),
+      enabled: Boolean(activeTenantId),
     })),
   })
 
@@ -126,42 +138,46 @@ export function useGroupMemberships(): Map<string, Group[]> {
 
 export function useCreateGroup() {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: { name: string; group_type: string; color: string | null; description: string | null }) =>
       request<Group>("/groups/", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["groups"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups"] })
     },
   })
 }
 
 export function useUpdateGroup() {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Pick<Group, "name" | "description" | "group_type" | "color">> }) =>
       request<Group>(`/groups/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ["groups"] })
-      queryClient.invalidateQueries({ queryKey: ["groups", id] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups", id] })
     },
   })
 }
 
 export function useDeleteGroup() {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => request(`/groups/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["groups"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups"] })
     },
   })
 }
 
 export function useAddGroupMember() {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ groupId, memberId }: { groupId: string; memberId: string }) =>
@@ -172,20 +188,21 @@ export function useAddGroupMember() {
     onSuccess: () => {
       // Invalidate ALL group-member caches: the backend may silently remove
       // the member from a previous patrol, so every cached list could be stale.
-      queryClient.invalidateQueries({ queryKey: ["group-members"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
     },
   })
 }
 
 export function useRemoveGroupMember() {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ groupId, memberId }: { groupId: string; memberId: string }) =>
       request(`/groups/${groupId}/members/${memberId}`, { method: "DELETE" }),
     onSuccess: () => {
       // Invalidate ALL group-member caches for consistency.
-      queryClient.invalidateQueries({ queryKey: ["group-members"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
     },
   })
 }
@@ -194,23 +211,25 @@ export function useRemoveGroupMember() {
 
 export function useGroupRoleRules(groupId: string | null) {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: ["group-role-rules", groupId],
+    queryKey: [activeTenantId, "group-role-rules", groupId],
     queryFn: () => request<GroupRoleRule[]>(`/groups/${groupId}/rules`),
-    enabled: groupId !== null,
+    enabled: groupId !== null && Boolean(activeTenantId),
   })
 }
 
 export function useRemoveGroupRoleRule() {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   const queryClient = useQueryClient()
   return useMutation({
     // Backend DELETE /groups/{id}/rules/{role_id} uses the Role's ID, not the rule row ID
     mutationFn: ({ groupId, roleId }: { groupId: string; roleId: string }) =>
       request(`/groups/${groupId}/rules/${roleId}`, { method: "DELETE" }),
     onSuccess: (_data, { groupId }) => {
-      queryClient.invalidateQueries({ queryKey: ["group-role-rules", groupId] })
-      queryClient.invalidateQueries({ queryKey: ["group-members", groupId] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-role-rules", groupId] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members", groupId] })
     },
   })
 }

@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-and-test:
     name: Lint & Test (Python ${{ matrix.python-version }})
@@ -40,8 +44,83 @@ jobs:
       - name: Dependency vulnerability scan (pip-audit)
         run: uv run pip-audit
 
-      - name: Test (pytest)
+      - name: Test (pytest + coverage)
         run: uv run pytest -q
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: backend/coverage.xml
+          retention-days: 14
+
+  pre-commit:
+    name: Pre-commit hooks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install Python deps
+        working-directory: backend
+        run: uv sync
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Install pre-commit
+        run: uv tool install pre-commit --with pre-commit-uv
+
+      - name: Run all hooks
+        run: uv tool run pre-commit run --all-files
+
+  rls-tests:
+    name: Postgres RLS tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: opentroop_rls_test
+          POSTGRES_USER: opentroop_owner
+          POSTGRES_PASSWORD: opentroop
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+    env:
+      DATABASE_URL: postgresql+psycopg://opentroop_owner:opentroop@localhost:5433/opentroop_rls_test
+      PG_TEST_URL: postgresql+psycopg://opentroop_owner:opentroop@localhost:5433/opentroop_rls_test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync
+      - name: Apply migrations (creates roles + RLS policies)
+        run: uv run alembic upgrade head
+      - name: Run RLS tests
+        run: uv run pytest -m pg -v --no-cov
 
   migration-check:
     name: Migration drift check
