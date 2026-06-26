@@ -105,15 +105,15 @@ def two_tenant_seed(owner_conn):  # type: ignore[type-arg]
             f"""
             INSERT INTO members
               (id, tenant_id, first_name, last_name, member_type,
-               membership_status, swim_classification, created_at, updated_at,
-               is_deleted)
+               membership_status, swim_classification, email_opt_out,
+               created_at, updated_at, is_deleted)
             VALUES
               ('{member_a}', '{tenant_a}', 'Alice', 'A', 'ADULT',
-               'ACTIVE', 'NONSWIMMER', {now}, {now}, false),
+               'ACTIVE', 'NONSWIMMER', false, {now}, {now}, false),
               ('{member_b}', '{tenant_b}', 'Bob',   'B', 'ADULT',
-               'ACTIVE', 'NONSWIMMER', {now}, {now}, false),
+               'ACTIVE', 'NONSWIMMER', false, {now}, {now}, false),
               ('{deleted_in_a}', '{tenant_a}', 'Del', 'A', 'ADULT',
-               'ACTIVE', 'NONSWIMMER', {now}, {now}, true)
+               'ACTIVE', 'NONSWIMMER', false, {now}, {now}, true)
             """
         )
     )
