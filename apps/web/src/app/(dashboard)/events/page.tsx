@@ -14,6 +14,7 @@ import { EventCalendar } from "./event-calendar"
 import { EventDetailSheet } from "./event-detail-sheet"
 import { EventFilters, type TimeFilter } from "./event-filters"
 import { EventsTable } from "./events-table"
+import { CalendarSubscriptionDialog } from "./calendar-subscription-dialog"
 
 type View = "list" | "calendar"
 
@@ -93,6 +94,7 @@ export default function EventsPage() {
             Calendar
           </ViewButton>
         </div>
+        <CalendarSubscriptionDialog />
         <Button size="sm" onClick={() => router.push("/events/new")}>
           <CalendarPlus className="mr-2 h-4 w-4" />
           Add Event
