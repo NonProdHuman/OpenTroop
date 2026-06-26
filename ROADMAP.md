@@ -1,7 +1,7 @@
 # OpenTroop Roadmap
 
 OpenTroop is a community-driven, offline-first replacement for TroopWebHost.
-This document describes the four capability pillars and how they build on each other.
+This document describes the six capability pillars and how they build on each other.
 Granular tasks are tracked via GitHub Issues and Milestones.
 
 OpenTroop is designed to run in two modes:
@@ -30,6 +30,10 @@ is the foundation; notification and configuration systems follow the same patter
   import their existing data with minimal friction. This is a first-class feature.
 
 ---
+## Next Features to address:
+- Dynamic Groups
+- Event RSVP and Permission workflow
+
 
 ## Capability Pillars
 
@@ -51,7 +55,6 @@ membership model.
       call-out/ordeal/brotherhood/vigil dates, vigil name, notes
 - [x] TroopWebHost XML full-dump import (roster + events) — `app/importers/twh.py`
       CLI: `uv run python import_twh.py <tenant-id> <export.xml>` from `backend/`
-- [ ] Scoutbook member export import (BSA recharter format)
 - [x] Multi-tenant provisioning — `POST /tenants/` bootstraps Tenant + founding admin
       Member + administrators Role atomically; invite/claim flow links existing
       roster entries to login accounts via signed tokens
@@ -69,7 +72,8 @@ membership model.
 - [x] Platform-admin management — `GET/POST/DELETE /platform/admins` (grant/revoke gated to
       superadmins; last-superadmin guard) + `/platform/admins` console screen; promotes platform
       admins through the UI instead of the `promote-platform-admin` CLI alone
-- [ ] Automated invite email delivery (depends on Pillar 4 notification infra) — until then
+- [ ] Scoutbook member export import (BSA recharter format)
+- [ ] Automated invite email delivery (depends on Pillar 5 notification infra) — until then
       provisioning returns the invite token for manual/out-of-band delivery
 
 #### Groups & Audiences *(foundational — folds Patrol)*
@@ -101,7 +105,42 @@ lands before them (data model before UI).
       Groups screen UI is complete and UX patterns for rule composition are clearer.
 - [ ] Additional dynamic rule dimensions (member_type, membership_status, patrol-of-patrols)
 
-### Pillar 2 — Events & Calendar
+### Pillar 2 — Multi-Tenant Isolation & Data Access
+
+The `tenant_id` on every `TrackedBase` row is the foundation of both deployment modes,
+but isolation is currently enforced only by **hand-written `tenant_id ==` predicates on
+every query** (~200 across 13 routers). The failure mode is "forget one and that
+endpoint leaks" — already observed once in review. This cross-cutting workstream makes
+isolation automatic and default-on, backstopped at the database, and explicit in the UI.
+The three items are independently shippable but share one current-tenant source of truth.
+
+- [ ] **Tenant-scoped data access layer** — a request-scoped current-tenant `ContextVar`
+      plus a SQLAlchemy `do_orm_execute` listener that auto-applies the `tenant_id`
+      filter to every `TrackedBase` read (including relationship loads) and a
+      `before_flush` hook that stamps `tenant_id` on writes. Route code stops carrying the
+      predicate; cross-tenant access becomes an explicit, greppable `unscoped()` opt-out
+      used only by the platform control plane. Behavior-preserving, lands incrementally.
+      Spec: [`docs/spec/tenant-data-access.md`](docs/spec/tenant-data-access.md).
+- [ ] **Postgres Row-Level Security (RLS)** — the database-layer backstop: a restricted
+      non-owner app role, a per-transaction `SET LOCAL app.current_tenant` GUC, and
+      `USING` + `WITH CHECK` policies (`FORCE ROW LEVEL SECURITY`) generated per
+      `TrackedBase` table from the model registry. Catches any query that bypasses the app
+      layer; especially valuable for the mobile sync pull/push paths (a leaked row in a
+      sync payload persists on-device). Tested by a small Postgres-backed tier
+      (SQLite can't exercise RLS) run **per-PR** via a CI service container against a
+      migrated DB — including a policy-completeness introspection test; the SQLite suite
+      stays the fast default. Spec: [`docs/spec/postgres-rls.md`](docs/spec/postgres-rls.md).
+- [ ] **Tenant switcher UI + `GET /auth/memberships`** — a user who is a `Member` of
+      several troops picks the active tenant from a pulldown; the app shows exactly one
+      tenant at a time (never a merged view). New auth-only, cross-tenant-for-one-user
+      endpoint lists the caller's memberships; the web app replaces the build-time
+      `NEXT_PUBLIC_TENANT_ID` constant with runtime active-tenant state, and every React
+      Query key is scoped by tenant so switching refetches cleanly. Makes "active tenant"
+      first-class — also the basis for on-device store partitioning in the mobile client.
+      Spec: [`docs/spec/tenant-switcher.md`](docs/spec/tenant-switcher.md).
+
+
+### Pillar 3 — Events & Calendar
 
 Event types differ meaningfully. Campouts carry permit numbers and capacity limits.
 Merit badge clinics have prerequisites. Courts of Honor tie into advancement data.
@@ -120,7 +159,6 @@ Model events generically with typed metadata rather than one-size-fits-all field
 - [x] RSVP / attendance tracking per member — `EventParticipant` with `signed_up`,
       `attended`, per-person activity overrides, and electronic permission slip fields
 - [x] Event costs (separate youth/adult pricing — `cost_youth` / `cost_adult`)
-- [ ] Packing lists — deferred (feature creep risk before UI exists)
 - [ ] Digital permission slips (fillable forms attached to events; parent signature flow)
 - [ ] Parent-authorized RSVP & Permission flow — parental approval/permission slip integration for specific event types (e.g. high-adventure campouts, out-of-state trips) before RSVP is confirmed
 - [ ] Health form collection and storage (per-event or per-member)
@@ -138,7 +176,7 @@ Model events generically with typed metadata rather than one-size-fits-all field
       from Apple/Google Calendar. Subscribe/rotate via `/calendar/subscription`.
 - [ ] Event notifications (email; push via mobile apps later)
 
-### Pillar 3 — Advancement & Requirements
+### Pillar 4 — Advancement & Requirements
 
 The most complex domain. BSA advancement has a strict hierarchy
 (program → rank → requirements → sub-requirements), merit badges with counselor
@@ -154,7 +192,7 @@ this pillar should sync with it, not replace it.
 - [ ] Scoutbook two-way sync (import completions; export sign-offs)
 - [ ] Advancement report generation (for boards of review, courts of honor)
 
-### Pillar 4 — Communications & Reports
+### Pillar 5 — Communications & Reports
 
 UI-heavy and legally sensitive (minors, health data). Build after the data
 model is stable enough to query reliably.
@@ -260,43 +298,7 @@ a Text-to-SQL layer lets any leader ask questions in plain English.
 
 ---
 
-## Multi-Tenant Isolation & Data Access
-
-The `tenant_id` on every `TrackedBase` row is the foundation of both deployment modes,
-but isolation is currently enforced only by **hand-written `tenant_id ==` predicates on
-every query** (~200 across 13 routers). The failure mode is "forget one and that
-endpoint leaks" — already observed once in review. This cross-cutting workstream makes
-isolation automatic and default-on, backstopped at the database, and explicit in the UI.
-The three items are independently shippable but share one current-tenant source of truth.
-
-- [ ] **Tenant-scoped data access layer** — a request-scoped current-tenant `ContextVar`
-      plus a SQLAlchemy `do_orm_execute` listener that auto-applies the `tenant_id`
-      filter to every `TrackedBase` read (including relationship loads) and a
-      `before_flush` hook that stamps `tenant_id` on writes. Route code stops carrying the
-      predicate; cross-tenant access becomes an explicit, greppable `unscoped()` opt-out
-      used only by the platform control plane. Behavior-preserving, lands incrementally.
-      Spec: [`docs/spec/tenant-data-access.md`](docs/spec/tenant-data-access.md).
-- [ ] **Postgres Row-Level Security (RLS)** — the database-layer backstop: a restricted
-      non-owner app role, a per-transaction `SET LOCAL app.current_tenant` GUC, and
-      `USING` + `WITH CHECK` policies (`FORCE ROW LEVEL SECURITY`) generated per
-      `TrackedBase` table from the model registry. Catches any query that bypasses the app
-      layer; especially valuable for the mobile sync pull/push paths (a leaked row in a
-      sync payload persists on-device). Tested by a small Postgres-backed tier
-      (SQLite can't exercise RLS) run **per-PR** via a CI service container against a
-      migrated DB — including a policy-completeness introspection test; the SQLite suite
-      stays the fast default. Spec: [`docs/spec/postgres-rls.md`](docs/spec/postgres-rls.md).
-- [ ] **Tenant switcher UI + `GET /auth/memberships`** — a user who is a `Member` of
-      several troops picks the active tenant from a pulldown; the app shows exactly one
-      tenant at a time (never a merged view). New auth-only, cross-tenant-for-one-user
-      endpoint lists the caller's memberships; the web app replaces the build-time
-      `NEXT_PUBLIC_TENANT_ID` constant with runtime active-tenant state, and every React
-      Query key is scoped by tenant so switching refetches cleanly. Makes "active tenant"
-      first-class — also the basis for on-device store partitioning in the mobile client.
-      Spec: [`docs/spec/tenant-switcher.md`](docs/spec/tenant-switcher.md).
-
----
-
-## Web Application Shell & Navigation
+### Pillar 6 — Web Application Shell & Navigation
 
 The web app is scaffolded with a **flat** sidebar (Members, Groups, Events, Import,
 Settings). As the pillars above grow into many pages, the shell needs structure. The
@@ -358,7 +360,7 @@ Track troop-owned equipment and who it is checked out to.
 - [ ] Data-model spec (equipment items, assignments/check-out, condition/history)
 - [ ] Equipment registry + per-member assignment / check-out flow
 
-### Content Management / Public Website (Pillar 4 adjacency)
+### Content Management / Public Website (Pillar 5 adjacency)
 
 OpenTroop should double as the troop's public web presence — like TWH, serving content
 to both authenticated members and anonymous visitors, with visibility varying by
@@ -373,7 +375,7 @@ CMS, not a page builder.
 
 ## Mobile Applications
 
-Native iOS and Android apps are the offline-sync clients for Pillars 1–3.
+Native iOS and Android apps are the offline-sync clients for Pillars 1–4.
 They are not a separate phase — they should be developed in parallel once the
 API contract for each pillar stabilizes.
 
@@ -384,23 +386,6 @@ API contract for each pillar stabilizes.
 - [ ] iOS app (Swift / SwiftUI)
 - [ ] Android app (Kotlin / Jetpack Compose)
 - [ ] Push notification integration
-
----
-
-## Near-Term Priorities (Next Steps)
-
-Pillars 1 and 2 are complete at the API layer. The web app shell is scaffolded
-(`apps/web/` — Next.js 16, Tailwind 4, shadcn/ui, Clerk auth, sidebar layout).
-
-1. **Members screen** — searchable/filterable roster list + inline detail panel;
-   the highest-impact screen for demonstrating the UX difference from TroopWebHost.
-2. ~~**Events screen** — event list and detail view; reuses the same data-table patterns.~~
-   *(done — `apps/web/.../events`: searchable/type/time-filtered list + detail sheet)*
-3. **Attendance screen** — the key field UX moment; optimistic updates, fast tap targets.
-4. **Pillar 3 analysis** — export Scoutbook advancement data from a real troop before
-   designing the advancement model; let the data shape the schema.
-5. **Scoutbook member import** — BSA recharter XML format (complement to the TWH importer).
-6. **TroopWebHost-compatible export** — round-trip migration path for troops leaving TWH.
 
 ---
 

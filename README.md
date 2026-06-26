@@ -11,13 +11,73 @@ is partitioned by `tenant_id` for future multi-tenant SaaS.
 
 ## Architecture
 
-| Layer        | Technology |
-|--------------|------------|
-| Backend      | Python · FastAPI · SQLAlchemy 2.0 |
-| Database     | PostgreSQL · Alembic migrations |
-| Frontend     | Next.js · Tailwind CSS · shadcn/ui |
-| Offline      | Native iOS / Android apps with local caching + sync |
-| Orchestration| docker-compose (db + backend) |
+```mermaid
+graph TD
+    subgraph Clients
+        WEB["Web App<br/><small>Next.js 16 · Tailwind 4 · shadcn/ui</small>"]
+        MOBILE["Mobile Apps<br/><small>iOS (Swift) · Android (Kotlin)</small>"]
+    end
+
+    OIDC["OIDC Provider<br/><small>Clerk · Authentik · any IdP</small>"]
+
+    subgraph "FastAPI Backend"
+        direction TB
+        GW["JWT Validation &<br/>Tenant Resolution"]
+
+        subgraph "Routers (REST API)"
+            R_AUTH["Auth &<br/>Invite/Claim"]
+            R_MEMBERS["Members &<br/>Relationships"]
+            R_GROUPS["Groups &<br/>Audiences"]
+            R_EVENTS["Events, RSVP<br/>& Calendar"]
+            R_ROLES["Roles &<br/>Permissions"]
+            R_PLATFORM["Platform<br/>Control Plane"]
+            R_IMPORT["Data Import<br/>(TWH XML)"]
+        end
+
+        subgraph "Core Services"
+            RBAC["RBAC &<br/>Permission Resolver"]
+            VIS["Event Visibility<br/>& Audience Filter"]
+            PROV["Tenant Provisioning<br/>& Invite Tokens"]
+            ICAL["iCal Feed<br/>Generator"]
+        end
+    end
+
+    subgraph Data
+        PG[("PostgreSQL<br/><small>Alembic migrations</small>")]
+    end
+
+    SQLITE[("SQLite<br/><small>offline cache</small>")]
+
+    WEB -- "HTTPS / JWT" --> GW
+    MOBILE -- "HTTPS / JWT" --> GW
+    WEB -. "OIDC login" .-> OIDC
+    MOBILE -. "OIDC login" .-> OIDC
+    GW -- "JWKS" --> OIDC
+    GW --> R_AUTH & R_MEMBERS & R_GROUPS & R_EVENTS & R_ROLES & R_PLATFORM & R_IMPORT
+    R_AUTH & R_MEMBERS & R_GROUPS & R_EVENTS & R_ROLES --> RBAC
+    R_EVENTS --> VIS
+    R_EVENTS --> ICAL
+    R_PLATFORM --> PROV
+    RBAC & VIS & PROV & ICAL --> PG
+    R_AUTH & R_MEMBERS & R_GROUPS & R_EVENTS & R_ROLES & R_PLATFORM & R_IMPORT --> PG
+    MOBILE -- "background sync<br/>(planned)" <--> SQLITE
+
+    classDef client fill:#4f8cf7,stroke:#2563eb,color:#fff
+    classDef oidc fill:#f59e0b,stroke:#d97706,color:#fff
+    classDef gw fill:#6366f1,stroke:#4f46e5,color:#fff
+    classDef router fill:#10b981,stroke:#059669,color:#fff
+    classDef core fill:#8b5cf6,stroke:#7c3aed,color:#fff
+    classDef db fill:#ef4444,stroke:#dc2626,color:#fff
+    classDef offline fill:#94a3b8,stroke:#64748b,color:#fff
+
+    class WEB,MOBILE client
+    class OIDC oidc
+    class GW gw
+    class R_AUTH,R_MEMBERS,R_GROUPS,R_EVENTS,R_ROLES,R_PLATFORM,R_IMPORT router
+    class RBAC,VIS,PROV,ICAL core
+    class PG db
+    class SQLITE offline
+```
 
 ```
 apps/web/      Next.js 16 · Tailwind 4 · shadcn/ui · Clerk auth
