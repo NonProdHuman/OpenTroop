@@ -148,8 +148,8 @@ def test_insert_wrong_tenant_rejected(app_conn, two_tenant_seed) -> None:  # typ
                    membership_status, swim_classification, created_at,
                    updated_at, is_deleted)
                 VALUES
-                  (:id, :tid, 'Eve', 'X', 'adult',
-                   'active', 'nonswimmer', NOW(), NOW(), false)
+                  (:id, :tid, 'Eve', 'X', 'ADULT',
+                   'ACTIVE', 'NONSWIMMER', NOW(), NOW(), false)
                 """
             ),
             {"id": str(new_id), "tid": str(tenant_b)},

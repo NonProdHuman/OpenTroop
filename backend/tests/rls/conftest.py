@@ -108,12 +108,12 @@ def two_tenant_seed(owner_conn):  # type: ignore[type-arg]
                membership_status, swim_classification, created_at, updated_at,
                is_deleted)
             VALUES
-              ('{member_a}', '{tenant_a}', 'Alice', 'A', 'adult',
-               'active', 'nonswimmer', {now}, {now}, false),
-              ('{member_b}', '{tenant_b}', 'Bob',   'B', 'adult',
-               'active', 'nonswimmer', {now}, {now}, false),
-              ('{deleted_in_a}', '{tenant_a}', 'Del', 'A', 'adult',
-               'active', 'nonswimmer', {now}, {now}, true)
+              ('{member_a}', '{tenant_a}', 'Alice', 'A', 'ADULT',
+               'ACTIVE', 'NONSWIMMER', {now}, {now}, false),
+              ('{member_b}', '{tenant_b}', 'Bob',   'B', 'ADULT',
+               'ACTIVE', 'NONSWIMMER', {now}, {now}, false),
+              ('{deleted_in_a}', '{tenant_a}', 'Del', 'A', 'ADULT',
+               'ACTIVE', 'NONSWIMMER', {now}, {now}, true)
             """
         )
     )
