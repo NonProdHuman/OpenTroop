@@ -33,6 +33,8 @@ is the foundation; notification and configuration systems follow the same patter
 ## Next Features to address:
 - Dynamic Groups
 - Event RSVP and Permission workflow
+- Tenant Data Access and full RLS enforcement (docs/spec/tenant-data-access.md)
+- Hosting and deployment pipeline (docs/spec/hosting-and-deployment.md)
 
 
 ## Capability Pillars
@@ -114,13 +116,19 @@ endpoint leaks" — already observed once in review. This cross-cutting workstre
 isolation automatic and default-on, backstopped at the database, and explicit in the UI.
 The three items are independently shippable but share one current-tenant source of truth.
 
-- [ ] **Tenant-scoped data access layer** — a request-scoped current-tenant `ContextVar`
+- [~] **Tenant-scoped data access layer** — a request-scoped current-tenant `ContextVar`
       plus a SQLAlchemy `do_orm_execute` listener that auto-applies the `tenant_id`
       filter to every `TrackedBase` read (including relationship loads) and a
       `before_flush` hook that stamps `tenant_id` on writes. Route code stops carrying the
       predicate; cross-tenant access becomes an explicit, greppable `unscoped()` opt-out
       used only by the platform control plane. Behavior-preserving, lands incrementally.
       Spec: [`docs/spec/tenant-data-access.md`](docs/spec/tenant-data-access.md).
+      **Status:** engine shipped and active (`app/core/database.py` listeners +
+      `app/core/tenant_context.py`, `unscoped()` escape hatch); the GUC is already
+      stamped per transaction. Remaining: finish removing the ~200 hand-written
+      `tenant_id ==` predicates from the routers (~21 still present across 10 routers)
+      and wrap every cross-tenant `TrackedBase` access (platform plane, auth memberships)
+      in `unscoped()` — a prerequisite for enforcing RLS below.
 - [ ] **Postgres Row-Level Security (RLS)** — the database-layer backstop: a restricted
       non-owner app role, a per-transaction `SET LOCAL app.current_tenant` GUC, and
       `USING` + `WITH CHECK` policies (`FORCE ROW LEVEL SECURITY`) generated per
@@ -130,6 +138,22 @@ The three items are independently shippable but share one current-tenant source 
       (SQLite can't exercise RLS) run **per-PR** via a CI service container against a
       migrated DB — including a policy-completeness introspection test; the SQLite suite
       stays the fast default. Spec: [`docs/spec/postgres-rls.md`](docs/spec/postgres-rls.md).
+  - [ ] **RLS enforcement cutover** — the sequenced plan to move RLS from installed-but-
+        dormant to actually enforcing without breaking the app or migrations: finish the
+        redundant-predicate cleanup, put every cross-tenant path on `unscoped()`, wire
+        physically separate app/admin connection pools (`opentroop_app` RLS-enforced vs
+        `opentroop_admin` `BYPASSRLS`, Alembic on the owner), then flip
+        `FORCE ROW LEVEL SECURITY`. Also covers the
+        autogenerate blindspot (new tables need RLS+policy+grants by hand) and the
+        non-reproducible `__subclasses__()` introspection. Spec:
+        [`docs/spec/rls-enforcement-rollout.md`](docs/spec/rls-enforcement-rollout.md).
+  - [ ] **Split the platform control plane into its own service** *(later — at real
+        multi-tenant launch, not now)* — lift `/platform` + provisioning + the
+        `opentroop_admin` engine into a separate FastAPI entrypoint/Cloud Run service on
+        `admin.opentroop.app`, so the tenant-facing process holds no `BYPASSRLS`
+        capability. Stays a deployment flag (`MOUNT_PLATFORM`), not a code fork —
+        self-hosted keeps running one all-in-one process. See "Deployment topology" in
+        [`docs/spec/rls-enforcement-rollout.md`](docs/spec/rls-enforcement-rollout.md).
 - [ ] **Tenant switcher UI + `GET /auth/memberships`** — a user who is a `Member` of
       several troops picks the active tenant from a pulldown; the app shows exactly one
       tenant at a time (never a merged view). New auth-only, cross-tenant-for-one-user
