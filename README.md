@@ -60,7 +60,7 @@ graph TD
     R_PLATFORM --> PROV
     RBAC & VIS & PROV & ICAL --> PG
     R_AUTH & R_MEMBERS & R_GROUPS & R_EVENTS & R_ROLES & R_PLATFORM & R_IMPORT --> PG
-    MOBILE <-. "background sync<br/>(planned)" .-> SQLITE
+    MOBILE -- "background sync<br/>(planned)" <--> SQLITE
 
     classDef client fill:#4f8cf7,stroke:#2563eb,color:#fff
     classDef oidc fill:#f59e0b,stroke:#d97706,color:#fff
