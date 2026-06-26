@@ -52,6 +52,7 @@ def get_session(user: CurrentUserDep, tenant_id: TenantDep, db: DbDep) -> Sessio
         db.scalars(
             select(Role).where(
                 Role.id.in_(direct_role_ids),
+                Role.tenant_id == tenant_id,
                 Role.is_deleted.is_(False),
             )
         ).all()
