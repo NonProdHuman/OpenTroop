@@ -93,7 +93,9 @@ def test_app_role_sees_only_own_tenant(app_conn, two_tenant_seed) -> None:  # ty
     member_a = two_tenant_seed["member_a"]
     member_b = two_tenant_seed["member_b"]
 
-    app_conn.execute(text("SET LOCAL app.current_tenant = :tid"), {"tid": str(tenant_a)})
+    app_conn.execute(
+        text("SELECT set_config('app.current_tenant', :tid, true)"), {"tid": str(tenant_a)}
+    )
     rows = app_conn.execute(text("SELECT id FROM members")).fetchall()
     ids = {r[0] for r in rows}
 
@@ -109,7 +111,7 @@ def test_no_guc_returns_zero_rows(app_conn, two_tenant_seed) -> None:  # type: i
 
 def test_empty_guc_returns_zero_rows(app_conn, two_tenant_seed) -> None:  # type: ignore[type-arg]
     """An empty GUC string also yields zero rows."""
-    app_conn.execute(text("SET LOCAL app.current_tenant = ''"))
+    app_conn.execute(text("SELECT set_config('app.current_tenant', '', true)"))
     rows = app_conn.execute(text("SELECT id FROM members")).fetchall()
     assert rows == [], f"Expected 0 rows with empty GUC, got {len(rows)}"
 
@@ -123,7 +125,9 @@ def test_tombstones_visible_within_tenant(app_conn, two_tenant_seed) -> None:  #
     tenant_a = two_tenant_seed["tenant_a"]
     deleted_in_a = two_tenant_seed["deleted_in_a"]
 
-    app_conn.execute(text("SET LOCAL app.current_tenant = :tid"), {"tid": str(tenant_a)})
+    app_conn.execute(
+        text("SELECT set_config('app.current_tenant', :tid, true)"), {"tid": str(tenant_a)}
+    )
     rows = app_conn.execute(text("SELECT id FROM members WHERE is_deleted = true")).fetchall()
     ids = {str(r[0]) for r in rows}
     assert str(deleted_in_a) in ids, "Tombstone must be visible to sync pull"
@@ -137,7 +141,9 @@ def test_insert_wrong_tenant_rejected(app_conn, two_tenant_seed) -> None:  # typ
     tenant_b = two_tenant_seed["tenant_b"]
 
     # Connect as tenant A but try to write into tenant B
-    app_conn.execute(text("SET LOCAL app.current_tenant = :tid"), {"tid": str(tenant_a)})
+    app_conn.execute(
+        text("SELECT set_config('app.current_tenant', :tid, true)"), {"tid": str(tenant_a)}
+    )
     new_id = uuid7()
     with pytest.raises(Exception, match="row-level security"):
         app_conn.execute(
@@ -145,11 +151,12 @@ def test_insert_wrong_tenant_rejected(app_conn, two_tenant_seed) -> None:  # typ
                 """
                 INSERT INTO members
                   (id, tenant_id, first_name, last_name, member_type,
-                   membership_status, swim_classification, created_at,
-                   updated_at, is_deleted)
+                   membership_status, swim_classification,
+                   email_opt_out, email_bounced, sms_opt_in,
+                   created_at, updated_at, is_deleted)
                 VALUES
                   (:id, :tid, 'Eve', 'X', 'ADULT',
-                   'ACTIVE', 'NONSWIMMER', NOW(), NOW(), false)
+                   'ACTIVE', 'NONSWIMMER', false, false, false, NOW(), NOW(), false)
                 """
             ),
             {"id": str(new_id), "tid": str(tenant_b)},

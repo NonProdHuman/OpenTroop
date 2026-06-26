@@ -93,11 +93,18 @@ def upgrade() -> None:
     # ── Grants ───────────────────────────────────────────────────────────────
     op.execute(sa.text("GRANT USAGE ON SCHEMA public TO opentroop_app"))
     op.execute(sa.text("GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO opentroop_app"))
+    op.execute(sa.text("GRANT USAGE ON SCHEMA public TO opentroop_admin"))
+    op.execute(sa.text("GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO opentroop_admin"))
 
     for table_name in _tracked_table_names():
         op.execute(
             sa.text(
                 f"GRANT SELECT, INSERT, UPDATE, DELETE ON {table_name} TO opentroop_app"  # noqa: S608
+            )
+        )
+        op.execute(
+            sa.text(
+                f"GRANT SELECT, INSERT, UPDATE, DELETE ON {table_name} TO opentroop_admin"  # noqa: S608
             )
         )
 
@@ -134,14 +141,15 @@ def downgrade() -> None:
         op.execute(sa.text(f"ALTER TABLE {table_name} DISABLE ROW LEVEL SECURITY"))
 
     op.execute(sa.text("REVOKE USAGE ON SCHEMA public FROM opentroop_app"))
-    op.execute(
-        sa.text("REVOKE USAGE ON ALL SEQUENCES IN SCHEMA public FROM opentroop_app")
-    )
+    op.execute(sa.text("REVOKE USAGE ON ALL SEQUENCES IN SCHEMA public FROM opentroop_app"))
+    op.execute(sa.text("REVOKE USAGE ON SCHEMA public FROM opentroop_admin"))
+    op.execute(sa.text("REVOKE USAGE ON ALL SEQUENCES IN SCHEMA public FROM opentroop_admin"))
     for table_name in _tracked_table_names():
         op.execute(
-            sa.text(
-                f"REVOKE SELECT, INSERT, UPDATE, DELETE ON {table_name} FROM opentroop_app"
-            )
+            sa.text(f"REVOKE SELECT, INSERT, UPDATE, DELETE ON {table_name} FROM opentroop_app")
+        )
+        op.execute(
+            sa.text(f"REVOKE SELECT, INSERT, UPDATE, DELETE ON {table_name} FROM opentroop_admin")
         )
 
     op.execute(sa.text("DROP ROLE IF EXISTS opentroop_app"))

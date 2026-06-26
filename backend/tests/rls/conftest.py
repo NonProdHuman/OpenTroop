@@ -79,8 +79,8 @@ def admin_conn(pg_engine: Engine):  # type: ignore[type-arg]
 
 
 @pytest.fixture
-def two_tenant_seed(owner_conn):  # type: ignore[type-arg]
-    """Seed two tenants with one member each; return (tenant_a_id, tenant_b_id)."""
+def two_tenant_seed(pg_engine: Engine):  # type: ignore[type-arg]
+    """Seed two tenants with one member each; committed so cross-connection queries see the data."""
     from uuid6 import uuid7
 
     tenant_a = uuid7()
@@ -88,41 +88,48 @@ def two_tenant_seed(owner_conn):  # type: ignore[type-arg]
     member_a = uuid7()
     member_b = uuid7()
     deleted_in_a = uuid7()
-    now = "NOW()"
 
-    owner_conn.execute(
-        text(
-            f"""
-            INSERT INTO tenants (id, name, slug, created_at, updated_at, is_deleted)
-            VALUES
-              ('{tenant_a}', 'Troop A', 'troop-a', {now}, {now}, false),
-              ('{tenant_b}', 'Troop B', 'troop-b', {now}, {now}, false)
-            """
+    with pg_engine.connect() as conn:
+        conn.execute(
+            text(
+                f"""
+                INSERT INTO tenants (id, name, slug, created_at, updated_at, is_deleted)
+                VALUES
+                  ('{tenant_a}', 'Troop A', 'troop-a', NOW(), NOW(), false),
+                  ('{tenant_b}', 'Troop B', 'troop-b', NOW(), NOW(), false)
+                """
+            )
         )
-    )
-    owner_conn.execute(
-        text(
-            f"""
-            INSERT INTO members
-              (id, tenant_id, first_name, last_name, member_type,
-               membership_status, swim_classification, email_opt_out,
-               created_at, updated_at, is_deleted)
-            VALUES
-              ('{member_a}', '{tenant_a}', 'Alice', 'A', 'ADULT',
-               'ACTIVE', 'NONSWIMMER', false, {now}, {now}, false),
-              ('{member_b}', '{tenant_b}', 'Bob',   'B', 'ADULT',
-               'ACTIVE', 'NONSWIMMER', false, {now}, {now}, false),
-              ('{deleted_in_a}', '{tenant_a}', 'Del', 'A', 'ADULT',
-               'ACTIVE', 'NONSWIMMER', false, {now}, {now}, true)
-            """
+        conn.execute(
+            text(
+                f"""
+                INSERT INTO members
+                  (id, tenant_id, first_name, last_name, member_type,
+                   membership_status, swim_classification,
+                   email_opt_out, email_bounced, sms_opt_in,
+                   created_at, updated_at, is_deleted)
+                VALUES
+                  ('{member_a}', '{tenant_a}', 'Alice', 'A', 'ADULT',
+                   'ACTIVE', 'NONSWIMMER', false, false, false, NOW(), NOW(), false),
+                  ('{member_b}', '{tenant_b}', 'Bob',   'B', 'ADULT',
+                   'ACTIVE', 'NONSWIMMER', false, false, false, NOW(), NOW(), false),
+                  ('{deleted_in_a}', '{tenant_a}', 'Del', 'A', 'ADULT',
+                   'ACTIVE', 'NONSWIMMER', false, false, false, NOW(), NOW(), true)
+                """
+            )
         )
-    )
-    owner_conn.execute(text("SAVEPOINT seed_done"))
+        conn.commit()
 
-    return {
+    seed = {
         "tenant_a": tenant_a,
         "tenant_b": tenant_b,
         "member_a": member_a,
         "member_b": member_b,
         "deleted_in_a": deleted_in_a,
     }
+    yield seed
+
+    with pg_engine.connect() as conn:
+        conn.execute(text(f"DELETE FROM members WHERE tenant_id IN ('{tenant_a}', '{tenant_b}')"))
+        conn.execute(text(f"DELETE FROM tenants WHERE id IN ('{tenant_a}', '{tenant_b}')"))
+        conn.commit()
