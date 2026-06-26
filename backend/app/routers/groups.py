@@ -33,9 +33,7 @@ router = APIRouter(prefix="/groups", tags=["groups"])
     "/", response_model=list[GroupRead], dependencies=[Depends(require(Permission.MEMBER_READ))]
 )
 def list_groups(tenant_id: TenantDep, db: DbDep) -> Sequence[Group]:
-    return db.scalars(
-        select(Group).where(Group.tenant_id == tenant_id, Group.is_deleted.is_(False))
-    ).all()
+    return db.scalars(select(Group).where(Group.is_deleted.is_(False))).all()
 
 
 @router.post(
@@ -47,7 +45,6 @@ def list_groups(tenant_id: TenantDep, db: DbDep) -> Sequence[Group]:
 def create_group(body: GroupCreate, tenant_id: TenantDep, db: DbDep) -> Group:
     existing = db.scalar(
         select(Group).where(
-            Group.tenant_id == tenant_id,
             Group.name == body.name,
             Group.is_deleted.is_(False),
         )
@@ -116,11 +113,7 @@ def list_group_members(group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> 
     if not member_ids:
         return []
     return db.scalars(
-        select(Member).where(
-            Member.id.in_(member_ids),
-            Member.tenant_id == tenant_id,
-            Member.is_deleted.is_(False),
-        )
+        select(Member).where(Member.id.in_(member_ids), Member.is_deleted.is_(False))
     ).all()
 
 
@@ -166,7 +159,7 @@ def add_group_member(
         )
 
     if group.group_type is GroupType.PATROL:
-        _clear_patrol_membership(db, tenant_id, body.member_id)
+        _clear_patrol_membership(db, body.member_id)
 
     gm = GroupMember(tenant_id=tenant_id, group_id=group_id, member_id=body.member_id)
     db.add(gm)
@@ -188,7 +181,6 @@ def remove_group_member(
         select(GroupMember).where(
             GroupMember.group_id == group_id,
             GroupMember.member_id == member_id,
-            GroupMember.tenant_id == tenant_id,
             GroupMember.is_deleted.is_(False),
         )
     )
@@ -265,7 +257,6 @@ def remove_group_rule(
         select(GroupRoleRule).where(
             GroupRoleRule.group_id == group_id,
             GroupRoleRule.role_id == role_id,
-            GroupRoleRule.tenant_id == tenant_id,
             GroupRoleRule.is_deleted.is_(False),
         )
     )
@@ -275,14 +266,13 @@ def remove_group_rule(
     db.commit()
 
 
-def _clear_patrol_membership(db: DbDep, tenant_id: uuid.UUID, member_id: uuid.UUID) -> None:
+def _clear_patrol_membership(db: DbDep, member_id: uuid.UUID) -> None:
     """Soft-delete a member's existing PATROL-group memberships (one patrol per member)."""
     rows = db.scalars(
         select(GroupMember)
         .join(Group, Group.id == GroupMember.group_id)
         .where(
             GroupMember.member_id == member_id,
-            GroupMember.tenant_id == tenant_id,
             GroupMember.is_deleted.is_(False),
             Group.group_type == GroupType.PATROL,
         )

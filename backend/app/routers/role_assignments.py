@@ -25,10 +25,7 @@ def list_role_assignments(
     member_id: Annotated[uuid.UUID | None, Query()] = None,
     role_id: Annotated[uuid.UUID | None, Query()] = None,
 ) -> Sequence[MemberRoleAssignment]:
-    q = select(MemberRoleAssignment).where(
-        MemberRoleAssignment.tenant_id == tenant_id,
-        MemberRoleAssignment.is_deleted.is_(False),
-    )
+    q = select(MemberRoleAssignment).where(MemberRoleAssignment.is_deleted.is_(False))
     if member_id is not None:
         q = q.where(MemberRoleAssignment.member_id == member_id)
     if role_id is not None:

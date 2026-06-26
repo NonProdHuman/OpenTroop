@@ -1,15 +1,40 @@
 from collections.abc import Generator
 from typing import Any
 
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import Engine, create_engine, event, text
 from sqlalchemy.orm import ORMExecuteState, Session, sessionmaker, with_loader_criteria
 
 from app.core.config import settings
-from app.core.tenant_context import bypass_active, current_tenant
+from app.core.tenant_context import bypass_active, current_tenant, unscoped
 from app.models.base import TrackedBase
 
 engine = create_engine(settings.database_url, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+
+# Admin engine: lazy, created on first call to get_admin_db().
+# Points at opentroop_admin (BYPASSRLS) for cross-tenant platform operations.
+# Never created at import time so tenant-only processes that import database.py
+# without DATABASE_URL_ADMIN set don't fail and don't open a bypass connection.
+_admin_engine = None
+_AdminSessionLocal = None
+
+
+def _get_admin_engine() -> Engine:
+    """Return the admin engine, creating it lazily on first call."""
+    global _admin_engine, _AdminSessionLocal
+    if _admin_engine is None:
+        url = settings.database_url_admin
+        if not url:
+            raise RuntimeError(
+                "DATABASE_URL_ADMIN is not configured. "
+                "Set it to the opentroop_admin connection string (BYPASSRLS role). "
+                "Self-hosted deployments may point it at the same URL as DATABASE_URL."
+            )
+        _admin_engine = create_engine(url, pool_size=2, future=True)
+        _AdminSessionLocal = sessionmaker(
+            bind=_admin_engine, autoflush=False, autocommit=False, future=True
+        )
+    return _admin_engine
 
 
 @event.listens_for(Session, "after_begin")
@@ -79,5 +104,22 @@ def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:
         yield db
+    finally:
+        db.close()
+
+
+def get_admin_db() -> Generator[Session, None, None]:
+    """FastAPI dependency yielding a BYPASSRLS admin session inside unscoped().
+
+    Routes using AdminDbDep operate on the opentroop_admin role (BYPASSRLS) and
+    have the app-layer tenant filter disabled for the duration of the request.
+    Use only from platform control-plane routes — never from tenant-scoped paths.
+    """
+    _get_admin_engine()  # raises loudly if DATABASE_URL_ADMIN is not set
+    assert _AdminSessionLocal is not None  # noqa: S101 — ensured by _get_admin_engine
+    db = _AdminSessionLocal()
+    try:
+        with unscoped():
+            yield db
     finally:
         db.close()

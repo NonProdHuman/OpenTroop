@@ -32,9 +32,7 @@ router = APIRouter(tags=["roles"])
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
 def list_roles(tenant_id: TenantDep, db: DbDep) -> Sequence[Role]:
-    return db.scalars(
-        select(Role).where(Role.tenant_id == tenant_id, Role.is_deleted.is_(False))
-    ).all()
+    return db.scalars(select(Role).where(Role.is_deleted.is_(False))).all()
 
 
 @router.post(
@@ -115,7 +113,6 @@ def list_role_permissions(
     return db.scalars(
         select(RolePermission).where(
             RolePermission.role_id == role_id,
-            RolePermission.tenant_id == tenant_id,
             RolePermission.is_deleted.is_(False),
         )
     ).all()
@@ -162,12 +159,7 @@ def remove_role_permission(
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
 def list_role_memberships(tenant_id: TenantDep, db: DbDep) -> Sequence[RoleMembership]:
-    return db.scalars(
-        select(RoleMembership).where(
-            RoleMembership.tenant_id == tenant_id,
-            RoleMembership.is_deleted.is_(False),
-        )
-    ).all()
+    return db.scalars(select(RoleMembership).where(RoleMembership.is_deleted.is_(False))).all()
 
 
 @router.post(

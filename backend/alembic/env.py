@@ -9,7 +9,10 @@ from app.core.config import settings
 from app.models import Base
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Use the dedicated migration URL (table owner + BYPASSRLS) when configured;
+# fall back to DATABASE_URL for local dev and self-hosted deployments.
+_migrate_url = settings.database_url_migrate or settings.database_url
+config.set_main_option("sqlalchemy.url", _migrate_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

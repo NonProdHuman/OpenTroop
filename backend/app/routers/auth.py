@@ -83,11 +83,7 @@ def get_session(user: CurrentUserDep, tenant_id: TenantDep, db: DbDep) -> Sessio
     Protected actions still 403 via require() on their own routes.
     """
     member = db.scalar(
-        select(Member).where(
-            Member.user_id == user.id,
-            Member.tenant_id == tenant_id,
-            Member.is_deleted.is_(False),
-        )
+        select(Member).where(Member.user_id == user.id, Member.is_deleted.is_(False))
     )
 
     if member is None:
@@ -107,7 +103,6 @@ def get_session(user: CurrentUserDep, tenant_id: TenantDep, db: DbDep) -> Sessio
         db.scalars(
             select(Role).where(
                 Role.id.in_(direct_role_ids),
-                Role.tenant_id == tenant_id,
                 Role.is_deleted.is_(False),
             )
         ).all()
