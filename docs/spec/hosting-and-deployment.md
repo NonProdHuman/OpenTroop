@@ -71,3 +71,19 @@ Secrets will not be baked into containers.
 ## Local vs. Production Parity
 
 While production runs on Cloud Run and Neon, local development will continue to use standard Docker Compose (`start.sh`) with a local Postgres container. The code executing in the Cloud Run containers is identical to the code running locally, differing only via environment variables mapping to the managed services.
+
+## DNS & Multi-Tenant Routing (Cloudflare)
+
+OpenTroop uses a dynamic subdomain model (`[tenant-slug].opentroop.app`). Because GCP Cloud Run does not natively support wildcard domain mappings without an expensive load balancer, we use **Cloudflare** as a reverse proxy to handle routing at $0/month.
+
+### Architecture
+1. **DNS Records:**
+   * A wildcard `CNAME` record (`*.opentroop.app`) and apex record (`opentroop.app`) point to Cloudflare.
+2. **Cloudflare Worker (The Proxy):**
+   * A free Cloudflare Worker intercepts requests to the apex domain and all subdomains.
+   * It rewrites the destination URL to point to the raw Cloud Run URL (`https://opentroop-web-xxxxx.run.app`).
+   * **Crucially**, it injects an `X-Forwarded-Host` header containing the original domain (e.g., `troop666.opentroop.app` or `opentroop.app`).
+3. **Application Routing:**
+   * The Next.js frontend and FastAPI backend read the `X-Forwarded-Host` header to determine the tenant context.
+   * If the host is the apex domain (`opentroop.app`), the frontend serves the global landing page, auth flow, and tenant picker dashboard.
+   * If the host is a tenant subdomain, it serves the troop-specific application.
