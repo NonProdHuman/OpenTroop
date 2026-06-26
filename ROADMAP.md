@@ -122,6 +122,7 @@ Model events generically with typed metadata rather than one-size-fits-all field
 - [x] Event costs (separate youth/adult pricing — `cost_youth` / `cost_adult`)
 - [ ] Packing lists — deferred (feature creep risk before UI exists)
 - [ ] Digital permission slips (fillable forms attached to events; parent signature flow)
+- [ ] Parent-authorized RSVP & Permission flow — parental approval/permission slip integration for specific event types (e.g. high-adventure campouts, out-of-state trips) before RSVP is confirmed
 - [ ] Health form collection and storage (per-event or per-member)
 - [~] Calendar view — month grid done (`apps/web/.../events`, List/Calendar toggle);
       weekly/day views (calendar library swap) still pending

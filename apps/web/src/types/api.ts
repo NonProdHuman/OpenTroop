@@ -284,3 +284,8 @@ export interface PlatformAdminGrantInput {
   email: string
   role: PlatformRole
 }
+
+export interface CalendarSubscriptionRead {
+  token: string
+  feed_path: string
+}
