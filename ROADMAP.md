@@ -259,6 +259,71 @@ a Text-to-SQL layer lets any leader ask questions in plain English.
 
 ---
 
+## Web Application Shell & Navigation
+
+The web app is scaffolded with a **flat** sidebar (Members, Groups, Events, Import,
+Settings). As the pillars above grow into many pages, the shell needs structure. The
+information architecture — the three navigation shells, and the rule for sidebar
+sub-navigation vs. in-page tabs — is specified in
+[`docs/spec/navigation.md`](docs/spec/navigation.md). In short:
+
+- **Authenticated app** — left sidebar; collapsible groups for *destinations*, in-page
+  tabs for *lenses on the same data*. This is the backbone.
+- **Platform console** — existing top-tab shell at `/platform` (global admins). As-is.
+- **Public troop website** — a separate, troop-branded shell for unauthenticated
+  visitors and a logged-in member view; *edited* from inside the app (see Content
+  Management below). Not a sidebar section.
+
+App-shell work not already tracked under a pillar:
+
+- [ ] Collapsible, permission-filtered sidebar with sub-navigation (drives off
+      `resolve_permissions`, extends the `isPlatformAdmin` pattern in `app-sidebar.tsx`)
+- [ ] **Home / dashboard** landing (announcements feed, upcoming events, my action
+      items) — replaces today's redirect-to-Members default
+- [ ] **Roles & permissions** management UI (RBAC backend exists; no surface yet)
+- [ ] **Bulk editing** — bulk medical-form dates and other mass member updates
+      (Members → Bulk edit)
+- [ ] **Parent ("My Family") views** — permission-scoped views inside Members and
+      Advancement so a parent manages their own scouts' info and advancement; not a
+      separate section
+- [ ] **Resources** — troop document & link library
+- [ ] **Photo gallery** — event-linked albums (Events → Gallery)
+
+## Additional Domains (Future / Undesigned)
+
+New domains surfaced for parity but not yet modelled. Per "data model before UI," each
+needs a schema spec (a `TrackedBase` subclass design) before any surface is built.
+
+### Money / Treasury
+
+Treasurer tools: per-scout account balances, transactions (dues, fundraiser credits,
+event charges), invoices, and budget tracking. Previously listed only as a Phase-1
+scope *exclusion*; it belongs on the roadmap as a later phase.
+
+- [ ] Data-model spec (accounts, ledger entries, charges tied to events)
+- [ ] Scout account balances + transaction history
+- [ ] Invoices / statements; budget views
+
+### Inventory / Equipment
+
+Track troop-owned equipment and who it is checked out to.
+
+- [ ] Data-model spec (equipment items, assignments/check-out, condition/history)
+- [ ] Equipment registry + per-member assignment / check-out flow
+
+### Content Management / Public Website (Pillar 4 adjacency)
+
+OpenTroop should double as the troop's public web presence — like TWH, serving content
+to both authenticated members and anonymous visitors, with visibility varying by
+audience. Pages are simple but their content varies per troop, so this is a lightweight
+CMS, not a page builder.
+
+- [ ] Data-model spec (content blocks/pages, public vs. member-only visibility)
+- [ ] Public shell + per-troop theming
+- [ ] In-app editing surface (Settings → Website content)
+
+---
+
 ## Mobile Applications
 
 Native iOS and Android apps are the offline-sync clients for Pillars 1–3.
