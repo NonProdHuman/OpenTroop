@@ -139,9 +139,7 @@ def claim_member(body: _ClaimRequest, user: CurrentUserDep, db: DbDep) -> Member
     with unscoped():
         member = db.get(Member, member_id)
         if member is None or member.tenant_id != tenant_id or member.is_deleted:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Member not found"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
 
         if member.user_id is not None:
             if member.user_id == user.id:

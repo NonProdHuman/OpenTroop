@@ -81,9 +81,7 @@ def test_all_tracked_tables_have_isolation_policy(owner_conn) -> None:  # type: 
     policy_tables = {r[0] for r in rows}
 
     missing = expected - policy_tables
-    assert not missing, (
-        f"TrackedBase tables without tenant_isolation policy: {sorted(missing)}"
-    )
+    assert not missing, f"TrackedBase tables without tenant_isolation policy: {sorted(missing)}"
 
 
 # ── Tenant isolation ──────────────────────────────────────────────────────────
@@ -95,16 +93,12 @@ def test_app_role_sees_only_own_tenant(app_conn, two_tenant_seed) -> None:  # ty
     member_a = two_tenant_seed["member_a"]
     member_b = two_tenant_seed["member_b"]
 
-    app_conn.execute(
-        text("SET LOCAL app.current_tenant = :tid"), {"tid": str(tenant_a)}
-    )
+    app_conn.execute(text("SET LOCAL app.current_tenant = :tid"), {"tid": str(tenant_a)})
     rows = app_conn.execute(text("SELECT id FROM members")).fetchall()
     ids = {r[0] for r in rows}
 
     assert str(member_a) in ids or member_a in ids, "Tenant A member should be visible"
-    assert str(member_b) not in ids and member_b not in ids, (
-        "Tenant B member must not be visible"
-    )
+    assert str(member_b) not in ids and member_b not in ids, "Tenant B member must not be visible"
 
 
 def test_no_guc_returns_zero_rows(app_conn, two_tenant_seed) -> None:  # type: ignore[type-arg]
@@ -129,12 +123,8 @@ def test_tombstones_visible_within_tenant(app_conn, two_tenant_seed) -> None:  #
     tenant_a = two_tenant_seed["tenant_a"]
     deleted_in_a = two_tenant_seed["deleted_in_a"]
 
-    app_conn.execute(
-        text("SET LOCAL app.current_tenant = :tid"), {"tid": str(tenant_a)}
-    )
-    rows = app_conn.execute(
-        text("SELECT id FROM members WHERE is_deleted = true")
-    ).fetchall()
+    app_conn.execute(text("SET LOCAL app.current_tenant = :tid"), {"tid": str(tenant_a)})
+    rows = app_conn.execute(text("SELECT id FROM members WHERE is_deleted = true")).fetchall()
     ids = {str(r[0]) for r in rows}
     assert str(deleted_in_a) in ids, "Tombstone must be visible to sync pull"
 
@@ -147,9 +137,7 @@ def test_insert_wrong_tenant_rejected(app_conn, two_tenant_seed) -> None:  # typ
     tenant_b = two_tenant_seed["tenant_b"]
 
     # Connect as tenant A but try to write into tenant B
-    app_conn.execute(
-        text("SET LOCAL app.current_tenant = :tid"), {"tid": str(tenant_a)}
-    )
+    app_conn.execute(text("SET LOCAL app.current_tenant = :tid"), {"tid": str(tenant_a)})
     new_id = uuid7()
     with pytest.raises(Exception, match="row-level security"):
         app_conn.execute(

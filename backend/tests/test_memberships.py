@@ -86,9 +86,7 @@ class TestGetMemberships:
         assert str(TENANT_A) in tenant_ids
         assert str(TENANT_B) in tenant_ids
 
-    def test_is_admin_flag_set_correctly(
-        self, client: TestClient, db_session: Session
-    ) -> None:
+    def test_is_admin_flag_set_correctly(self, client: TestClient, db_session: Session) -> None:
         """is_admin reflects whether the member holds an admin role.
 
         TENANT_A member (seeded by client fixture) is already an admin.
@@ -138,9 +136,7 @@ class TestGetMemberships:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    def test_suspended_tenant_excluded(
-        self, claim_client: TestClient, db_session: Session
-    ) -> None:
+    def test_suspended_tenant_excluded(self, claim_client: TestClient, db_session: Session) -> None:
         """Suspended tenants are excluded from the switchable list."""
         tenant_id = uuid.UUID("50000000-0000-0000-0000-000000000005")
         t = Tenant(id=tenant_id, name="Suspended", slug="suspended-troop")
@@ -154,17 +150,13 @@ class TestGetMemberships:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    def test_empty_list_for_user_with_no_memberships(
-        self, claim_client: TestClient
-    ) -> None:
+    def test_empty_list_for_user_with_no_memberships(self, claim_client: TestClient) -> None:
         """A user with no member rows gets an empty list (not an error)."""
         resp = claim_client.get("/auth/memberships")
         assert resp.status_code == 200
         assert resp.json() == []
 
-    def test_response_shape(
-        self, client: TestClient, db_session: Session
-    ) -> None:
+    def test_response_shape(self, client: TestClient, db_session: Session) -> None:
         """Response items contain the documented fields."""
         _seed_tenant(db_session, TENANT_A, "Troop A", "troop-a")
         db_session.commit()
