@@ -91,9 +91,12 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
   const isDynamic = group.group_type === "dynamic"
   const isSystem = group.is_system
   const memberIds = new Set(members.map((m) => m.id))
-  const addableMembers = allMembers.filter(
-    (m) => !m.is_deleted && !memberIds.has(m.id),
-  )
+  const addableMembers = allMembers.filter((m) => {
+    if (m.is_deleted) return false
+    if (memberIds.has(m.id)) return false
+    if (group.group_type === "patrol" && m.member_type === "adult") return false
+    return true
+  })
 
   function handleEdit() {
     onOpenChange(false)

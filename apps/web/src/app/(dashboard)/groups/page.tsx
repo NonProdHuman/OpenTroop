@@ -322,9 +322,12 @@ function AddMemberDialog({
   const addMember = useAddGroupMember()
 
   const memberIds = new Set(members.map((m) => m.id))
-  const addableMembers = allMembers.filter(
-    (m) => !m.is_deleted && !memberIds.has(m.id),
-  )
+  const addableMembers = allMembers.filter((m) => {
+    if (m.is_deleted) return false
+    if (memberIds.has(m.id)) return false
+    if (group.group_type === "patrol" && m.member_type === "adult") return false
+    return true
+  })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
