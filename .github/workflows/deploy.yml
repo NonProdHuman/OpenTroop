@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions UI
 
 env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID || vars.PROJECT_ID || 'opentroop' }}
