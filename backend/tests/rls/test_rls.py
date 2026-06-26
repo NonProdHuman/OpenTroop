@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import text
 
-import app.models  # noqa: F401 — register all tables on Base.metadata
+import app.models as _models  # noqa: F401 — side-effect import; registers ORM classes on TrackedBase
 from app.models.base import TrackedBase
 
 # ── Policy completeness ───────────────────────────────────────────────────────

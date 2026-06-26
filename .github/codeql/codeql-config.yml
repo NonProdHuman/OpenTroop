@@ -1,0 +1,6 @@
+paths-ignore:
+  # Alembic auto-generated migration files use module-level variables
+  # (revision, down_revision, branch_labels, depends_on) that are read by
+  # Alembic's loader via getattr — not direct references — so CodeQL
+  # incorrectly flags them as unused globals.
+  - backend/alembic/versions
