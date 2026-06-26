@@ -146,9 +146,12 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
   const isDynamic = group.group_type === "dynamic"
   const memberIds = new Set(members.map((m) => m.id))
 
-  const addableMembers = allMembers.filter(
-    (m) => !m.is_deleted && !memberIds.has(m.id),
-  )
+  const addableMembers = allMembers.filter((m) => {
+    if (m.is_deleted) return false
+    if (memberIds.has(m.id)) return false
+    if (type === "patrol" && m.member_type === "adult") return false
+    return true
+  })
 
   const roleById = new Map(allRoles.map((r) => [r.id, r.name]))
 

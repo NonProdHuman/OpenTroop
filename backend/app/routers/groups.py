@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from app.core.deps import DbDep, TenantDep, get_or_404, require, require_tenant_fk
 from app.core.groups import resolve_group_members
-from app.models.enums import GroupType, Permission
+from app.models.enums import GroupType, MemberType, Permission
 from app.models.group import Group, GroupMember, GroupRoleRule
 from app.models.member import Member
 from app.models.role import Role
@@ -151,6 +151,19 @@ def add_group_member(
     )
     if existing is not None:
         return existing
+
+    member = db.get(Member, body.member_id)
+    if member is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Member not found",
+        )
+
+    if group.group_type is GroupType.PATROL and member.member_type is MemberType.ADULT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Adults cannot be members of a patrol",
+        )
 
     if group.group_type is GroupType.PATROL:
         _clear_patrol_membership(db, tenant_id, body.member_id)

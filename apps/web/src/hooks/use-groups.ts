@@ -98,6 +98,32 @@ export function useMemberGroups(memberId: string | null) {
   }, [memberId, groups, memberResults])
 }
 
+/** Returns a Map<memberId, Group[]> built from all active groups. */
+export function useGroupMemberships(): Map<string, Group[]> {
+  const { request } = useApi()
+  const { data: groups = [] } = useGroups()
+
+  const memberResults = useQueries({
+    queries: groups.map((group) => ({
+      queryKey: ["group-members", group.id],
+      queryFn: () => request<Member[]>(`/groups/${group.id}/members`),
+    })),
+  })
+
+  return useMemo(() => {
+    const map = new Map<string, Group[]>()
+    groups.forEach((group, i) => {
+      const members = memberResults[i]?.data ?? []
+      members.forEach((m) => {
+        const existing = map.get(m.id) ?? []
+        map.set(m.id, [...existing, group])
+      })
+    })
+    return map
+  }, [groups, memberResults])
+}
+
+
 export function useCreateGroup() {
   const { request } = useApi()
   const queryClient = useQueryClient()
@@ -143,8 +169,10 @@ export function useAddGroupMember() {
         method: "POST",
         body: JSON.stringify({ member_id: memberId }),
       }),
-    onSuccess: (_data, { groupId }) => {
-      queryClient.invalidateQueries({ queryKey: ["group-members", groupId] })
+    onSuccess: () => {
+      // Invalidate ALL group-member caches: the backend may silently remove
+      // the member from a previous patrol, so every cached list could be stale.
+      queryClient.invalidateQueries({ queryKey: ["group-members"] })
     },
   })
 }
@@ -155,8 +183,9 @@ export function useRemoveGroupMember() {
   return useMutation({
     mutationFn: ({ groupId, memberId }: { groupId: string; memberId: string }) =>
       request(`/groups/${groupId}/members/${memberId}`, { method: "DELETE" }),
-    onSuccess: (_data, { groupId }) => {
-      queryClient.invalidateQueries({ queryKey: ["group-members", groupId] })
+    onSuccess: () => {
+      // Invalidate ALL group-member caches for consistency.
+      queryClient.invalidateQueries({ queryKey: ["group-members"] })
     },
   })
 }

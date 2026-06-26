@@ -128,7 +128,12 @@ def _parse_datetime(value: str, tz: tzinfo = UTC) -> datetime | None:
         naive = datetime.strptime(value, "%m/%d/%Y %I:%M:%S %p")
     except ValueError:
         return None
-    return naive.replace(tzinfo=tz).astimezone(UTC)
+    aware = naive.replace(tzinfo=tz)
+    if aware.utcoffset() is None:
+        # ZoneInfo couldn't resolve an offset (e.g. ambiguous fold time);
+        # fall back to treating the wall-clock as UTC.
+        aware = naive.replace(tzinfo=UTC)
+    return aware.astimezone(UTC)
 
 
 def _parse_decimal(elem: ET.Element, tag: str) -> Decimal | None:
