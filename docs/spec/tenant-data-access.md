@@ -1,6 +1,10 @@
 # Tenant-Scoped Data Access Spec
 
-**Status:** Draft
+**Status:** In progress — steps 1–2 of the migration path landed (the
+`app/core/tenant_context.py` primitives, the two `Session` event listeners, and the
+`get_scoped_tenant_id` dependency wiring). The automatic layer now runs alongside the
+existing explicit filters as belt-and-suspenders. Step 3 (removing the redundant
+hand-written predicates) and step 4 (the `unscoped()` lint) remain.
 **Scope:** Backend data layer (`app/core/database.py`, `app/core/deps.py`, all routers)
 **Pillars:** Roster & Relationships (Pillar 1) — multi-tenant foundation
 **Related:** [`postgres-rls.md`](postgres-rls.md) (DB-layer backstop),
@@ -148,10 +152,13 @@ Everything else inherits automatic scoping and never thinks about it.
 
 This is a behavior-preserving refactor that can land incrementally:
 
-1. Add `tenant_context.py`, the dependency wiring, and the two event listeners.
+1. ✅ Add `tenant_context.py`, the dependency wiring, and the two event listeners.
    With the ContextVar set, existing explicit filters become **redundant but harmless**
-   (the same predicate applied twice).
-2. Verify the full suite still passes with both layers active (belt-and-suspenders).
+   (the same predicate applied twice). *The setting dependency is `async` so the
+   ContextVar token is set and reset in the same request context — a sync `yield`
+   dependency would run setup and teardown in different threadpool contexts and raise
+   `ValueError` on reset.*
+2. ✅ Verify the full suite still passes with both layers active (belt-and-suspenders).
 3. Remove the now-redundant hand-written `tenant_id ==` predicates router by router,
    relying on the automatic layer. Keep `get_or_404`'s tenant check until RLS lands,
    then it too becomes a backstop.
