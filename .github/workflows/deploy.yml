@@ -6,11 +6,11 @@ on:
       - main
 
 env:
-  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-  REGION: ${{ vars.GCP_REGION }}
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID || vars.PROJECT_ID || 'opentroop' }}
+  REGION: ${{ vars.GCP_REGION || vars.REGION || 'us-central1' }}
   AR_REPO: opentroop-containers
-  BACKEND_IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/opentroop-containers/opentroop-api:${{ github.sha }}
-  FRONTEND_IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/opentroop-containers/opentroop-web:${{ github.sha }}
+  BACKEND_IMAGE: ${{ vars.GCP_REGION || vars.REGION || 'us-central1' }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID || vars.PROJECT_ID || 'opentroop' }}/opentroop-containers/opentroop-api:${{ github.sha }}
+  FRONTEND_IMAGE: ${{ vars.GCP_REGION || vars.REGION || 'us-central1' }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID || vars.PROJECT_ID || 'opentroop' }}/opentroop-containers/opentroop-web:${{ github.sha }}
 
 jobs:
   build-and-deploy:
@@ -30,8 +30,8 @@ jobs:
         id: auth
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER || secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT || secrets.SERVICE_ACCOUNT }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
