@@ -1,5 +1,5 @@
 import uuid
-from collections.abc import Callable
+from collections.abc import AsyncGenerator, Callable
 from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException
@@ -10,12 +10,32 @@ from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.core.permissions import resolve_permissions
 from app.core.tenant import get_tenant_id
+from app.core.tenant_context import reset_current_tenant, set_current_tenant
 from app.models.base import TrackedBase
 from app.models.enums import Permission, PlatformRole
 from app.models.member import Member
 from app.models.user import User
 
-TenantDep = Annotated[uuid.UUID, Depends(get_tenant_id)]
+
+async def get_scoped_tenant_id(
+    tenant_id: Annotated[uuid.UUID, Depends(get_tenant_id)],
+) -> AsyncGenerator[uuid.UUID, None]:
+    """Resolve the request tenant and publish it to the current-tenant context.
+
+    Layered on top of ``get_tenant_id`` so every route using ``TenantDep`` — plus
+    ``require()`` and ``get_current_member`` — automatically scopes its ORM queries
+    and write stamping to this tenant (see ``docs/spec/tenant-data-access.md``). The
+    token is reset when the request ends, so the context never leaks across requests.
+    Overriding ``get_tenant_id`` in tests still flows through here unchanged.
+    """
+    token = set_current_tenant(tenant_id)
+    try:
+        yield tenant_id
+    finally:
+        reset_current_tenant(token)
+
+
+TenantDep = Annotated[uuid.UUID, Depends(get_scoped_tenant_id)]
 DbDep = Annotated[Session, Depends(get_db)]
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 

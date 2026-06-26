@@ -30,6 +30,8 @@ import {
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 import { useMe } from "@/hooks/use-me"
+import { usePermissions } from "@/hooks/use-session"
+import type { Permission } from "@/types/api"
 
 /**
  * Navigation registry. The sidebar follows the hybrid IA model
@@ -37,25 +39,26 @@ import { useMe } from "@/hooks/use-me"
  * or **collapsible groups** whose children are destinations. In-page tabs (e.g.
  * the Events list/calendar toggle) handle "lenses on the same data" separately.
  */
-type NavChild = { title: string; url: string }
+type NavChild = { title: string; url: string; requires?: Permission }
 type NavItem = {
   title: string
   icon: LucideIcon
   /** Leaf link target. Omitted for pure groups (which only expand/collapse). */
   url?: string
+  requires?: Permission
   children?: NavChild[]
 }
 
 const navItems: NavItem[] = [
-  { title: "Members", url: "/members", icon: UserRound },
-  { title: "Groups", url: "/groups", icon: Shield },
-  { title: "Events", url: "/events", icon: CalendarDays },
+  { title: "Members", url: "/members", icon: UserRound, requires: "member:read" },
+  { title: "Groups", url: "/groups", icon: Shield, requires: "member:read" },
+  { title: "Events", url: "/events", icon: CalendarDays, requires: "event:read" },
   {
     title: "Admin",
     icon: Settings2,
     children: [
-      { title: "Settings", url: "/settings" },
-      { title: "Import", url: "/import" },
+      { title: "Settings", url: "/settings", requires: "role:manage" },
+      { title: "Import", url: "/import", requires: "member:write" },
     ],
   },
 ]
@@ -71,6 +74,7 @@ export function AppSidebar() {
   const pathname = usePathname()
   const { data: me } = useMe()
   const isPlatformAdmin = Boolean(me?.platform_role)
+  const { has } = usePermissions()
 
   const isActive = (url: string) => pathname === url || pathname.startsWith(url + "/")
   const groupActive = (item: NavItem) => item.children?.some((c) => isActive(c.url)) ?? false
@@ -101,8 +105,13 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarMenu>
-          {navItems.map((item) =>
-            item.children ? (
+          {navItems.map((item) => {
+            if (item.requires && !has(item.requires)) return null
+            const visibleChildren = item.children?.filter(
+              (c) => !c.requires || has(c.requires),
+            )
+            if (item.children && visibleChildren?.length === 0) return null
+            return item.children ? (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
                   onClick={() => toggle(item)}
@@ -118,7 +127,7 @@ export function AppSidebar() {
                 </SidebarMenuButton>
                 {isOpen(item) ? (
                   <SidebarMenuSub>
-                    {item.children.map((child) => (
+                    {visibleChildren!.map((child) => (
                       <SidebarMenuSubItem key={child.title}>
                         <SidebarMenuSubButton
                           render={<Link href={child.url} />}
@@ -142,8 +151,8 @@ export function AppSidebar() {
                   <span>{item.title}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            ),
-          )}
+            )
+          })}
 
           {isPlatformAdmin && (
             <SidebarMenuItem>

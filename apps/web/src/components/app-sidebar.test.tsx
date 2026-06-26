@@ -27,13 +27,26 @@ vi.mock("@/hooks/use-me", () => ({
   useMe: vi.fn(() => ({ data: undefined })),
 }))
 
+vi.mock("@/hooks/use-session", () => ({
+  usePermissions: vi.fn(() => ({ has: () => true, isMember: true, isLoading: false })),
+}))
+
 import { usePathname } from "next/navigation"
 import { useMe } from "@/hooks/use-me"
+import { usePermissions } from "@/hooks/use-session"
 import { AppSidebar } from "./app-sidebar"
 import { SidebarProvider } from "./ui/sidebar"
 
 function mockMe(value: unknown) {
   vi.mocked(useMe).mockReturnValue(value as ReturnType<typeof useMe>)
+}
+
+function mockPermissions(has: (p: string) => boolean) {
+  vi.mocked(usePermissions).mockReturnValue({
+    has: has as ReturnType<typeof usePermissions>["has"],
+    isMember: true,
+    isLoading: false,
+  })
 }
 
 function renderSidebar() {
@@ -48,6 +61,12 @@ describe("AppSidebar", () => {
   beforeEach(() => {
     // Reset to a non-Admin route so the Admin group starts collapsed.
     vi.mocked(usePathname).mockReturnValue("/members")
+    // Default: all permissions granted
+    vi.mocked(usePermissions).mockReturnValue({
+      has: () => true,
+      isMember: true,
+      isLoading: false,
+    })
   })
 
   it("renders the top-level nav items", () => {
@@ -124,5 +143,21 @@ describe("AppSidebar", () => {
     renderSidebar()
     const link = screen.getByText("Platform").closest("a")
     expect(link).toHaveAttribute("href", "/platform")
+  })
+
+  it("hides nav items whose required permission is absent", () => {
+    mockPermissions((p) => p !== "member:read")
+    renderSidebar()
+    expect(screen.queryByText("Members")).not.toBeInTheDocument()
+    expect(screen.queryByText("Groups")).not.toBeInTheDocument()
+    // Events requires event:read which is granted
+    expect(screen.getByText("Events")).toBeInTheDocument()
+  })
+
+  it("shows nav items when the required permission is present", () => {
+    mockPermissions(() => true)
+    renderSidebar()
+    expect(screen.getByText("Members")).toBeInTheDocument()
+    expect(screen.getByText("Events")).toBeInTheDocument()
   })
 })

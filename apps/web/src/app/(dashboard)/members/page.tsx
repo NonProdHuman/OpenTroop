@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { usePermissions } from "@/hooks/use-session"
 import { useMembers } from "@/hooks/use-members"
 import { useGroups, useGroupMemberships } from "@/hooks/use-groups"
 import { useRoles } from "@/hooks/use-roles"
@@ -17,6 +18,7 @@ import type { Member, MemberStatus, MemberType } from "@/types/api"
 
 export default function MembersPage() {
   const router = useRouter()
+  const { has } = usePermissions()
   const { data: members = [], isLoading: membersLoading } = useMembers()
   const { data: groups = [] } = useGroups()
   const { data: roles = [] } = useRoles()
@@ -101,10 +103,12 @@ export default function MembersPage() {
   return (
     <>
       <PageHeader title={`Members (${filtered.length})`}>
-        <Button size="sm" onClick={() => router.push("/members/new")}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Add Member
-        </Button>
+        {has("member:write") && (
+          <Button size="sm" onClick={() => router.push("/members/new")}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add Member
+          </Button>
+        )}
       </PageHeader>
 
       <div className="flex-1 space-y-4 p-4 md:p-6">

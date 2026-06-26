@@ -214,6 +214,43 @@ export interface Event {
   location: Location | null
 }
 
+// ── Session & Permissions ─────────────────────────────────────────────────────
+
+export type Permission =
+  | "member:read"
+  | "member:write"
+  | "member:read_medical"
+  | "member:write_medical"
+  | "member:read_contact"
+  | "member:delete"
+  | "event:read"
+  | "event:create"
+  | "event:write"
+  | "event:delete"
+  | "event:manage_attendance"
+  | "advancement:read"
+  | "advancement:record"
+  | "advancement:approve"
+  | "finance:read"
+  | "finance:write"
+  | "role:assign"
+  | "role:manage"
+  | "communication:send_troop"
+  | "communication:send_patrol"
+  | "report:read"
+
+export interface SessionRole {
+  id: string
+  name: string
+}
+
+export interface Session {
+  tenant_id: string
+  member: Member | null
+  permissions: Permission[]
+  roles: SessionRole[]
+}
+
 // ── Platform (global) control plane ──────────────────────────────────────────
 
 export type PlatformRole = "superadmin" | "support" | "billing"
