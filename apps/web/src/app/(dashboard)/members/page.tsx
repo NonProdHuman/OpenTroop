@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useMembers } from "@/hooks/use-members"
-import { useGroups, usePatrolMemberships } from "@/hooks/use-groups"
+import { useGroups, useGroupMemberships } from "@/hooks/use-groups"
 import { useRoles } from "@/hooks/use-roles"
 import { useRoleAssignments } from "@/hooks/use-role-assignments"
 import { buildColumns } from "./columns"
@@ -21,7 +21,7 @@ export default function MembersPage() {
   const { data: groups = [] } = useGroups()
   const { data: roles = [] } = useRoles()
   const { data: allAssignments = [] } = useRoleAssignments()
-  const patrolMap = usePatrolMemberships()
+  const groupMap = useGroupMemberships()
 
   const patrols = useMemo(() => groups.filter((g) => g.group_type === "patrol"), [groups])
 
@@ -51,8 +51,8 @@ export default function MembersPage() {
       if (typeFilter.length > 0 && !typeFilter.includes(m.member_type)) return false
       if (statusFilter.length > 0 && !statusFilter.includes(m.membership_status)) return false
       if (patrolFilter !== null) {
-        const selectedPatrol = patrols.find((p) => p.id === patrolFilter)
-        if (!selectedPatrol || patrolMap.get(m.id)?.id !== selectedPatrol.id) return false
+        const memberGroups = groupMap.get(m.id) ?? []
+        if (!memberGroups.some((g) => g.id === patrolFilter)) return false
       }
       if (search) {
         const q = search.toLowerCase()
@@ -70,9 +70,9 @@ export default function MembersPage() {
       }
       return true
     })
-  }, [members, typeFilter, statusFilter, patrolFilter, patrolMap, patrols, search])
+  }, [members, typeFilter, statusFilter, patrolFilter, groupMap, search])
 
-  const columns = useMemo(() => buildColumns(patrolMap, roleMap), [patrolMap, roleMap])
+  const columns = useMemo(() => buildColumns(groupMap, roleMap), [groupMap, roleMap])
 
   function toggleType(v: MemberType) {
     setTypeFilter((prev) =>

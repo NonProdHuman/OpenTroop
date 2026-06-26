@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MembersTable } from "./members-table"
 import { buildColumns } from "./columns"
-import type { Member } from "@/types/api"
+import type { Member, Group } from "@/types/api"
 
 function makeMember(overrides: Partial<Member> = {}): Member {
   return {
@@ -59,7 +59,7 @@ function makeMember(overrides: Partial<Member> = {}): Member {
 }
 
 describe("MembersTable", () => {
-  const columns = buildColumns(new Map<string, { id: string; name: string }>(), new Map())
+  const columns = buildColumns(new Map<string, Group[]>(), new Map())
 
   it("renders member rows", () => {
     render(
@@ -113,5 +113,44 @@ describe("MembersTable", () => {
     )
     await userEvent.click(screen.getByText("Alice Smith"))
     expect(onRowClick).toHaveBeenCalledWith(member)
+  })
+
+  it("renders member group bubbles", () => {
+    const testGroup: Group = {
+      id: "g1",
+      tenant_id: "t1",
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+      is_deleted: false,
+      name: "Fox Patrol",
+      description: null,
+      group_type: "patrol",
+      color: null,
+      is_system: false,
+    }
+    const testGroup2: Group = {
+      id: "g2",
+      tenant_id: "t1",
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+      is_deleted: false,
+      name: "Leadership",
+      description: null,
+      group_type: "manual",
+      color: null,
+      is_system: false,
+    }
+    const groupMap = new Map<string, Group[]>([["m1", [testGroup, testGroup2]]])
+    const columnsWithGroups = buildColumns(groupMap, new Map())
+    render(
+      <MembersTable
+        data={[makeMember({ id: "m1" })]}
+        columns={columnsWithGroups}
+        isLoading={false}
+        onRowClick={vi.fn()}
+      />,
+    )
+    expect(screen.getByText("Fox Patrol")).toBeInTheDocument()
+    expect(screen.getByText("Leadership")).toBeInTheDocument()
   })
 })

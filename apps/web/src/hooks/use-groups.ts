@@ -98,6 +98,32 @@ export function useMemberGroups(memberId: string | null) {
   }, [memberId, groups, memberResults])
 }
 
+/** Returns a Map<memberId, Group[]> built from all active groups. */
+export function useGroupMemberships(): Map<string, Group[]> {
+  const { request } = useApi()
+  const { data: groups = [] } = useGroups()
+
+  const memberResults = useQueries({
+    queries: groups.map((group) => ({
+      queryKey: ["group-members", group.id],
+      queryFn: () => request<Member[]>(`/groups/${group.id}/members`),
+    })),
+  })
+
+  return useMemo(() => {
+    const map = new Map<string, Group[]>()
+    groups.forEach((group, i) => {
+      const members = memberResults[i]?.data ?? []
+      members.forEach((m) => {
+        const existing = map.get(m.id) ?? []
+        map.set(m.id, [...existing, group])
+      })
+    })
+    return map
+  }, [groups, memberResults])
+}
+
+
 export function useCreateGroup() {
   const { request } = useApi()
   const queryClient = useQueryClient()
