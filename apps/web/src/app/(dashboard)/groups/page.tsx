@@ -2,13 +2,44 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Shield, Users, Zap, Lock, Plus } from "lucide-react"
+import { Shield, Users, Zap, Lock, Plus, MoreHorizontal } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useGroups, useGroupMemberCounts } from "@/hooks/use-groups"
+import {
+  useGroups,
+  useGroupMemberCounts,
+  useAddGroupMember,
+  useGroupMembers,
+  useDeleteGroup,
+} from "@/hooks/use-groups"
+import { useMembers } from "@/hooks/use-members"
 import type { Group } from "@/types/api"
 import { GroupDetailSheet } from "./group-detail-sheet"
+import { toast } from "sonner"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuPortal,
+} from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 
 const TYPE_LABELS: Record<string, string> = {
   patrol: "Patrol",
@@ -45,6 +76,7 @@ export default function GroupsPage() {
   const router = useRouter()
   const [search, setSearch] = useState("")
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null)
+  const [addMemberGroup, setAddMemberGroup] = useState<Group | null>(null)
   const { data: groups = [], isLoading } = useGroups()
 
   const active = groups.filter((g) => !g.is_deleted)
@@ -92,9 +124,15 @@ export default function GroupsPage() {
         <td className="px-4 py-3 text-sm text-muted-foreground tabular-nums">
           {count !== undefined ? count : <span className="opacity-40">—</span>}
         </td>
-        <td className="px-4 py-3 w-8">
-          {group.is_system && (
-            <span title="System group" className="text-muted-foreground">
+        <td className="px-4 py-3 w-8 text-right" onClick={(e) => e.stopPropagation()}>
+          {!group.is_system ? (
+            <GroupActionsDropdown
+              group={group}
+              onAddMember={() => setAddMemberGroup(group)}
+              onViewDetails={() => setSelectedGroup(group)}
+            />
+          ) : (
+            <span title="System group" className="text-muted-foreground flex justify-end">
               <Lock className="h-3.5 w-3.5" />
             </span>
           )}
@@ -117,6 +155,14 @@ export default function GroupsPage() {
         open={selectedGroup !== null}
         onOpenChange={(v) => { if (!v) setSelectedGroup(null) }}
       />
+
+      {addMemberGroup && (
+        <AddMemberDialog
+          group={addMemberGroup}
+          open={addMemberGroup !== null}
+          onOpenChange={(v) => { if (!v) setAddMemberGroup(null) }}
+        />
+      )}
 
       <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
         <div className="flex items-center gap-3 max-w-sm">
@@ -192,5 +238,149 @@ export default function GroupsPage() {
         )}
       </div>
     </>
+  )
+}
+
+function GroupActionsDropdown({
+  group,
+  onAddMember,
+  onViewDetails,
+}: {
+  group: Group
+  onAddMember: () => void
+  onViewDetails: () => void
+}) {
+  const router = useRouter()
+  const deleteGroup = useDeleteGroup()
+  const [open, setOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  function handleDelete(e: React.MouseEvent) {
+    e.stopPropagation()
+    deleteGroup.mutate(group.id, {
+      onSuccess: () => {
+        toast.success(`Deleted ${group.name}`)
+        setOpen(false)
+      },
+      onError: (err) => {
+        toast.error(err instanceof Error ? err.message : "Failed to delete group")
+      },
+    })
+  }
+
+  return (
+    <DropdownMenu open={open} onOpenChange={(o) => { setOpen(o); if (!o) setConfirmDelete(false); }}>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+            <span className="sr-only">Actions</span>
+          </Button>
+        }
+      />
+      <DropdownMenuPortal>
+        <DropdownMenuContent align="end" className="w-36">
+          <DropdownMenuItem onClick={onViewDetails}>View details</DropdownMenuItem>
+          {!group.is_system && group.group_type !== "dynamic" && (
+            <DropdownMenuItem onClick={onAddMember}>Add member…</DropdownMenuItem>
+          )}
+          {!group.is_system && (
+            <DropdownMenuItem onClick={() => router.push(`/groups/${group.id}/edit`)}>
+              Edit group
+            </DropdownMenuItem>
+          )}
+          {!group.is_system && <DropdownMenuSeparator />}
+          {!group.is_system && (
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={confirmDelete ? handleDelete : () => setConfirmDelete(true)}
+            >
+              {confirmDelete ? "Confirm delete" : "Delete group"}
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenuPortal>
+    </DropdownMenu>
+  )
+}
+
+function AddMemberDialog({
+  group,
+  open,
+  onOpenChange,
+}: {
+  group: Group
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const { data: members = [] } = useGroupMembers(group.id)
+  const { data: allMembers = [] } = useMembers()
+  const addMember = useAddGroupMember()
+
+  const memberIds = new Set(members.map((m) => m.id))
+  const addableMembers = allMembers.filter(
+    (m) => !m.is_deleted && !memberIds.has(m.id),
+  )
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Add Member to {group.name}</DialogTitle>
+          <DialogDescription>
+            Search and select a member to add to this group.
+          </DialogDescription>
+        </DialogHeader>
+        <Command className="border rounded-lg mt-2">
+          <CommandInput placeholder="Search members…" className="h-8" />
+          <CommandList className="max-h-64">
+            <CommandEmpty>
+              {addableMembers.length === 0
+                ? "All members are already in this group."
+                : "No members found."}
+            </CommandEmpty>
+            <CommandGroup>
+              {addableMembers.map((m) => {
+                const name = m.nickname
+                  ? `${m.first_name} "${m.nickname}" ${m.last_name}`
+                  : `${m.first_name} ${m.last_name}`
+                return (
+                  <CommandItem
+                    key={m.id}
+                    value={name}
+                    onSelect={() => {
+                      addMember.mutate(
+                        { groupId: group.id, memberId: m.id },
+                        {
+                          onSuccess: () => {
+                            toast.success(`Added ${m.first_name} to ${group.name}`)
+                            onOpenChange(false)
+                          },
+                          onError: (err) => {
+                            toast.error(
+                              err instanceof Error ? err.message : "Failed to add member"
+                            )
+                          },
+                        }
+                      )
+                    }}
+                    className="flex items-center justify-between py-2 px-3 text-sm cursor-pointer hover:bg-muted/50 rounded-md"
+                  >
+                    <span>{name}</span>
+                    <span className="text-xs text-muted-foreground capitalize shrink-0 ml-2">
+                      {m.member_type}
+                    </span>
+                  </CommandItem>
+                )
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </DialogContent>
+    </Dialog>
   )
 }
