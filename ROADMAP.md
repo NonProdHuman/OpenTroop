@@ -276,8 +276,17 @@ sub-navigation vs. in-page tabs — is specified in
 
 App-shell work not already tracked under a pillar:
 
-- [ ] Collapsible, permission-filtered sidebar with sub-navigation (drives off
-      `resolve_permissions`, extends the `isPlatformAdmin` pattern in `app-sidebar.tsx`)
+- [x] Collapsible sidebar with sub-navigation (hybrid IA — `app-sidebar.tsx`)
+- [ ] **Current-member + permissions endpoint** — a tenant-scoped
+      `GET /auth/session` (resolved from the JWT + `X-Tenant-ID`) returning the
+      caller's `Member` and effective `permissions[]` (via `resolve_permissions`),
+      plus a `usePermissions()` / `has(permission)` hook. Today the frontend only
+      has `/auth/me` (the platform `User` + `platform_role`) — it has **no tenant
+      permissions**, so nav and buttons can't be gated. Client-side gating is UX
+      only; the backend `require()` stays the real enforcement. **Prerequisite** for:
+- [ ] Permission-filtered nav & action buttons — hide sections (e.g. Money without
+      `finance:read`) and actions (Add Member without `member:write`) the caller
+      can't use; extends the `isPlatformAdmin` pattern in `app-sidebar.tsx`
 - [ ] **Home / dashboard** landing (announcements feed, upcoming events, my action
       items) — replaces today's redirect-to-Members default
 - [ ] **Roles & permissions** management UI (RBAC backend exists; no surface yet)
