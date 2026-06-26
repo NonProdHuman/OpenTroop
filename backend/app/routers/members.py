@@ -6,7 +6,8 @@ from sqlalchemy import select
 
 from app.core.deps import DbDep, TenantDep, get_or_404, require
 from app.core.invite import create_invite_token
-from app.models.enums import Permission
+from app.models.enums import GroupType, MemberType, Permission
+from app.models.group import Group, GroupMember
 from app.models.member import Member
 from app.schemas.member import MemberBase, MemberInviteRead, MemberRead, MemberUpdate
 
@@ -55,6 +56,21 @@ def update_member(
 ) -> Member:
     member = get_or_404(db, Member, member_id, tenant_id, "Member not found")
     updates = body.model_dump(exclude_unset=True)
+
+    if updates.get("member_type") == MemberType.ADULT:
+        patrol_memberships = db.scalars(
+            select(GroupMember)
+            .join(Group, Group.id == GroupMember.group_id)
+            .where(
+                GroupMember.member_id == member.id,
+                GroupMember.tenant_id == tenant_id,
+                GroupMember.is_deleted.is_(False),
+                Group.group_type == GroupType.PATROL,
+            )
+        ).all()
+        for gm in patrol_memberships:
+            gm.is_deleted = True
+
     for k, v in updates.items():
         setattr(member, k, v)
     db.commit()

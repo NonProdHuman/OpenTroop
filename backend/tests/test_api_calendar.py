@@ -115,7 +115,7 @@ def test_feed_respects_audience_scoping(client: TestClient, db_session: Session)
     _ensure_tenant(db_session)
     et = _event_type(client)
     scoped = _event(client, et["id"], name="Wolf-only")
-    group = client.post("/groups/", json={"name": "Wolf", "group_type": "patrol"}).json()
+    group = client.post("/groups/", json={"name": "Wolf", "group_type": "manual"}).json()
     client.post(f"/events/{scoped['id']}/audiences", json={"group_id": group["id"]})
     feed_path = client.post("/calendar/subscription").json()["feed_path"]
 

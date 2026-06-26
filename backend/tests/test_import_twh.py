@@ -344,7 +344,7 @@ def test_import_converts_event_times_from_source_tz(db_session: Session) -> None
 
     ev = session_event(db_session, other_tenant, "Weekly Meeting")
     # 7PM EDT (UTC-4 in September) → 23:00 UTC, stored timezone-aware.
-    assert ev.scheduled_start.astimezone(UTC).hour == 23
+    assert ev.scheduled_start.replace(tzinfo=UTC).hour == 23
 
 
 def session_event(session: Session, tenant, name: str) -> Event:
