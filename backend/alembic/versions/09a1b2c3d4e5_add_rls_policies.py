@@ -33,7 +33,6 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-from app.models import Base
 from app.models.base import TrackedBase
 
 revision: str = "09a1b2c3d4e5"
