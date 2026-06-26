@@ -1,9 +1,8 @@
 "use client"
 
 import { type ColumnDef } from "@tanstack/react-table"
-import type { Member } from "@/types/api"
-import type { PatrolInfo } from "@/hooks/use-groups"
- import { Button } from "@/components/ui/button"
+import type { Member, Group } from "@/types/api"
+import { Button } from "@/components/ui/button"
 import { ArrowUpDown } from "lucide-react"
 
 const TYPE_LABELS: Record<string, string> = {
@@ -23,6 +22,14 @@ const STATUS_BADGE: Record<string, string> = {
   alumni:   "bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950 dark:text-purple-300",
 }
 
+const GROUP_TYPE_BADGE: Record<string, string> = {
+  patrol: "bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300",
+  manual: "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950 dark:text-amber-300",
+  dynamic: "bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950 dark:text-purple-300",
+}
+
+const SYSTEM_BADGE = "bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400"
+
 function TintBadge({ label, className }: { label: string; className: string }) {
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${className}`}>
@@ -32,7 +39,7 @@ function TintBadge({ label, className }: { label: string; className: string }) {
 }
 
 export function buildColumns(
-  patrolMap: Map<string, PatrolInfo>,
+  groupMap: Map<string, Group[]>,
   roleMap: Map<string, string>,
 ): ColumnDef<Member>[] {
   return [
@@ -58,14 +65,36 @@ export function buildColumns(
       },
     },
     {
-      id: "patrol",
-      header: () => <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Patrol</span>,
+      id: "groups",
+      header: () => <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Groups</span>,
       cell: ({ row }) => {
-        const patrol = patrolMap.get(row.original.id)
-        return patrol ? (
-          <span>{patrol.name}</span>
-        ) : (
-          <span className="text-muted-foreground">—</span>
+        const memberGroups = groupMap.get(row.original.id) ?? []
+        if (memberGroups.length === 0) {
+          return <span className="text-muted-foreground">—</span>
+        }
+
+        const sortedGroups = [...memberGroups].sort((a, b) => {
+          if (a.group_type === "patrol" && b.group_type !== "patrol") return -1
+          if (a.group_type !== "patrol" && b.group_type === "patrol") return 1
+          return a.name.localeCompare(b.name)
+        })
+
+        return (
+          <div className="flex flex-wrap gap-1">
+            {sortedGroups.map((g) => {
+              let badgeClass = GROUP_TYPE_BADGE[g.group_type] ?? GROUP_TYPE_BADGE.manual
+              if (g.is_system) {
+                badgeClass = SYSTEM_BADGE
+              }
+              return (
+                <TintBadge
+                  key={g.id}
+                  label={g.name}
+                  className={badgeClass}
+                />
+              )
+            })}
+          </div>
         )
       },
     },

@@ -1,6 +1,6 @@
 """Tests for the TroopWebHost XML importer."""
 
-from datetime import UTC
+from datetime import UTC, timedelta
 from pathlib import Path
 from xml.etree import ElementTree as ET
 from zoneinfo import ZoneInfo
@@ -76,7 +76,7 @@ def test_parse_datetime_pm() -> None:
     assert dt.hour == 19
     assert dt.minute == 0
     assert dt.tzinfo is not None
-    assert dt.utcoffset().total_seconds() == 0
+    assert dt.utcoffset() == timedelta(0)
 
 
 def test_parse_datetime_converts_source_tz_to_utc() -> None:
@@ -84,7 +84,7 @@ def test_parse_datetime_converts_source_tz_to_utc() -> None:
     dt = _parse_datetime("9/10/2025 7:00:00 PM", ZoneInfo("America/New_York"))
     assert dt is not None
     assert dt.hour == 23
-    assert dt.utcoffset().total_seconds() == 0
+    assert dt.utcoffset() == timedelta(0)
 
 
 def test_parse_datetime_empty() -> None:
@@ -344,7 +344,7 @@ def test_import_converts_event_times_from_source_tz(db_session: Session) -> None
 
     ev = session_event(db_session, other_tenant, "Weekly Meeting")
     # 7PM EDT (UTC-4 in September) → 23:00 UTC, stored timezone-aware.
-    assert ev.scheduled_start.astimezone(UTC).hour == 23
+    assert ev.scheduled_start.replace(tzinfo=UTC).hour == 23
 
 
 def session_event(session: Session, tenant, name: str) -> Event:

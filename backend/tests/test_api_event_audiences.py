@@ -34,7 +34,7 @@ def _event(client: TestClient, event_type_id: str, name: str = "Outing") -> dict
 
 
 def _group(client: TestClient, name: str = "Wolf") -> dict:
-    r = client.post("/groups/", json={"name": name, "group_type": "patrol"})
+    r = client.post("/groups/", json={"name": name, "group_type": "manual"})
     assert r.status_code == 201, r.text
     return r.json()
 

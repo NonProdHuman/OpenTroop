@@ -68,3 +68,21 @@ def test_tenant_isolation(client: TestClient, other_client: TestClient) -> None:
     assert other_client.delete(f"/members/{m['id']}").status_code == 404
     ids = [x["id"] for x in other_client.get("/members/").json()]
     assert m["id"] not in ids
+
+
+def test_update_member_to_adult_clears_patrol_memberships(client: TestClient) -> None:
+    # Create a patrol group
+    patrol = client.post("/groups/", json={"name": "Wolf", "group_type": "patrol"}).json()
+    # Create a scout member
+    m = _create_member(client)
+    # Add scout to the patrol
+    client.post(f"/groups/{patrol['id']}/members", json={"member_id": m["id"]})
+    # Verify membership exists
+    members = client.get(f"/groups/{patrol['id']}/members").json()
+    assert m["id"] in {x["id"] for x in members}
+    # Update scout member to adult
+    r = client.patch(f"/members/{m['id']}", json={"member_type": "adult"})
+    assert r.status_code == 200
+    # Verify patrol membership has been cleared
+    members_after = client.get(f"/groups/{patrol['id']}/members").json()
+    assert m["id"] not in {x["id"] for x in members_after}

@@ -200,3 +200,14 @@ def test_tenant_isolation(client: TestClient, other_client: TestClient) -> None:
     assert cross_delete.status_code == 404
     other_ids = {g["id"] for g in other_client.get("/groups/").json()}
     assert group["id"] not in other_ids
+
+
+def test_adult_cannot_be_member_of_patrol(client: TestClient) -> None:
+    group = _create_group(client, "Wolf", "patrol")
+    adult = client.post(
+        "/members/",
+        json={"first_name": "Bob", "last_name": "Adult", "member_type": "adult"},
+    ).json()
+    r = client.post(f"/groups/{group['id']}/members", json={"member_id": adult["id"]})
+    assert r.status_code == 400
+    assert "Adults cannot be members of a patrol" in r.text

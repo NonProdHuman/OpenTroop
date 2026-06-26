@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Shield, Users, Zap, Lock, Pencil, Trash2 } from "lucide-react"
+import { Shield, Users, Zap, Lock, Pencil, Trash2, X } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -11,11 +11,29 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { useGroupMembers, useGroupRoleRules, useDeleteGroup } from "@/hooks/use-groups"
+import {
+  useGroupMembers,
+  useGroupRoleRules,
+  useDeleteGroup,
+  useAddGroupMember,
+  useRemoveGroupMember,
+} from "@/hooks/use-groups"
 import { useRoles } from "@/hooks/use-roles"
+import { useMembers } from "@/hooks/use-members"
 import type { Group } from "@/types/api"
+import { toast } from "sonner"
+import { cn } from "@/lib/utils"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 
 const TYPE_LABELS: Record<string, string> = {
   patrol: "Patrol",
@@ -53,17 +71,32 @@ interface GroupDetailSheetProps {
 export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheetProps) {
   const router = useRouter()
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [addMemberOpen, setAddMemberOpen] = useState(false)
 
   const { data: members = [], isLoading: membersLoading } = useGroupMembers(group?.id ?? null)
   const { data: roleRules = [] } = useGroupRoleRules(
     group?.group_type === "dynamic" ? (group?.id ?? null) : null,
   )
   const { data: roles = [] } = useRoles()
+  const { data: allMembers = [] } = useMembers()
+
   const deleteGroup = useDeleteGroup()
+  const addMember = useAddGroupMember()
+  const removeMember = useRemoveGroupMember()
 
   const roleById = new Map(roles.map((r) => [r.id, r.name]))
 
   if (!group) return null
+
+  const isDynamic = group.group_type === "dynamic"
+  const isSystem = group.is_system
+  const memberIds = new Set(members.map((m) => m.id))
+  const addableMembers = allMembers.filter((m) => {
+    if (m.is_deleted) return false
+    if (memberIds.has(m.id)) return false
+    if (group.group_type === "patrol" && m.member_type === "adult") return false
+    return true
+  })
 
   function handleEdit() {
     onOpenChange(false)
@@ -159,14 +192,41 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
                     : `${m.first_name} ${m.last_name}`
                   return (
                     <li key={m.id} className="flex items-center justify-between text-sm">
-                      <button
-                        type="button"
-                        onClick={() => { onOpenChange(false); router.push(`/members/${m.id}`) }}
-                        className="hover:underline text-left"
-                      >
-                        {name}
-                      </button>
-                      <Badge variant="outline" className="text-xs capitalize">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => { onOpenChange(false); router.push(`/members/${m.id}`) }}
+                          className="hover:underline text-left truncate font-medium text-slate-700 dark:text-slate-200"
+                        >
+                          {name}
+                        </button>
+                        {!isDynamic && !isSystem && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              removeMember.mutate(
+                                { groupId: group.id, memberId: m.id },
+                                {
+                                  onSuccess: () => {
+                                    toast.success(`Removed ${m.first_name} from ${group.name}`)
+                                  },
+                                  onError: (err) => {
+                                    toast.error(
+                                      err instanceof Error ? err.message : "Failed to remove member"
+                                    )
+                                  },
+                                }
+                              )
+                            }
+                            disabled={removeMember.isPending}
+                            className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
+                            aria-label={`Remove ${name}`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <Badge variant="outline" className="text-xs capitalize shrink-0">
                         {m.member_type}
                       </Badge>
                     </li>
@@ -174,7 +234,65 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
                 })}
               </ul>
             )}
-            {group.group_type === "dynamic" && (
+            {!isDynamic && !isSystem && (
+              <div className="pt-2">
+                <Popover open={addMemberOpen} onOpenChange={setAddMemberOpen}>
+                  <PopoverTrigger
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-7 text-xs gap-1")}
+                    aria-expanded={addMemberOpen}
+                  >
+                    Add member…
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search members…" className="h-8" />
+                      <CommandList>
+                        <CommandEmpty>
+                          {addableMembers.length === 0
+                            ? "All members are already in this group."
+                            : "No members found."}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {addableMembers.map((m) => {
+                            const name = m.nickname
+                              ? `${m.first_name} "${m.nickname}" ${m.last_name}`
+                              : `${m.first_name} ${m.last_name}`
+                            return (
+                              <CommandItem
+                                key={m.id}
+                                value={name}
+                                onSelect={() => {
+                                  addMember.mutate(
+                                    { groupId: group.id, memberId: m.id },
+                                    {
+                                      onSuccess: () => {
+                                        toast.success(`Added ${m.first_name} to ${group.name}`)
+                                      },
+                                      onError: (err) => {
+                                        toast.error(
+                                          err instanceof Error ? err.message : "Failed to add member"
+                                        )
+                                      },
+                                    }
+                                  )
+                                  setAddMemberOpen(false)
+                                }}
+                              >
+                                {name}
+                                <span className="ml-auto text-xs text-muted-foreground capitalize">
+                                  {m.member_type}
+                                </span>
+                              </CommandItem>
+                            )
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+            {isDynamic && (
               <p className="text-xs text-muted-foreground pt-1 italic">
                 Membership is automatic — driven by role rules below.
               </p>
