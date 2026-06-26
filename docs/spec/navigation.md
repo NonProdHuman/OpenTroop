@@ -93,7 +93,8 @@ Two structural notes:
 - **Permission-driven visibility.** Sidebar items and sub-items render based on the
   member's effective permissions (`resolve_permissions`) — extend the existing
   `isPlatformAdmin` pattern in `app-sidebar.tsx`. An empty section is hidden, not shown
-  disabled.
+  disabled. This needs the session/permissions endpoint and `usePermissions()` hook —
+  see [`session-permissions.md`](session-permissions.md).
 - **Active state & deep-linking.** Sub-items are real routes (`/members/bulk`), not
   client-only state, so they are linkable and the active branch auto-expands from the
   pathname.

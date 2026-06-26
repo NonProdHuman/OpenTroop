@@ -283,7 +283,8 @@ App-shell work not already tracked under a pillar:
       plus a `usePermissions()` / `has(permission)` hook. Today the frontend only
       has `/auth/me` (the platform `User` + `platform_role`) — it has **no tenant
       permissions**, so nav and buttons can't be gated. Client-side gating is UX
-      only; the backend `require()` stays the real enforcement. **Prerequisite** for:
+      only; the backend `require()` stays the real enforcement. Spec:
+      `docs/spec/session-permissions.md`. **Prerequisite** for:
 - [ ] Permission-filtered nav & action buttons — hide sections (e.g. Money without
       `finance:read`) and actions (Add Member without `member:write`) the caller
       can't use; extends the `isPlatformAdmin` pattern in `app-sidebar.tsx`
