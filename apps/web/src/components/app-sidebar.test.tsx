@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react"
-import { describe, expect, it, vi } from "vitest"
+import userEvent from "@testing-library/user-event"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 // Must be hoisted above the component import
 vi.mock("next/navigation", () => ({
@@ -44,13 +45,45 @@ function renderSidebar() {
 }
 
 describe("AppSidebar", () => {
-  it("renders all five nav items", () => {
+  beforeEach(() => {
+    // Reset to a non-Admin route so the Admin group starts collapsed.
+    vi.mocked(usePathname).mockReturnValue("/members")
+  })
+
+  it("renders the top-level nav items", () => {
     renderSidebar()
     expect(screen.getByText("Members")).toBeInTheDocument()
     expect(screen.getByText("Groups")).toBeInTheDocument()
     expect(screen.getByText("Events")).toBeInTheDocument()
-    expect(screen.getByText("Import")).toBeInTheDocument()
-    expect(screen.getByText("Settings")).toBeInTheDocument()
+    expect(screen.getByText("Admin")).toBeInTheDocument()
+  })
+
+  it("renders the grayed-out future nav items", () => {
+    renderSidebar()
+    expect(screen.getByText("Messaging")).toBeInTheDocument()
+    expect(screen.getByText("Advancement")).toBeInTheDocument()
+    expect(screen.getByText("Reports")).toBeInTheDocument()
+  })
+
+  it("keeps Admin sub-items collapsed until the group is opened", () => {
+    renderSidebar() // default pathname is /members → Admin collapsed
+    expect(screen.queryByText("Settings")).not.toBeInTheDocument()
+    expect(screen.queryByText("Import")).not.toBeInTheDocument()
+  })
+
+  it("expands the Admin group to reveal its sub-items on click", async () => {
+    renderSidebar()
+    await userEvent.click(screen.getByText("Admin"))
+    expect(screen.getByText("Settings").closest("a")).toHaveAttribute("href", "/settings")
+    expect(screen.getByText("Import").closest("a")).toHaveAttribute("href", "/import")
+  })
+
+  it("auto-expands the group containing the active route", () => {
+    vi.mocked(usePathname).mockReturnValue("/import")
+    renderSidebar()
+    // Admin opens automatically because /import is one of its children.
+    const importLink = screen.getByText("Import").closest("[data-slot='sidebar-menu-sub-button']")
+    expect(importLink).toHaveAttribute("data-active", "")
   })
 
   it("nav items link to the correct paths", () => {
