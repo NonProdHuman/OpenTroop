@@ -1,3 +1,4 @@
+# ruff: noqa: S608
 """Fixtures for the Postgres RLS test tier.
 
 These tests require a live Postgres database with migrations applied and the
@@ -90,7 +91,7 @@ def two_tenant_seed(owner_conn):  # type: ignore[type-arg]
     now = "NOW()"
 
     owner_conn.execute(
-        text(  # noqa: S608
+        text(
             f"""
             INSERT INTO tenants (id, name, slug, created_at, updated_at, is_deleted)
             VALUES
@@ -100,7 +101,7 @@ def two_tenant_seed(owner_conn):  # type: ignore[type-arg]
         )
     )
     owner_conn.execute(
-        text(  # noqa: S608
+        text(
             f"""
             INSERT INTO members
               (id, tenant_id, first_name, last_name, member_type,
