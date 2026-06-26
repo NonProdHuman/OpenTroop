@@ -169,8 +169,10 @@ export function useAddGroupMember() {
         method: "POST",
         body: JSON.stringify({ member_id: memberId }),
       }),
-    onSuccess: (_data, { groupId }) => {
-      queryClient.invalidateQueries({ queryKey: ["group-members", groupId] })
+    onSuccess: () => {
+      // Invalidate ALL group-member caches: the backend may silently remove
+      // the member from a previous patrol, so every cached list could be stale.
+      queryClient.invalidateQueries({ queryKey: ["group-members"] })
     },
   })
 }
@@ -181,8 +183,9 @@ export function useRemoveGroupMember() {
   return useMutation({
     mutationFn: ({ groupId, memberId }: { groupId: string; memberId: string }) =>
       request(`/groups/${groupId}/members/${memberId}`, { method: "DELETE" }),
-    onSuccess: (_data, { groupId }) => {
-      queryClient.invalidateQueries({ queryKey: ["group-members", groupId] })
+    onSuccess: () => {
+      // Invalidate ALL group-member caches for consistency.
+      queryClient.invalidateQueries({ queryKey: ["group-members"] })
     },
   })
 }

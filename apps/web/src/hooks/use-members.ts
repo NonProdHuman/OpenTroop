@@ -48,6 +48,10 @@ export function useUpdateMember() {
     onSuccess: (updated) => {
       queryClient.setQueryData(["members", updated.id], updated)
       queryClient.invalidateQueries({ queryKey: ["members"] })
+      // If member_type changed (e.g. scout → adult), the backend removes them
+      // from any patrol they were in. Invalidate all group-member caches so
+      // the Groups page reflects that change without a manual reload.
+      queryClient.invalidateQueries({ queryKey: ["group-members"] })
     },
   })
 }
