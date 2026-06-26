@@ -12,9 +12,10 @@ Security-critical coverage:
 """
 
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 
 from fastapi.testclient import TestClient
-from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.models.enums import MemberType, Permission
@@ -22,16 +23,15 @@ from app.models.member import Member
 from app.models.role import MemberRoleAssignment, Role, RoleMembership, RolePermission
 from app.models.user import User
 from tests.conftest import (
+    _ADMIN_MEMBER_IDS,
     ADMIN_USER_ID,
     NEW_USER_ID,
     PLATFORM_ADMIN_USER_ID,
     TENANT_A,
     TENANT_B,
-    _ADMIN_MEMBER_IDS,
     _seed_admin,
     _set_shared_overrides,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -65,9 +65,7 @@ def _make_member(
     return m
 
 
-def _make_role(
-    db: Session, tenant_id: uuid.UUID, slug: str, **kwargs: object
-) -> Role:
+def _make_role(db: Session, tenant_id: uuid.UUID, slug: str, **kwargs: object) -> Role:
     r = Role(tenant_id=tenant_id, name=slug.replace("_", " ").title(), slug=slug, **kwargs)
     db.add(r)
     db.flush()
@@ -79,20 +77,20 @@ def _grant(db: Session, tenant_id: uuid.UUID, role: Role, perm: Permission) -> N
     db.flush()
 
 
-def _assign(
-    db: Session, tenant_id: uuid.UUID, member: Member, role: Role
-) -> MemberRoleAssignment:
+def _assign(db: Session, tenant_id: uuid.UUID, member: Member, role: Role) -> MemberRoleAssignment:
     a = MemberRoleAssignment(tenant_id=tenant_id, member_id=member.id, role_id=role.id)
     db.add(a)
     db.flush()
     return a
 
 
-def _client_for(db: Session, user: User, tenant_id: uuid.UUID) -> TestClient:
-    """Return a TestClient authenticated as the given User in the specified tenant.
+@contextmanager
+def _client_for(db: Session, user: User, tenant_id: uuid.UUID) -> Generator[TestClient, None, None]:
+    """Yield a TestClient authenticated as the given User in the specified tenant.
 
     Overrides get_current_user directly so arbitrary user objects work without
-    needing to be pre-registered in the conftest _USERS map.
+    needing to be pre-registered in the conftest _USERS map. Dependency overrides
+    are cleared automatically on exit so callers don't repeat the cleanup.
     """
     from app.core.auth import get_current_user
     from app.core.database import get_db
@@ -109,7 +107,11 @@ def _client_for(db: Session, user: User, tenant_id: uuid.UUID) -> TestClient:
     app.dependency_overrides[get_tenant_id] = _simple_tenant_id
     app.dependency_overrides[get_current_user] = _user_override
 
-    return TestClient(app, headers={"X-Tenant-ID": str(tenant_id)})
+    try:
+        with TestClient(app, headers={"X-Tenant-ID": str(tenant_id)}) as client:
+            yield client
+    finally:
+        app.dependency_overrides.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -145,8 +147,6 @@ def test_session_non_admin_exact_permissions(db_session: Session) -> None:
 
     with _client_for(db_session, user, TENANT_A) as c:
         r = c.get("/auth/session")
-    from app.main import app; app.dependency_overrides.clear()
-
     assert r.status_code == 200
     data = r.json()
     assert set(data["permissions"]) == {"event:read", "event:create"}
@@ -162,8 +162,6 @@ def test_session_no_member_returns_200_with_nulls(db_session: Session) -> None:
     no_member_user = _USERS[str(NEW_USER_ID)]
     with _client_for(db_session, no_member_user, TENANT_A) as c:
         r = c.get("/auth/session")
-    from app.main import app; app.dependency_overrides.clear()
-
     assert r.status_code == 200
     assert r.json() == {"tenant_id": str(TENANT_A), "member": None, "permissions": [], "roles": []}
 
@@ -211,8 +209,6 @@ def test_session_deleted_member_treated_as_no_member(db_session: Session) -> Non
 
     with _client_for(db_session, user, TENANT_A) as c:
         r = c.get("/auth/session")
-    from app.main import app; app.dependency_overrides.clear()
-
     assert r.status_code == 200
     data = r.json()
     assert data["member"] is None, "Deleted member must not appear"
@@ -241,7 +237,6 @@ def test_session_revoked_assignment_drops_permission(db_session: Session) -> Non
     # Confirm permission is present before revocation
     with _client_for(db_session, user, TENANT_A) as c:
         before = c.get("/auth/session")
-    from app.main import app; app.dependency_overrides.clear()
     assert "finance:read" in before.json()["permissions"]
 
     # Revoke the assignment
@@ -250,7 +245,6 @@ def test_session_revoked_assignment_drops_permission(db_session: Session) -> Non
 
     with _client_for(db_session, user, TENANT_A) as c:
         after = c.get("/auth/session")
-    app.dependency_overrides.clear()
 
     assert after.status_code == 200
     assert after.json()["permissions"] == [], "Revoked assignment must yield no permissions"
@@ -279,15 +273,12 @@ def test_session_member_of_a_gets_null_in_b(db_session: Session) -> None:
     # Tenant A — should have permission
     with _client_for(db_session, user, TENANT_A) as c:
         r_a = c.get("/auth/session")
-    from app.main import app; app.dependency_overrides.clear()
-
     assert r_a.status_code == 200
     assert "event:write" in r_a.json()["permissions"]
 
     # Tenant B — user has NO member row; must get member=null and empty permissions
     with _client_for(db_session, user, TENANT_B) as c:
         r_b = c.get("/auth/session")
-    app.dependency_overrides.clear()
 
     assert r_b.status_code == 200
     data_b = r_b.json()
@@ -360,8 +351,6 @@ def test_session_transitive_role_inheritance(db_session: Session) -> None:
 
     with _client_for(db_session, user, TENANT_A) as c:
         r = c.get("/auth/session")
-    from app.main import app; app.dependency_overrides.clear()
-
     assert r.status_code == 200
     data = r.json()
     # Inherited permissions appear in the resolved set
@@ -397,8 +386,6 @@ def test_session_roles_list_shows_only_direct_assignments(db_session: Session) -
 
     with _client_for(db_session, user, TENANT_A) as c:
         r = c.get("/auth/session")
-    from app.main import app; app.dependency_overrides.clear()
-
     assert r.status_code == 200
     data = r.json()
     role_names = {role["name"] for role in data["roles"]}
@@ -434,8 +421,6 @@ def test_session_multiple_roles_union(db_session: Session) -> None:
 
     with _client_for(db_session, user, TENANT_A) as c:
         r = c.get("/auth/session")
-    from app.main import app; app.dependency_overrides.clear()
-
     assert r.status_code == 200
     data = r.json()
     assert set(data["permissions"]) == {"event:read", "member:read"}
