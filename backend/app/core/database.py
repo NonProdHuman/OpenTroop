@@ -1,7 +1,7 @@
 from collections.abc import Generator
 from typing import Any
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import ORMExecuteState, Session, sessionmaker, with_loader_criteria
 
 from app.core.config import settings
@@ -10,6 +10,26 @@ from app.models.base import TrackedBase
 
 engine = create_engine(settings.database_url, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+
+
+@event.listens_for(Session, "after_begin")
+def _stamp_tenant_guc(session: Session, transaction: Any, connection: Any) -> None:
+    """Publish the active tenant to Postgres as a transaction-local GUC.
+
+    ``SET LOCAL app.current_tenant`` scopes the value to the current transaction,
+    so it cannot leak across pooled connections.  The RLS policy on every
+    ``TrackedBase`` table reads this GUC and enforces the tenant boundary at the
+    database layer (see ``docs/spec/postgres-rls.md``).
+
+    Skipped on non-Postgres dialects (e.g. SQLite in the test suite) and when
+    no tenant is set (platform/cross-tenant paths).
+    """
+    if connection.dialect.name != "postgresql":
+        return
+    tid = current_tenant()
+    if tid is None:
+        return
+    connection.execute(text("SET LOCAL app.current_tenant = :tid"), {"tid": str(tid)})
 
 
 @event.listens_for(Session, "do_orm_execute")

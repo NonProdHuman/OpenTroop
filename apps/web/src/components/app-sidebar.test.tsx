@@ -23,6 +23,15 @@ vi.mock("@clerk/nextjs", () => ({
   UserButton: () => <div data-testid="user-button" />,
 }))
 
+vi.mock("@/hooks/use-memberships", () => ({
+  useMemberships: vi.fn(() => ({ data: [], isLoading: false })),
+}))
+
+vi.mock("@/lib/tenant-context", () => ({
+  TenantProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useActiveTenant: vi.fn(() => ({ activeTenantId: "test-tenant", setActiveTenantId: vi.fn() })),
+}))
+
 vi.mock("@/hooks/use-me", () => ({
   useMe: vi.fn(() => ({ data: undefined })),
 }))

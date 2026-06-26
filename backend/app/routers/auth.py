@@ -5,9 +5,12 @@ from sqlalchemy import select
 from app.core.deps import CurrentUserDep, DbDep, TenantDep
 from app.core.invite import decode_invite_token
 from app.core.permissions import resolve_permissions
+from app.core.tenant_context import unscoped
 from app.models.member import Member
 from app.models.role import MemberRoleAssignment, Role
+from app.models.tenant import Tenant
 from app.schemas.member import MemberRead
+from app.schemas.membership import MembershipRead
 from app.schemas.session import SessionRead, SessionRoleRead
 from app.schemas.user import UserRead
 
@@ -17,6 +20,58 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.get("/me", response_model=UserRead)
 def get_me(current_user: CurrentUserDep) -> object:
     return current_user
+
+
+@router.get("/memberships", response_model=list[MembershipRead])
+def get_memberships(user: CurrentUserDep, db: DbDep) -> list[MembershipRead]:
+    """Return all troops (tenants) the authenticated user belongs to.
+
+    Cross-tenant by design — the caller asks "which troops am I in?"  Runs via
+    ``unscoped()`` so the app-layer tenant filter is bypassed, but the query
+    still constrains ``Member.user_id == user.id`` (bypass removes tenant
+    scoping, never the user constraint).  Suspended tenants are excluded.
+    """
+    is_admin_subq = (
+        select(MemberRoleAssignment.id)
+        .join(Role, Role.id == MemberRoleAssignment.role_id)
+        .where(
+            MemberRoleAssignment.member_id == Member.id,
+            MemberRoleAssignment.is_deleted.is_(False),
+            Role.is_admin.is_(True),
+            Role.is_deleted.is_(False),
+        )
+        .exists()
+    )
+
+    with unscoped():
+        rows = db.execute(
+            select(
+                Member.id.label("member_id"),
+                Member.tenant_id,
+                Tenant.name.label("tenant_name"),
+                Tenant.slug.label("tenant_slug"),
+                is_admin_subq.label("is_admin"),
+            )
+            .join(Tenant, Tenant.id == Member.tenant_id)
+            .where(
+                Member.user_id == user.id,
+                Member.is_deleted.is_(False),
+                Tenant.is_deleted.is_(False),
+                Tenant.suspended_at.is_(None),
+            )
+            .order_by(Tenant.name)
+        ).all()
+
+    return [
+        MembershipRead(
+            tenant_id=row.tenant_id,
+            tenant_name=row.tenant_name,
+            tenant_slug=row.tenant_slug,
+            member_id=row.member_id,
+            is_admin=bool(row.is_admin),
+        )
+        for row in rows
+    ]
 
 
 @router.get("/session", response_model=SessionRead)
@@ -81,32 +136,35 @@ def claim_member(body: _ClaimRequest, user: CurrentUserDep, db: DbDep) -> Member
     """
     member_id, tenant_id = decode_invite_token(body.token)
 
-    member = db.get(Member, member_id)
-    if member is None or member.tenant_id != tenant_id or member.is_deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+    with unscoped():
+        member = db.get(Member, member_id)
+        if member is None or member.tenant_id != tenant_id or member.is_deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Member not found"
+            )
 
-    if member.user_id is not None:
-        if member.user_id == user.id:
-            return member  # idempotent — already claimed by this user
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Member already claimed by another account",
-        )
+        if member.user_id is not None:
+            if member.user_id == user.id:
+                return member  # idempotent — already claimed by this user
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Member already claimed by another account",
+            )
 
-    existing = db.scalar(
-        select(Member).where(
-            Member.user_id == user.id,
-            Member.tenant_id == tenant_id,
-            Member.is_deleted.is_(False),
+        existing = db.scalar(
+            select(Member).where(
+                Member.user_id == user.id,
+                Member.tenant_id == tenant_id,
+                Member.is_deleted.is_(False),
+            )
         )
-    )
-    if existing is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="You are already a member of this tenant",
-        )
+        if existing is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="You are already a member of this tenant",
+            )
 
-    member.user_id = user.id
-    db.commit()
-    db.refresh(member)
+        member.user_id = user.id
+        db.commit()
+        db.refresh(member)
     return member

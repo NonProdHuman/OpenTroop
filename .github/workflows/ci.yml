@@ -86,6 +86,42 @@ jobs:
       - name: Run all hooks
         run: uv tool run pre-commit run --all-files
 
+  rls-tests:
+    name: Postgres RLS tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: opentroop_rls_test
+          POSTGRES_USER: opentroop_owner
+          POSTGRES_PASSWORD: opentroop
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+    env:
+      DATABASE_URL: postgresql+psycopg://opentroop_owner:opentroop@localhost:5433/opentroop_rls_test
+      PG_TEST_URL: postgresql+psycopg://opentroop_owner:opentroop@localhost:5433/opentroop_rls_test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync
+      - name: Apply migrations (creates roles + RLS policies)
+        run: uv run alembic upgrade head
+      - name: Run RLS tests
+        run: uv run pytest -m pg -v --no-cov
+
   migration-check:
     name: Migration drift check
     runs-on: ubuntu-latest

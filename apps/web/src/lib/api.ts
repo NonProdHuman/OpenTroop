@@ -2,12 +2,13 @@
 
 import { useAuth } from "@clerk/nextjs"
 import { useCallback } from "react"
+import { useActiveTenant } from "@/lib/tenant-context"
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
-const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID ?? ""
 
 export function useApi() {
   const { getToken } = useAuth()
+  const { activeTenantId } = useActiveTenant()
 
   const request = useCallback(
     async <T>(path: string, init?: RequestInit): Promise<T> => {
@@ -17,7 +18,7 @@ export function useApi() {
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(TENANT_ID ? { "X-Tenant-ID": TENANT_ID } : {}),
+          ...(activeTenantId ? { "X-Tenant-ID": activeTenantId } : {}),
           ...(init?.headers ?? {}),
         },
       })
@@ -31,7 +32,7 @@ export function useApi() {
       }
       return res.json() as Promise<T>
     },
-    [getToken],
+    [getToken, activeTenantId],
   )
 
   return { request }
