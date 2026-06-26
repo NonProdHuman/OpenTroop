@@ -120,24 +120,51 @@ highest-blast-radius part of sync:
 
 ## Testing
 
-The SQLite suite **cannot** exercise RLS (Postgres-only). This is the central tension
-with the project's DB-free test principle, and the resolution is a small, separate
-Postgres-backed tier rather than abandoning SQLite:
+The SQLite suite **cannot** exercise RLS (Postgres-only). The resolution is a small,
+separate Postgres-backed tier rather than abandoning SQLite. Three layers:
 
-- **SQLite suite (unchanged):** covers app logic + the app-layer tenant filter.
-- **New Postgres-backed RLS suite (CI service container):** the tests that prove the DB
-  enforces the boundary:
-  - With `app.current_tenant = A`, a **raw** `SELECT * FROM members` (no WHERE) returns
-    only tenant-A rows — proving enforcement without any app-layer help.
-  - An INSERT/UPDATE with a mismatched `tenant_id` is rejected by `WITH CHECK`.
-  - Tombstones (`is_deleted = true`) within the tenant remain visible (sync safety).
-  - The `opentroop_admin` / `unscoped()` path can read across tenants; the default
-    `opentroop_app` role cannot.
-  - A missing/blank `app.current_tenant` GUC yields **zero** rows (fail-closed), not all
-    rows.
+1. **SQLite suite (default, unchanged):** the ~250 functional tests + the app-layer
+   tenant filter. Stays fast and infra-free — `uv run pytest` needs no Postgres. Preserves
+   the contributor inner loop and the project's DB-free principle.
+2. **Postgres RLS tier — runs on every PR:** ~10 tests behind a `pg` marker (e.g.
+   `tests/rls/`), proving the database enforces the boundary. **Gated per-PR, not
+   nightly** — see rationale below. Locally it is opt-in: skipped unless a test Postgres
+   is configured (reuse the `docker-compose` Postgres); CI provides it via a service
+   container.
+3. **Optional full-suite-on-Postgres (scheduled/nightly):** the engine fixture is
+   parametrizable by env var so the *entire* suite can run on Postgres on demand. This is
+   the **only** place scheduled CI is appropriate — catching dialect drift (partial
+   indexes, enums, JSON), **not** the RLS boundary.
 
-Decide the CI shape (Postgres service container, run on every PR vs. nightly) as part of
-implementation — it is the real gating decision, not the SQL.
+### Why the RLS tier is per-PR, not nightly
+
+Nightly is for slow, flaky, or expensive checks. The RLS tests are none of those — a
+handful of millisecond assertions whose only cost is ~10–20s of container startup.
+Meanwhile they guard the tenant-isolation backstop of a multi-tenant SaaS holding minors'
+PII. The likely regressions merge silently (a new `TrackedBase` table with no policy; a
+migration that drops one; a role-grant change). Trivial cost to run, catastrophic cost to
+miss — so it gates at the door, not the morning after.
+
+### The RLS tier runs against a *migrated* database
+
+Roles and policies live in **migrations**, not `Base.metadata`, so this tier runs
+`alembic upgrade head` and connects as the restricted `opentroop_app` role (not the
+owner). Side benefit: it is the project's first **migrations-apply-cleanly** check in CI,
+which does not exist today.
+
+### Tests in the tier
+
+- **Policy completeness (highest value):** introspect `Base.metadata` for every
+  `TrackedBase` subclass and assert each table has `relrowsecurity` set and a matching
+  `pg_policies` row. Catches the "new table, forgot the policy" regression automatically,
+  forever.
+- With `app.current_tenant = A`, a **raw** `SELECT * FROM members` (no WHERE) returns only
+  tenant-A rows — enforcement without any app-layer help.
+- An INSERT/UPDATE with a mismatched `tenant_id` is rejected by `WITH CHECK`.
+- Tombstones (`is_deleted = true`) within the tenant remain visible (sync safety).
+- The `opentroop_admin` / `unscoped()` path reads across tenants; default `opentroop_app`
+  cannot.
+- A missing/blank `app.current_tenant` GUC yields **zero** rows (fail-closed), not all.
 
 ---
 

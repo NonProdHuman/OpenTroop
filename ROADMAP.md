@@ -281,9 +281,10 @@ The three items are independently shippable but share one current-tenant source 
       `USING` + `WITH CHECK` policies (`FORCE ROW LEVEL SECURITY`) generated per
       `TrackedBase` table from the model registry. Catches any query that bypasses the app
       layer; especially valuable for the mobile sync pull/push paths (a leaked row in a
-      sync payload persists on-device). Requires a separate Postgres-backed test tier
-      (SQLite can't exercise RLS) — that CI decision is the real gate, not the SQL.
-      Spec: [`docs/spec/postgres-rls.md`](docs/spec/postgres-rls.md).
+      sync payload persists on-device). Tested by a small Postgres-backed tier
+      (SQLite can't exercise RLS) run **per-PR** via a CI service container against a
+      migrated DB — including a policy-completeness introspection test; the SQLite suite
+      stays the fast default. Spec: [`docs/spec/postgres-rls.md`](docs/spec/postgres-rls.md).
 - [ ] **Tenant switcher UI + `GET /auth/memberships`** — a user who is a `Member` of
       several troops picks the active tenant from a pulldown; the app shows exactly one
       tenant at a time (never a merged view). New auth-only, cross-tenant-for-one-user
