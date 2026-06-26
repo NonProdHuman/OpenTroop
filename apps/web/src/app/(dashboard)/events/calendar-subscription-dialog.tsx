@@ -121,11 +121,12 @@ export function CalendarSubscriptionDialog() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              <label htmlFor="calendar-feed-url" className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Calendar Feed URL
               </label>
               <div className="flex gap-2">
                 <Input
+                  id="calendar-feed-url"
                   readOnly
                   value={httpUrl}
                   className="font-mono text-xs select-all bg-muted/40 h-8"
