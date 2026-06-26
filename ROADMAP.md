@@ -260,6 +260,41 @@ a Text-to-SQL layer lets any leader ask questions in plain English.
 
 ---
 
+## Multi-Tenant Isolation & Data Access
+
+The `tenant_id` on every `TrackedBase` row is the foundation of both deployment modes,
+but isolation is currently enforced only by **hand-written `tenant_id ==` predicates on
+every query** (~200 across 13 routers). The failure mode is "forget one and that
+endpoint leaks" — already observed once in review. This cross-cutting workstream makes
+isolation automatic and default-on, backstopped at the database, and explicit in the UI.
+The three items are independently shippable but share one current-tenant source of truth.
+
+- [ ] **Tenant-scoped data access layer** — a request-scoped current-tenant `ContextVar`
+      plus a SQLAlchemy `do_orm_execute` listener that auto-applies the `tenant_id`
+      filter to every `TrackedBase` read (including relationship loads) and a
+      `before_flush` hook that stamps `tenant_id` on writes. Route code stops carrying the
+      predicate; cross-tenant access becomes an explicit, greppable `unscoped()` opt-out
+      used only by the platform control plane. Behavior-preserving, lands incrementally.
+      Spec: [`docs/spec/tenant-data-access.md`](docs/spec/tenant-data-access.md).
+- [ ] **Postgres Row-Level Security (RLS)** — the database-layer backstop: a restricted
+      non-owner app role, a per-transaction `SET LOCAL app.current_tenant` GUC, and
+      `USING` + `WITH CHECK` policies (`FORCE ROW LEVEL SECURITY`) generated per
+      `TrackedBase` table from the model registry. Catches any query that bypasses the app
+      layer; especially valuable for the mobile sync pull/push paths (a leaked row in a
+      sync payload persists on-device). Requires a separate Postgres-backed test tier
+      (SQLite can't exercise RLS) — that CI decision is the real gate, not the SQL.
+      Spec: [`docs/spec/postgres-rls.md`](docs/spec/postgres-rls.md).
+- [ ] **Tenant switcher UI + `GET /auth/memberships`** — a user who is a `Member` of
+      several troops picks the active tenant from a pulldown; the app shows exactly one
+      tenant at a time (never a merged view). New auth-only, cross-tenant-for-one-user
+      endpoint lists the caller's memberships; the web app replaces the build-time
+      `NEXT_PUBLIC_TENANT_ID` constant with runtime active-tenant state, and every React
+      Query key is scoped by tenant so switching refetches cleanly. Makes "active tenant"
+      first-class — also the basis for on-device store partitioning in the mobile client.
+      Spec: [`docs/spec/tenant-switcher.md`](docs/spec/tenant-switcher.md).
+
+---
+
 ## Web Application Shell & Navigation
 
 The web app is scaffolded with a **flat** sidebar (Members, Groups, Events, Import,
@@ -342,7 +377,9 @@ They are not a separate phase — they should be developed in parallel once the
 API contract for each pillar stabilizes.
 
 - [ ] API design review for mobile consumption (REST vs. GraphQL decision)
-- [ ] Offline data layer design (local SQLite + sync protocol)
+- [ ] Offline data layer design (local SQLite + sync protocol) — if a device ever caches
+      more than one tenant, the local store must be partitioned by active tenant
+      (server-side RLS stops at the backend; see **Multi-Tenant Isolation & Data Access**)
 - [ ] iOS app (Swift / SwiftUI)
 - [ ] Android app (Kotlin / Jetpack Compose)
 - [ ] Push notification integration
