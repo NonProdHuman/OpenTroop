@@ -155,6 +155,30 @@ Short-circuit: if any reached functional role has `is_admin=True`, return the fu
 Soft-deleted assignments, positions, mappings, roles, and permission rows are excluded at
 every hop.
 
+### Forward-compat seam: direct position permissions
+
+**Decided:** permissions live **only** on functional roles — a position never holds a
+permission directly. This stays absolute for v1 (it keeps the model clean and forces
+one-off needs to become a reusable functional role rather than a snowflake).
+
+But this *will* be requested eventually, so we plumb for it now without building it. The
+resolver is written as a **union over permission sources**, not a single hardcoded walk:
+
+```python
+def resolve_permissions(member_id, session) -> frozenset[Permission]:
+    sources = [
+        _permissions_via_functional_roles(member_id, session),
+        # _permissions_via_positions(member_id, session),  # future: direct grants
+    ]
+    return frozenset().union(*sources)
+```
+
+Adding direct position permissions later is then **purely additive**: introduce a
+`PositionPermission` table (mirroring `FunctionalRolePermission`), implement
+`_permissions_via_positions`, and uncomment one line — no caller, endpoint, or resolver
+signature changes. The `is_admin` short-circuit wraps the union, so it keeps working
+regardless of source. We ship only the functional-role source in v1.
+
 `member_position_ids(member_id)` (inverse, for Group resolution and the future Positions
 column on the roster) and `resolve_group_members` are updated to walk
 `MemberPositionAssignment` + `GroupPositionRule` instead of the role tables.
@@ -241,9 +265,23 @@ positions/functional roles. Forcing it into a position or group would be wrong.
   `member:*` permission (RBAC) **or** the actor has a parent/guardian relationship to the
   target (ReBAC). Endpoints consult this for per-record reads/writes instead of relying on
   the coarse permission set alone.
-- Scope of a parent's ReBAC access (read-only? which fields? event RSVP on behalf of the
-  child?) is an open question (below); the **Parent / Guardian** position deliberately
-  carries no functional role so this layer is the *only* thing granting parents access.
+
+**Decided — parents get write access.** A parent/guardian may **read and edit** both
+their **own** record and their **scout's** record. Concretely, the ReBAC path grants the
+same field scope a member has when editing their own record — including contact and
+emergency info, **medical** fields (parents complete the BSA medical forms), and
+submitting **electronic permission slips** / RSVPing on behalf of the scout. So
+`can_access_member(..., write=True)` returns true for a parent→child pair, and the
+relevant per-record endpoints (member edit, medical, event participation, electronic
+permission) honor it. The **Parent / Guardian** position deliberately carries **no
+functional role** — this relationship layer is the *only* thing granting parents access,
+which keeps a parent from seeing the rest of the roster.
+
+- **Boundary:** ReBAC scopes access to the *self + linked scouts* set only; it never
+  widens to other members. A parent who is *also* a leader gets the wider roster through
+  their leader **position**, not through this layer.
+- Field-level carve-outs (e.g. a field only leaders may set) can be layered on later; the
+  v1 default is "parent edits as if it were their own/the scout's self-service record."
 
 This keeps the parent relationship out of RBAC while making the design coherent. It is
 called out in `session-permissions.md` as "enforced at the endpoint layer," consistent
@@ -389,25 +427,27 @@ production data exists; the importer and provisioning are the only writers.
 
 ---
 
+## Decisions
+
+- **Permissions live only on functional roles** (positions hold none directly) for v1,
+  with a forward-compat seam so a `PositionPermission` source can be added additively
+  later — see [Forward-compat seam](#forward-compat-seam-direct-position-permissions).
+- **Parents/guardians get read+write** to their own and their scouts' records via the
+  ReBAC layer (self-service-equivalent scope, including medical and electronic permission)
+  — see [the ReBAC axis](#the-third-axis-relationship-scoped-access-rebac--designed-here-built-later).
+
 ## Open questions
 
-1. **Custom positions inheriting permissions directly.** Should a `Position` ever hold a
-   permission *directly* (bypassing functional roles) for one-off needs, or is "permissions
-   live only on functional roles" an absolute? Leaning absolute (keeps the model clean);
-   one-offs become a new functional role.
-2. **Singleton positions.** Some positions are troop-unique (one Scoutmaster, one SPL).
+1. **Singleton positions.** Some positions are troop-unique (one Scoutmaster, one SPL).
    Do we enforce "at most one holder" (like patrols enforce one group), and is it
    troop-wide (Scoutmaster) vs per-patrol (Patrol Leader — one per patrol, not per troop)?
    The per-patrol case doesn't fit a simple flag; proposed: defer, treat as advisory.
-3. **Parent/Guardian ReBAC scope.** Read-only, or can a parent edit contact info / submit
-   electronic permission / RSVP on behalf of their scout? Which fields? This defines the
-   `can_access_member` write path.
-4. **Position term/history.** Do we need start/end dates on `MemberPositionAssignment`
+2. **Position term/history.** Do we need start/end dates on `MemberPositionAssignment`
    (elections, annual turnover) beyond soft-delete + `created_at`? Affects whether the
    audit trail is sufficient or needs explicit terms.
-5. **Reports & communications granularity.** `report:read` and the two `communication:*`
+3. **Reports & communications granularity.** `report:read` and the two `communication:*`
    permissions are coarse. Fine for now, or do reports need per-domain read scopes?
-6. **TWH importer mapping.** TWH exports leadership/positions in its own vocabulary —
+4. **TWH importer mapping.** TWH exports leadership/positions in its own vocabulary —
    we need the concrete crosswalk from TWH position names to seeded OpenTroop positions
    (and a fallback for unrecognized ones).
 </content>
