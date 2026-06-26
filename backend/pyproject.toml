@@ -29,11 +29,24 @@ dev = [
     "sqlalchemy[mypy]>=2.0",
     "pip-audit>=2.7",
     "faker>=25.0",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+addopts = "--cov=app --cov-report=term-missing:skip-covered --cov-report=xml"
+
+[tool.coverage.run]
+branch = true
+omit = ["app/main.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "@(abc\\.)?abstractmethod",
+]
 
 [tool.ruff]
 line-length = 100
