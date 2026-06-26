@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import text
 
-import app.models as _models  # noqa: F401 — side-effect import; registers ORM classes on TrackedBase
+import app.models as _models  # registers all ORM classes so TrackedBase.__subclasses__() is populated
 from app.models.base import TrackedBase
 
 # ── Policy completeness ───────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ def test_all_tracked_tables_have_rls(owner_conn) -> None:  # type: ignore[type-a
         return names
 
     expected = set(_tracked_names(TrackedBase))
-    assert expected, "No TrackedBase subclasses found — model import error?"
+    assert expected, f"No TrackedBase subclasses found — {_models.__name__} may not have loaded"
 
     rows = owner_conn.execute(
         text(
