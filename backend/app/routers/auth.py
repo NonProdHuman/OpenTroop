@@ -2,10 +2,13 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from app.core.deps import CurrentUserDep, DbDep
+from app.core.deps import CurrentUserDep, DbDep, TenantDep
 from app.core.invite import decode_invite_token
+from app.core.permissions import resolve_permissions
 from app.models.member import Member
+from app.models.role import MemberRoleAssignment, Role
 from app.schemas.member import MemberRead
+from app.schemas.session import SessionRead, SessionRoleRead
 from app.schemas.user import UserRead
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -14,6 +17,52 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.get("/me", response_model=UserRead)
 def get_me(current_user: CurrentUserDep) -> object:
     return current_user
+
+
+@router.get("/session", response_model=SessionRead)
+def get_session(user: CurrentUserDep, tenant_id: TenantDep, db: DbDep) -> SessionRead:
+    """Return the caller's member and resolved permissions in the current tenant.
+
+    Any authenticated user may call this. Returns 200 with member=null and
+    permissions=[] when the user has no Member in the active tenant — not an error.
+    Protected actions still 403 via require() on their own routes.
+    """
+    member = db.scalar(
+        select(Member).where(
+            Member.user_id == user.id,
+            Member.tenant_id == tenant_id,
+            Member.is_deleted.is_(False),
+        )
+    )
+
+    if member is None:
+        return SessionRead(tenant_id=tenant_id, member=None, permissions=[], roles=[])
+
+    permissions = sorted(resolve_permissions(member.id, db))
+
+    direct_role_ids = set(
+        db.scalars(
+            select(MemberRoleAssignment.role_id).where(
+                MemberRoleAssignment.member_id == member.id,
+                MemberRoleAssignment.is_deleted.is_(False),
+            )
+        ).all()
+    )
+    roles = list(
+        db.scalars(
+            select(Role).where(
+                Role.id.in_(direct_role_ids),
+                Role.is_deleted.is_(False),
+            )
+        ).all()
+    )
+
+    return SessionRead(
+        tenant_id=tenant_id,
+        member=MemberRead.model_validate(member),
+        permissions=permissions,
+        roles=[SessionRoleRead.model_validate(r) for r in roles],
+    )
 
 
 class _ClaimRequest(BaseModel):

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
+import { usePermissions } from "@/hooks/use-session"
 import { useEvents, useEventTypes } from "@/hooks/use-events"
 import { addMonths, startOfMonth } from "@/lib/calendar"
 import { cn } from "@/lib/utils"
@@ -20,6 +21,7 @@ type View = "list" | "calendar"
 
 export default function EventsPage() {
   const router = useRouter()
+  const { has } = usePermissions()
   const { data: events = [], isLoading: eventsLoading } = useEvents()
   const { data: eventTypes = [], isLoading: typesLoading } = useEventTypes()
 
@@ -95,10 +97,12 @@ export default function EventsPage() {
           </ViewButton>
         </div>
         <CalendarSubscriptionDialog />
-        <Button size="sm" onClick={() => router.push("/events/new")}>
-          <CalendarPlus className="mr-2 h-4 w-4" />
-          Add Event
-        </Button>
+        {has("event:create") && (
+          <Button size="sm" onClick={() => router.push("/events/new")}>
+            <CalendarPlus className="mr-2 h-4 w-4" />
+            Add Event
+          </Button>
+        )}
       </PageHeader>
 
       <div className="flex-1 space-y-4 p-4 md:p-6">
