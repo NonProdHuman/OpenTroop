@@ -159,7 +159,7 @@ export default function GroupsPage() {
       {addMemberGroup && (
         <AddMemberDialog
           group={addMemberGroup}
-          open={addMemberGroup !== null}
+          open={true}
           onOpenChange={(v) => { if (!v) setAddMemberGroup(null) }}
         />
       )}
