@@ -1,0 +1,51 @@
+FROM node:20-alpine AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+FROM base AS builder
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Copy the monorepo workspace configuration
+COPY pnpm-lock.yaml package.json pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/
+COPY apps/mobile/package.json ./apps/mobile/
+COPY packages/api-client/package.json ./packages/api-client/
+
+# Install dependencies using the pnpm cache mount
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+
+# Copy the rest of the monorepo source files
+COPY . .
+
+# Build the Next.js app (which outputs to .next/standalone due to next.config.ts)
+RUN pnpm --filter web build
+
+# Production image
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Set the correct permission for prerender cache
+RUN mkdir -p apps/web/.next && chown nextjs:nodejs apps/web/.next
+
+# Automatically leverage output traces to reduce image size
+# The standalone output preserves the monorepo directory structure
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
+
+USER nextjs
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Start the standalone Next.js server
+CMD ["node", "apps/web/server.js"]

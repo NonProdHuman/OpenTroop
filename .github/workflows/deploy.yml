@@ -56,6 +56,7 @@ jobs:
           image: ${{ env.BACKEND_IMAGE }}
           flags: >-
             --allow-unauthenticated
+            --port=8000
             --set-env-vars=ENVIRONMENT=production
           # Database secrets should be mounted from Secret Manager, e.g.:
           # secrets: |
@@ -63,9 +64,8 @@ jobs:
 
       # --- FRONTEND ---
       - name: Build Frontend Image
-        working-directory: ./apps/web
         # Note: Next.js build might require NEXT_PUBLIC_* args at build time
-        run: docker build -t ${{ env.FRONTEND_IMAGE }} .
+        run: docker build -f apps/web/Dockerfile -t ${{ env.FRONTEND_IMAGE }} .
 
       - name: Push Frontend Image
         run: docker push ${{ env.FRONTEND_IMAGE }}
@@ -79,6 +79,7 @@ jobs:
           image: ${{ env.FRONTEND_IMAGE }}
           flags: >-
             --allow-unauthenticated
+            --port=3000
           # Set API URL for the frontend to point to the backend we just deployed
           env_vars: |
             NEXT_PUBLIC_API_URL=${{ steps.deploy-backend.outputs.url }}
