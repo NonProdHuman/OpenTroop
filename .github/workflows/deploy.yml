@@ -1,0 +1,89 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: ${{ vars.GCP_REGION }}
+  AR_REPO: opentroop-containers
+  BACKEND_IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/opentroop-containers/opentroop-api:${{ github.sha }}
+  FRONTEND_IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/opentroop-containers/opentroop-web:${{ github.sha }}
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy to Cloud Run
+    runs-on: ubuntu-latest
+
+    # These permissions are required for Workload Identity Federation
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker to use Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      # --- BACKEND ---
+      - name: Build Backend Image
+        working-directory: ./backend
+        run: docker build -t ${{ env.BACKEND_IMAGE }} .
+
+      - name: Push Backend Image
+        run: docker push ${{ env.BACKEND_IMAGE }}
+
+      - name: Deploy Backend to Cloud Run
+        id: deploy-backend
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: opentroop-api
+          region: ${{ env.REGION }}
+          image: ${{ env.BACKEND_IMAGE }}
+          flags: >-
+            --allow-unauthenticated
+            --set-env-vars=ENVIRONMENT=production
+          # Database secrets should be mounted from Secret Manager, e.g.:
+          # secrets: |
+          #   DATABASE_URL=DATABASE_URL:latest
+
+      # --- FRONTEND ---
+      - name: Build Frontend Image
+        working-directory: ./apps/web
+        # Note: Next.js build might require NEXT_PUBLIC_* args at build time
+        run: docker build -t ${{ env.FRONTEND_IMAGE }} .
+
+      - name: Push Frontend Image
+        run: docker push ${{ env.FRONTEND_IMAGE }}
+
+      - name: Deploy Frontend to Cloud Run
+        id: deploy-frontend
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: opentroop-web
+          region: ${{ env.REGION }}
+          image: ${{ env.FRONTEND_IMAGE }}
+          flags: >-
+            --allow-unauthenticated
+          # Set API URL for the frontend to point to the backend we just deployed
+          env_vars: |
+            NEXT_PUBLIC_API_URL=${{ steps.deploy-backend.outputs.url }}
+
+      - name: Deployment Summary
+        run: |
+          echo "Backend URL: ${{ steps.deploy-backend.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "Frontend URL: ${{ steps.deploy-frontend.outputs.url }}" >> $GITHUB_STEP_SUMMARY
