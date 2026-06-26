@@ -38,10 +38,10 @@ class GroupMemberRead(TrackedRead):
     added_by_id: uuid.UUID | None = None
 
 
-class GroupRoleRuleCreate(BaseModel):
-    role_id: uuid.UUID
+class GroupPositionRuleCreate(BaseModel):
+    position_id: uuid.UUID
 
 
-class GroupRoleRuleRead(TrackedRead):
+class GroupPositionRuleRead(TrackedRead):
     group_id: uuid.UUID
-    role_id: uuid.UUID
+    position_id: uuid.UUID

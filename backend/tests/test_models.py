@@ -22,13 +22,14 @@ def test_all_tables_created(db_session):
     assert {
         "groups",
         "group_members",
-        "group_role_rules",
+        "group_position_rules",
         "members",
         "member_relationships",
-        "roles",
-        "role_permissions",
-        "role_memberships",
-        "member_role_assignments",
+        "positions",
+        "functional_roles",
+        "functional_role_permissions",
+        "position_functional_roles",
+        "member_position_assignments",
     } <= table_names
 
 

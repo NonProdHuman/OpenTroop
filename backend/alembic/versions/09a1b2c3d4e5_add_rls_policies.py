@@ -41,8 +41,16 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def _tracked_table_names() -> list[str]:
-    """Return the SQL table names of all concrete TrackedBase subclasses."""
+def _tracked_table_names(bind: sa.engine.Connection) -> list[str]:
+    """Return TrackedBase table names that actually exist in the DB at apply time.
+
+    Walks ``TrackedBase.__subclasses__()`` for the model set, then intersects with
+    the live schema. The intersection makes this revision **reproducible** despite
+    the dynamic walk: later model changes (e.g. renamed tables created by a future
+    migration) don't make this historical revision touch tables that don't yet
+    exist. The original frozen behaviour is preserved for the model set present
+    when this revision runs.
+    """
 
     def _recurse(cls: type) -> list[str]:
         names: list[str] = []
@@ -53,7 +61,8 @@ def _tracked_table_names() -> list[str]:
             names.extend(_recurse(sub))
         return names
 
-    return _recurse(TrackedBase)
+    existing = set(sa.inspect(bind).get_table_names())
+    return [name for name in _recurse(TrackedBase) if name in existing]
 
 
 def upgrade() -> None:
@@ -96,7 +105,7 @@ def upgrade() -> None:
     op.execute(sa.text("GRANT USAGE ON SCHEMA public TO opentroop_admin"))
     op.execute(sa.text("GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO opentroop_admin"))
 
-    for table_name in _tracked_table_names():
+    for table_name in _tracked_table_names(bind):
         op.execute(
             sa.text(
                 f"GRANT SELECT, INSERT, UPDATE, DELETE ON {table_name} TO opentroop_app"  # noqa: S608
@@ -116,7 +125,7 @@ def upgrade() -> None:
         "tenant_id = NULLIF(current_setting('app.current_tenant', true), '')::uuid"
     )
 
-    for table_name in _tracked_table_names():
+    for table_name in _tracked_table_names(bind):
         op.execute(sa.text(f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY"))
         op.execute(
             sa.text(
@@ -134,7 +143,7 @@ def downgrade() -> None:
     if bind.dialect.name != "postgresql":
         return
 
-    for table_name in _tracked_table_names():
+    for table_name in _tracked_table_names(bind):
         op.execute(
             sa.text(f"DROP POLICY IF EXISTS tenant_isolation ON {table_name}")
         )
@@ -144,7 +153,7 @@ def downgrade() -> None:
     op.execute(sa.text("REVOKE USAGE ON ALL SEQUENCES IN SCHEMA public FROM opentroop_app"))
     op.execute(sa.text("REVOKE USAGE ON SCHEMA public FROM opentroop_admin"))
     op.execute(sa.text("REVOKE USAGE ON ALL SEQUENCES IN SCHEMA public FROM opentroop_admin"))
-    for table_name in _tracked_table_names():
+    for table_name in _tracked_table_names(bind):
         op.execute(
             sa.text(f"REVOKE SELECT, INSERT, UPDATE, DELETE ON {table_name} FROM opentroop_app")
         )

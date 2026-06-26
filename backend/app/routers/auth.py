@@ -7,7 +7,12 @@ from app.core.invite import decode_invite_token
 from app.core.permissions import resolve_permissions
 from app.core.tenant_context import unscoped
 from app.models.member import Member
-from app.models.role import MemberRoleAssignment, Role
+from app.models.rbac import (
+    FunctionalRole,
+    MemberPositionAssignment,
+    Position,
+    PositionFunctionalRole,
+)
 from app.models.tenant import Tenant
 from app.schemas.member import MemberRead
 from app.schemas.membership import MembershipRead
@@ -32,13 +37,18 @@ def get_memberships(user: CurrentUserDep, db: DbDep) -> list[MembershipRead]:
     scoping, never the user constraint).  Suspended tenants are excluded.
     """
     is_admin_subq = (
-        select(MemberRoleAssignment.id)
-        .join(Role, Role.id == MemberRoleAssignment.role_id)
+        select(MemberPositionAssignment.id)
+        .join(
+            PositionFunctionalRole,
+            PositionFunctionalRole.position_id == MemberPositionAssignment.position_id,
+        )
+        .join(FunctionalRole, FunctionalRole.id == PositionFunctionalRole.functional_role_id)
         .where(
-            MemberRoleAssignment.member_id == Member.id,
-            MemberRoleAssignment.is_deleted.is_(False),
-            Role.is_admin.is_(True),
-            Role.is_deleted.is_(False),
+            MemberPositionAssignment.member_id == Member.id,
+            MemberPositionAssignment.is_deleted.is_(False),
+            PositionFunctionalRole.is_deleted.is_(False),
+            FunctionalRole.is_admin.is_(True),
+            FunctionalRole.is_deleted.is_(False),
         )
         .exists()
     )
@@ -91,19 +101,19 @@ def get_session(user: CurrentUserDep, tenant_id: TenantDep, db: DbDep) -> Sessio
 
     permissions = sorted(resolve_permissions(member.id, db))
 
-    direct_role_ids = set(
+    position_ids = set(
         db.scalars(
-            select(MemberRoleAssignment.role_id).where(
-                MemberRoleAssignment.member_id == member.id,
-                MemberRoleAssignment.is_deleted.is_(False),
+            select(MemberPositionAssignment.position_id).where(
+                MemberPositionAssignment.member_id == member.id,
+                MemberPositionAssignment.is_deleted.is_(False),
             )
         ).all()
     )
-    roles = list(
+    positions = list(
         db.scalars(
-            select(Role).where(
-                Role.id.in_(direct_role_ids),
-                Role.is_deleted.is_(False),
+            select(Position).where(
+                Position.id.in_(position_ids),
+                Position.is_deleted.is_(False),
             )
         ).all()
     )
@@ -112,7 +122,7 @@ def get_session(user: CurrentUserDep, tenant_id: TenantDep, db: DbDep) -> Sessio
         tenant_id=tenant_id,
         member=MemberRead.model_validate(member),
         permissions=permissions,
-        roles=[SessionRoleRead.model_validate(r) for r in roles],
+        roles=[SessionRoleRead.model_validate(p) for p in positions],
     )
 
 
