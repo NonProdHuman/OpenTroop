@@ -22,16 +22,16 @@ graph TD
 
     subgraph "FastAPI Backend"
         direction TB
-        GW["JWT Validation &<br/>Tenant Resolution"]
+        GW["JWT Validation &amp; Tenant Resolution<br/><small>subdomain / X-Tenant-ID → binds the request to one tenant</small>"]
 
         subgraph "Routers (REST API)"
-            R_AUTH["Auth &<br/>Invite/Claim"]
             R_MEMBERS["Members &<br/>Relationships"]
             R_GROUPS["Groups &<br/>Audiences"]
             R_EVENTS["Events, RSVP<br/>& Calendar"]
             R_ROLES["Roles &<br/>Permissions"]
-            R_PLATFORM["Platform<br/>Control Plane"]
             R_IMPORT["Data Import<br/>(TWH XML)"]
+            R_AUTH["Auth &<br/>Invite/Claim"]
+            R_PLATFORM["Platform<br/>Control Plane"]
         end
 
         subgraph "Core Services"
@@ -40,9 +40,16 @@ graph TD
             PROV["Tenant Provisioning<br/>& Invite Tokens"]
             ICAL["iCal Feed<br/>Generator"]
         end
+
+        subgraph "Tenant Scoping"
+            SCOPE["Automatic ORM tenant filter + write stamp<br/><small>every TrackedBase query, no per-route predicate<br/>SET LOCAL app.current_tenant</small>"]
+            BYPASS["unscoped() escape hatch<br/><small>cross-tenant identity &amp; platform work</small>"]
+        end
     end
 
     subgraph Data
+        direction TB
+        RLS["Row-Level Security<br/><small>tenant_isolation policy · fail-closed<br/>opentroop_app enforced · opentroop_admin BYPASSRLS</small>"]
         PG[("PostgreSQL<br/><small>Alembic migrations</small>")]
     end
 
@@ -53,13 +60,22 @@ graph TD
     WEB -. "OIDC login" .-> OIDC
     MOBILE -. "OIDC login" .-> OIDC
     GW -- "JWKS" --> OIDC
-    GW --> R_AUTH & R_MEMBERS & R_GROUPS & R_EVENTS & R_ROLES & R_PLATFORM & R_IMPORT
-    R_AUTH & R_MEMBERS & R_GROUPS & R_EVENTS & R_ROLES --> RBAC
+
+    GW --> R_MEMBERS & R_GROUPS & R_EVENTS & R_ROLES & R_IMPORT & R_AUTH & R_PLATFORM
+
+    R_MEMBERS & R_GROUPS & R_EVENTS & R_ROLES --> RBAC
     R_EVENTS --> VIS
     R_EVENTS --> ICAL
     R_PLATFORM --> PROV
-    RBAC & VIS & PROV & ICAL --> PG
-    R_AUTH & R_MEMBERS & R_GROUPS & R_EVENTS & R_ROLES & R_PLATFORM & R_IMPORT --> PG
+
+    R_MEMBERS & R_GROUPS & R_EVENTS & R_ROLES & R_IMPORT --> SCOPE
+    RBAC & VIS & ICAL --> SCOPE
+    R_AUTH & R_PLATFORM & PROV --> BYPASS
+
+    SCOPE -- "opentroop_app<br/>(RLS enforced)" --> RLS
+    BYPASS -- "opentroop_admin<br/>(BYPASSRLS)" --> RLS
+    RLS --> PG
+
     MOBILE -- "background sync<br/>(planned)" <--> SQLITE
 
     classDef client fill:#4f8cf7,stroke:#2563eb,color:#fff
@@ -67,6 +83,7 @@ graph TD
     classDef gw fill:#6366f1,stroke:#4f46e5,color:#fff
     classDef router fill:#10b981,stroke:#059669,color:#fff
     classDef core fill:#8b5cf6,stroke:#7c3aed,color:#fff
+    classDef scope fill:#0ea5e9,stroke:#0284c7,color:#fff
     classDef db fill:#ef4444,stroke:#dc2626,color:#fff
     classDef offline fill:#94a3b8,stroke:#64748b,color:#fff
 
@@ -75,9 +92,18 @@ graph TD
     class GW gw
     class R_AUTH,R_MEMBERS,R_GROUPS,R_EVENTS,R_ROLES,R_PLATFORM,R_IMPORT router
     class RBAC,VIS,PROV,ICAL core
-    class PG db
+    class SCOPE,BYPASS scope
+    class RLS,PG db
     class SQLITE offline
 ```
+
+**Tenant isolation is defense-in-depth.** Tenant resolution binds each request to a
+single tenant; the app layer then auto-scopes every `TrackedBase` query (read filter +
+write stamp) so no route hand-carries a `tenant_id` predicate, and Postgres
+Row-Level Security re-enforces the same boundary at the database — fail-closed, so a
+request that forgets to set the tenant sees zero rows rather than all of them.
+Cross-tenant identity and platform work opts out explicitly through the greppable
+`unscoped()` escape hatch, paired with the `BYPASSRLS` `opentroop_admin` role.
 
 ```
 apps/web/      Next.js 16 · Tailwind 4 · shadcn/ui · Clerk auth
