@@ -3,14 +3,14 @@
 import { useQuery } from "@tanstack/react-query"
 import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
-import type { Role } from "@/types/api"
+import type { FunctionalRole } from "@/types/api"
 
-export function useRoles() {
+export function useFunctionalRoles() {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: [activeTenantId, "roles"],
-    queryFn: () => request<Role[]>("/roles/"),
+    queryKey: [activeTenantId, "functional-roles"],
+    queryFn: () => request<FunctionalRole[]>("/functional-roles/"),
     enabled: Boolean(activeTenantId),
   })
 }

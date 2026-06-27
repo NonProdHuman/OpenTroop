@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation"
 import { usePermissions } from "@/hooks/use-session"
 import { useMembers } from "@/hooks/use-members"
 import { useGroups, useGroupMemberships } from "@/hooks/use-groups"
-import { useRoles } from "@/hooks/use-roles"
-import { useRoleAssignments } from "@/hooks/use-role-assignments"
 import { buildColumns } from "./columns"
 import { MemberFilters } from "./member-filters"
 import { MembersTable } from "./members-table"
@@ -21,24 +19,13 @@ export default function MembersPage() {
   const { has } = usePermissions()
   const { data: members = [], isLoading: membersLoading } = useMembers()
   const { data: groups = [] } = useGroups()
-  const { data: roles = [] } = useRoles()
-  const { data: allAssignments = [] } = useRoleAssignments()
   const groupMap = useGroupMemberships()
 
   const patrols = useMemo(() => groups.filter((g) => g.group_type === "patrol"), [groups])
 
-  // Map<memberId, primary role name> — first assignment wins
-  const roleMap = useMemo(() => {
-    const roleById = new Map(roles.map((r) => [r.id, r.name]))
-    const map = new Map<string, string>()
-    for (const a of allAssignments) {
-      if (!map.has(a.member_id)) {
-        const name = roleById.get(a.role_id)
-        if (name) map.set(a.member_id, name)
-      }
-    }
-    return map
-  }, [roles, allAssignments])
+  // Position display in the list requires a per-member fetch (no bulk endpoint).
+  // Positions are shown in the detail sheet instead; pass an empty map here.
+  const positionMap = useMemo(() => new Map<string, string>(), [])
 
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState<MemberType[]>([])
@@ -74,7 +61,7 @@ export default function MembersPage() {
     })
   }, [members, typeFilter, statusFilter, patrolFilter, groupMap, search])
 
-  const columns = useMemo(() => buildColumns(groupMap, roleMap), [groupMap, roleMap])
+  const columns = useMemo(() => buildColumns(groupMap, positionMap), [groupMap, positionMap])
 
   function toggleType(v: MemberType) {
     setTypeFilter((prev) =>

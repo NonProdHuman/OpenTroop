@@ -40,7 +40,7 @@ function TintBadge({ label, className }: { label: string; className: string }) {
 
 export function buildColumns(
   groupMap: Map<string, Group[]>,
-  roleMap: Map<string, string>,
+  positionMap: Map<string, string>,
 ): ColumnDef<Member>[] {
   return [
     {
@@ -99,12 +99,12 @@ export function buildColumns(
       },
     },
     {
-      id: "role",
-      header: () => <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Role</span>,
+      id: "position",
+      header: () => <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Position</span>,
       cell: ({ row }) => {
-        const role = roleMap.get(row.original.id)
-        return role ? (
-          <span className="text-sm">{role}</span>
+        const position = positionMap.get(row.original.id)
+        return position ? (
+          <span className="text-sm">{position}</span>
         ) : (
           <span className="text-muted-foreground">—</span>
         )
