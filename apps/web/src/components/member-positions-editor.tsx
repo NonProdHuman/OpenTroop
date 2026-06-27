@@ -21,12 +21,10 @@ import { useAssignMemberPosition, useRemoveMemberPosition } from "@/hooks/use-me
 import { cn } from "@/lib/utils"
 
 function PositionBadge({
-  assignment,
   position,
   memberId,
   canAssign,
 }: {
-  assignment: MemberPositionAssignment
   position: Position
   memberId: string
   canAssign: boolean
@@ -108,7 +106,6 @@ export function MemberPositionsEditor({
           return (
             <PositionBadge
               key={a.id}
-              assignment={a}
               position={position}
               memberId={memberId}
               canAssign={canAssign}
