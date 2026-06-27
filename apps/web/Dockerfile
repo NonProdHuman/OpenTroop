@@ -19,6 +19,10 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 # Copy the rest of the monorepo source files
 COPY . .
 
+# Set build-time environment variables
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+
 # Build the Next.js app (which outputs to .next/standalone due to next.config.ts)
 RUN pnpm --filter web build
 
