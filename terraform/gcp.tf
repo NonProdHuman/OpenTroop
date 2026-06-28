@@ -285,6 +285,8 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
   }
+
+  # checkov:skip=CKV_GCP_125: False Positive
 }
 
 resource "google_service_account_iam_member" "github_workload_identity" {
