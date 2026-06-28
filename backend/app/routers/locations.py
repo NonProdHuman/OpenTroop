@@ -16,9 +16,7 @@ router = APIRouter(prefix="/locations", tags=["locations"])
     "/", response_model=list[LocationRead], dependencies=[Depends(require(Permission.EVENT_READ))]
 )
 def list_locations(tenant_id: TenantDep, db: DbDep) -> Sequence[Location]:
-    return db.scalars(
-        select(Location).where(Location.tenant_id == tenant_id, Location.is_deleted.is_(False))
-    ).all()
+    return db.scalars(select(Location).where(Location.is_deleted.is_(False))).all()
 
 
 @router.post(

@@ -60,6 +60,29 @@ inherits `PlatformRead`. Both use `from_attributes=True`.
 2. Import and register in `app/main.py`: add to the import block and call
    `app.include_router(your_resource.router)`.
 
+### Adding a new TrackedBase table (RLS required)
+
+Every new `TrackedBase` table migration **must** call `rls.enable_rls_for(op, table_name)`
+in its `upgrade()` and `rls.disable_rls_for(op, table_name)` in `downgrade()`. Failing
+to do so will be caught by the per-PR Postgres RLS CI job.
+
+```python
+# In your migration file:
+from app.core import rls
+
+def upgrade() -> None:
+    op.create_table("my_table", ...)
+    rls.enable_rls_for(op, "my_table")   # enables + forces RLS, creates policy, grants DML
+
+def downgrade() -> None:
+    rls.disable_rls_for(op, "my_table")  # drops policy, disables RLS, revokes grants
+    op.drop_table("my_table")
+```
+
+Also add the new table name to the explicit list in
+`alembic/versions/1a2b3c4d5e6f_force_rls_enforcement.py` so it is covered by the
+policy-completeness introspection test forever.
+
 ### Linting and types
 
 - **Ruff** line-length = 100 (not 88). `alembic/versions/` is excluded from linting.

@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.invite import create_invite_token
+from app.core.tenant_context import unscoped
 from app.models.enums import MemberType
 from app.models.event_type import EventType
 from app.models.member import Member
@@ -53,23 +54,24 @@ def seed_default_event_types(db: Session, tenant_id: uuid.UUID) -> None:
 
 def ensure_administrators_role(db: Session, tenant_id: uuid.UUID) -> Role:
     """Return the tenant's administrators role, creating it if it does not exist."""
-    role = db.scalar(
-        select(Role).where(
-            Role.tenant_id == tenant_id,
-            Role.slug == "administrators",
-            Role.is_deleted.is_(False),
+    with unscoped():
+        role = db.scalar(
+            select(Role).where(
+                Role.tenant_id == tenant_id,
+                Role.slug == "administrators",
+                Role.is_deleted.is_(False),
+            )
         )
-    )
-    if role is None:
-        role = Role(
-            tenant_id=tenant_id,
-            name="Administrators",
-            slug="administrators",
-            is_admin=True,
-            is_system=True,
-        )
-        db.add(role)
-        db.flush()
+        if role is None:
+            role = Role(
+                tenant_id=tenant_id,
+                name="Administrators",
+                slug="administrators",
+                is_admin=True,
+                is_system=True,
+            )
+            db.add(role)
+            db.flush()
     return role
 
 
@@ -87,18 +89,21 @@ def invite_admin_member(
     mints a 7-day invite token the invitee uses via POST /auth/claim. Returns
     ``(member, token, expires_at)``.
     """
-    admin_role = ensure_administrators_role(db, tenant_id)
-    member = Member(
-        tenant_id=tenant_id,
-        user_id=None,
-        first_name=first_name,
-        last_name=last_name,
-        email=email,
-        member_type=MemberType.ADULT,
-    )
-    db.add(member)
-    db.flush()
-    db.add(MemberRoleAssignment(tenant_id=tenant_id, member_id=member.id, role_id=admin_role.id))
+    with unscoped():
+        admin_role = ensure_administrators_role(db, tenant_id)
+        member = Member(
+            tenant_id=tenant_id,
+            user_id=None,
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            member_type=MemberType.ADULT,
+        )
+        db.add(member)
+        db.flush()
+        db.add(
+            MemberRoleAssignment(tenant_id=tenant_id, member_id=member.id, role_id=admin_role.id)
+        )
     token, expires_at = create_invite_token(member.id, tenant_id)
     return member, token, expires_at
 

@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
-from app.core.database import get_db
+from app.core.database import get_admin_db, get_db
 from app.core.permissions import resolve_permissions
 from app.core.tenant import get_tenant_id
 from app.core.tenant_context import reset_current_tenant, set_current_tenant
@@ -37,6 +37,7 @@ async def get_scoped_tenant_id(
 
 TenantDep = Annotated[uuid.UUID, Depends(get_scoped_tenant_id)]
 DbDep = Annotated[Session, Depends(get_db)]
+AdminDbDep = Annotated[Session, Depends(get_admin_db)]
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 
 

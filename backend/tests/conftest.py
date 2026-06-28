@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.auth import get_current_user
-from app.core.database import get_db
+from app.core.database import get_admin_db, get_db
 from app.core.tenant import get_tenant_id
 from app.main import app
 from app.models import Base  # registers all models on Base.metadata
@@ -122,6 +122,9 @@ def _seed_admin(session: Session, tenant_id: uuid.UUID) -> None:
 
 def _set_shared_overrides(db_session: Session) -> None:
     app.dependency_overrides[get_db] = lambda: db_session
+    # Platform routes use AdminDbDep; wire the same test session so platform
+    # tests work without DATABASE_URL_ADMIN being set (self-hosted / test mode).
+    app.dependency_overrides[get_admin_db] = lambda: db_session
     app.dependency_overrides[get_tenant_id] = _simple_tenant_id
     app.dependency_overrides[get_current_user] = _test_current_user
 

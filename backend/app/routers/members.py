@@ -18,9 +18,7 @@ router = APIRouter(prefix="/members", tags=["members"])
     "/", response_model=list[MemberRead], dependencies=[Depends(require(Permission.MEMBER_READ))]
 )
 def list_members(tenant_id: TenantDep, db: DbDep) -> Sequence[Member]:
-    return db.scalars(
-        select(Member).where(Member.tenant_id == tenant_id, Member.is_deleted.is_(False))
-    ).all()
+    return db.scalars(select(Member).where(Member.is_deleted.is_(False))).all()
 
 
 @router.post(
@@ -63,7 +61,6 @@ def update_member(
             .join(Group, Group.id == GroupMember.group_id)
             .where(
                 GroupMember.member_id == member.id,
-                GroupMember.tenant_id == tenant_id,
                 GroupMember.is_deleted.is_(False),
                 Group.group_type == GroupType.PATROL,
             )
