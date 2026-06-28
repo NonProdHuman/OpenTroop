@@ -1,4 +1,4 @@
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -40,20 +40,13 @@ class Settings(BaseSettings):
 
     # Comma-separated list of origins allowed by CORS.
     # In production this should be your actual frontend URL(s).
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str]
 
     # Domain used for subdomain tenant routing (e.g. troop123.opentroop.app → "opentroop.app")
-    app_domain: str = "opentroop.app"
-
-    @field_validator("app_domain", mode="before")
-    @classmethod
-    def prevent_empty_app_domain(cls, v: str | None) -> str:
-        if not v:
-            return "opentroop.app"
-        return v
+    app_domain: str = Field(min_length=1)
 
     # Secret used to sign member invite/claim tokens (HS256). Must be changed in production.
-    app_secret: str = "change-me-in-production"  # noqa: S105
+    app_secret: str = Field(min_length=1)
 
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]
