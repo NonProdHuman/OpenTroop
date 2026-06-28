@@ -15,14 +15,15 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import {
   useGroupMembers,
-  useGroupPositionRules,
+  useGroupRules,
   useDeleteGroup,
   useAddGroupMember,
   useRemoveGroupMember,
+  useGroups,
 } from "@/hooks/use-groups"
 import { usePositions } from "@/hooks/use-positions"
 import { useMembers } from "@/hooks/use-members"
-import type { Group } from "@/types/api"
+import type { Group, GroupRule } from "@/types/api"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -74,10 +75,9 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
   const [addMemberOpen, setAddMemberOpen] = useState(false)
 
   const { data: members = [], isLoading: membersLoading } = useGroupMembers(group?.id ?? null)
-  const { data: positionRules = [] } = useGroupPositionRules(
-    group?.group_type === "dynamic" ? (group?.id ?? null) : null,
-  )
+  const { data: rules = [] } = useGroupRules(group?.id ?? null)
   const { data: positions = [] } = usePositions()
+  const { data: groups = [] } = useGroups()
   const { data: allMembers = [] } = useMembers()
 
   const deleteGroup = useDeleteGroup()
@@ -85,6 +85,7 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
   const removeMember = useRemoveGroupMember()
 
   const positionById = new Map(positions.map((p) => [p.id, p.name]))
+  const groupById = new Map(groups.map((g) => [g.id, g.name]))
 
   if (!group) return null
 
@@ -110,6 +111,29 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
         onOpenChange(false)
       },
     })
+  }
+
+  function getRuleLabel(rule: GroupRule) {
+    switch (rule.dimension) {
+      case "member_type":
+        return `Member type: ${rule.values?.map((v: string) => v === "scout" ? "Scouts" : "Adults").join(", ")}`
+      case "membership_status":
+        return `Status: ${rule.values?.map((v: string) => v === "active" ? "Active" : v === "inactive" ? "Inactive" : "Alumni").join(", ")}`
+      case "oa_member":
+        return "Is OA Member"
+      case "oa_active":
+        return "Is active OA Member"
+      case "position":
+        return `Positions: ${rule.values?.map((id: string) => positionById.get(id) ?? id).join(", ")}`
+      case "group_member":
+        return `In Group(s): ${rule.values?.map((id: string) => groupById.get(id) ?? id).join(", ")}`
+      case "relationship":
+        return `Parents/guardians of members in: ${rule.values?.map((id: string) => groupById.get(id) ?? id).join(", ")}`
+      case "rank":
+        return `Ranks: ${rule.values?.join(", ")}`
+      default:
+        return `${rule.dimension}: ${rule.values?.join(", ") ?? ""}`
+    }
   }
 
   return (
@@ -294,20 +318,20 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
             )}
             {isDynamic && (
               <p className="text-xs text-muted-foreground pt-1 italic">
-                Membership is automatic — driven by role rules below.
+                Membership is automatic — driven by dynamic rules below (logic: {group.rule_logic.toUpperCase()}).
               </p>
             )}
           </Section>
 
-          {group.group_type === "dynamic" && positionRules.length > 0 && (
+          {rules.length > 0 && (
             <>
               <Separator />
-              <Section title="Position Rules">
-                <ul className="space-y-1">
-                  {positionRules.map((rule) => (
-                    <li key={rule.id} className="text-sm flex items-center gap-2">
-                      <Zap className="h-3.5 w-3.5 text-violet-500 shrink-0" />
-                      {positionById.get(rule.position_id) ?? rule.position_id}
+              <Section title="Dynamic Rules">
+                <ul className="space-y-2">
+                  {rules.map((rule) => (
+                    <li key={rule.id} className="text-sm flex items-start gap-2">
+                      <Zap className="h-4 w-4 text-violet-500 shrink-0 mt-0.5" />
+                      <div>{getRuleLabel(rule)}</div>
                     </li>
                   ))}
                 </ul>

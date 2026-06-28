@@ -31,6 +31,7 @@ const PRESET_COLORS = [
 const TYPE_DESCRIPTIONS: Record<string, string> = {
   patrol: "A BSA patrol — scouts belong to at most one patrol.",
   manual: "A hand-curated group (e.g. PLC, SPL team, trip roster).",
+  dynamic: "A dynamic, rule-based group (e.g. active scouts, OA members, position assignments).",
 }
 
 function FormField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
@@ -146,6 +147,7 @@ export default function NewGroupPage() {
             <SelectContent>
               <SelectItem value="patrol">Patrol</SelectItem>
               <SelectItem value="manual">Manual group</SelectItem>
+              <SelectItem value="dynamic">Dynamic group</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground mt-1">{TYPE_DESCRIPTIONS[type]}</p>

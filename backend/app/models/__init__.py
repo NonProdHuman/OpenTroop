@@ -10,12 +10,14 @@ from app.models.enums import (
     PositionScope,
     RelationshipType,
     RsvpStatus,
+    RuleDimension,
+    RuleLogic,
     SwimClassification,
 )
 from app.models.event import Event, EventOrganizer, EventParticipant
 from app.models.event_audience import EventAudience
 from app.models.event_type import EventType
-from app.models.group import Group, GroupMember, GroupPositionRule
+from app.models.group import Group, GroupMember, GroupRule
 from app.models.location import Location
 from app.models.member import Member
 from app.models.rbac import (
@@ -40,7 +42,7 @@ __all__ = [
     "EventType",
     "Group",
     "GroupMember",
-    "GroupPositionRule",
+    "GroupRule",
     "Location",
     "Member",
     "MemberRelationship",
@@ -59,6 +61,8 @@ __all__ = [
     "PlatformRole",
     "PositionScope",
     "RsvpStatus",
+    "RuleDimension",
+    "RuleLogic",
     "SwimClassification",
     "RelationshipType",
 ]

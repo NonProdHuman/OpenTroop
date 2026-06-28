@@ -21,10 +21,11 @@ vi.mock("@/components/ui/popover", () => ({
 
 vi.mock("@/hooks/use-groups", () => ({
   useGroupMembers: vi.fn(),
-  useGroupPositionRules: vi.fn(),
+  useGroupRules: vi.fn(),
   useDeleteGroup: vi.fn(),
   useAddGroupMember: vi.fn(),
   useRemoveGroupMember: vi.fn(),
+  useGroups: vi.fn(),
 }))
 
 vi.mock("@/hooks/use-members", () => ({
@@ -57,6 +58,7 @@ describe("GroupDetailSheet", () => {
     is_system: false,
     color: "#F59E0B",
     description: "Alpha patrol description",
+    rule_logic: "and",
   }
 
   const mockGroupMembers: Member[] = [
@@ -174,8 +176,11 @@ describe("GroupDetailSheet", () => {
       isLoading: false,
     } as any)
 
-    vi.mocked(groupsHook.useGroupPositionRules).mockReturnValue({
+    vi.mocked(groupsHook.useGroupRules).mockReturnValue({
       data: [],
+    } as any)
+    vi.mocked(groupsHook.useGroups).mockReturnValue({
+      data: [mockGroup],
     } as any)
 
     vi.mocked(groupsHook.useDeleteGroup).mockReturnValue({

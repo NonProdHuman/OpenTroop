@@ -22,7 +22,7 @@ def test_all_tables_created(db_session):
     assert {
         "groups",
         "group_members",
-        "group_position_rules",
+        "group_rules",
         "members",
         "member_relationships",
         "positions",

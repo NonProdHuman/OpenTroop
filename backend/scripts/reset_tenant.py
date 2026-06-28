@@ -62,7 +62,7 @@ def main() -> None:
     from app.models import Base  # noqa: F401 — registers all tables
     from app.models.event import Event, EventOrganizer, EventParticipant
     from app.models.event_type import EventType
-    from app.models.group import Group, GroupMember, GroupPositionRule
+    from app.models.group import Group, GroupMember, GroupRule
     from app.models.location import Location
     from app.models.member import Member
     from app.models.rbac import (
@@ -106,8 +106,8 @@ def main() -> None:
         n = _run(session, delete(GroupMember).where(GroupMember.tenant_id == tid))
         print(f"  Deleted {n} group memberships")
 
-        n = _run(session, delete(GroupPositionRule).where(GroupPositionRule.tenant_id == tid))
-        print(f"  Deleted {n} group position rules")
+        n = _run(session, delete(GroupRule).where(GroupRule.tenant_id == tid))
+        print(f"  Deleted {n} group rules")
 
         # Position assignments — drop for members we're about to delete (non-linked).
         if linked_ids:

@@ -130,7 +130,7 @@ On save, navigates to `/groups`. On cancel, navigates to `/groups`.
 | Field | Input | Constraints |
 |-------|-------|-------------|
 | Name | Text | Required. Must be unique within tenant (backend enforces with 409). |
-| Type | Select: Patrol · Manual | Required. Dynamic is excluded — dynamic groups are created automatically by the system via role rules, not by users. |
+| Type | Select: Patrol · Manual · Dynamic | Required. Dynamic groups can contain manual members and/or dynamic rules. |
 | Color | Color swatch picker | Optional. 8 preset swatches + a free-text hex input for custom colors. |
 | Description | Textarea | Optional. |
 
@@ -162,8 +162,6 @@ existing group record.
 **Restrictions:**
 - `is_system = true` groups: name and type are read-only (shown as plain text, not
   inputs). Color and description remain editable.
-- `group_type = "dynamic"`: type is read-only (changing a dynamic group to manual would
-  orphan its role rules).
 
 ### Section: Members
 
@@ -180,11 +178,27 @@ Lists current members (same as the detail sheet). From the edit page, members ca
 Changes save immediately (not batched with the form save button), same pattern as
 the `GroupMembershipEditor` on the member edit page.
 
-### Section: Position Rules (dynamic groups only)
+### Section: Dynamic Rules (dynamic groups only)
 
-Shown only for `group_type = "dynamic"`. Lists current `GroupPositionRule` rows. Leaders
-can add a rule (select a position from a dropdown) or remove an existing rule. Changes
-save immediately.
+Shown only for `group_type = "dynamic"`.
+
+#### Logic Mode Selector
+A dropdown at the top of the section allows choosing:
+- **ALL (AND)**: Members must match all checked rules.
+- **ANY (OR)**: Members must match any of the checked rules.
+
+#### Rule Dimensions
+Allows toggling and configuring 8 dimensions:
+1. **Member Type**: Select Scouts or Adults.
+2. **Membership Status**: Select Active, Inactive, or Alumni.
+3. **Is OA Member**: Boolean toggle.
+4. **Is active OA Member**: Boolean toggle.
+5. **Position**: Search/combobox to select specific positions.
+6. **Group Membership**: Search/combobox to select other groups (excludes self).
+7. **Parents/Guardians of Group**: Search/combobox to select target groups (excludes self).
+8. **Rank**: Disabled / coming soon.
+
+Changes save immediately via the `PUT /groups/{id}/rules/{dimension}` or `DELETE` endpoints.
 
 ### Save behavior
 
@@ -217,10 +231,5 @@ Navigate to `/groups` without saving. No confirmation dialog unless the form is 
    counts in a single query. Implement N-parallel for now; add the API param when it
    becomes a performance issue.
 
-2. **Dynamic group creation:** Who creates dynamic groups and how? Currently they are
-   implied by role rules but there is no UI path to create a `dynamic`-type group.
-   Likely a platform/admin-only action. Deferred — document when role rule management
-   is built.
-
-3. **Group ordering:** Alpha sort is the default, but troop leaders may want to reorder
+2. **Group ordering:** Alpha sort is the default, but troop leaders may want to reorder
    patrols (e.g., show Eagle Patrol first). Drag-to-reorder is a future enhancement.
