@@ -94,7 +94,10 @@ export function AppSidebar() {
   const { state, setOpen } = useSidebar()
 
   const isActive = (url: string) => pathname === url || pathname.startsWith(url + "/")
-  const groupActive = (item: NavItem) => item.children?.some((c) => isActive(c.url)) ?? false
+  const groupActive = (item: NavItem) => {
+    const visibleChildren = item.children?.filter((c) => !c.requires || has(c.requires)) ?? []
+    return visibleChildren.some((c) => isActive(c.url))
+  }
 
   // Track which group is open. Only one group can be open at a time.
   const [openGroup, setOpenGroup] = useState<string | null>(null)
@@ -163,12 +166,17 @@ export function AppSidebar() {
             if (item.platformAdminOnly && !isPlatformAdmin) return null
 
             const hasAccess = !item.requires || has(item.requires)
-            const isDisabled = Boolean(item.disabledMessage) || !hasAccess
+            if (!hasAccess) return null
+
+            const isDisabled = Boolean(item.disabledMessage)
             const tooltip = item.disabledMessage
               ? `${item.title} — ${item.disabledMessage}`
-              : !hasAccess ? `${item.title} — Access denied` : item.title
+              : item.title
 
             if (item.children) {
+              const visibleChildren = item.children.filter((child) => !child.requires || has(child.requires))
+              if (visibleChildren.length === 0) return null
+
               return (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
@@ -186,9 +194,8 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                   {isOpen(item) ? (
                     <SidebarMenuSub>
-                      {item.children.map((child) => {
-                        const childHasAccess = !child.requires || has(child.requires)
-                        const childIsDisabled = Boolean(child.disabledMessage) || !childHasAccess
+                      {visibleChildren.map((child) => {
+                        const childIsDisabled = Boolean(child.disabledMessage)
                         return (
                           <SidebarMenuSubItem key={child.title}>
                             <SidebarMenuSubButton
