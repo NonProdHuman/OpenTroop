@@ -122,22 +122,22 @@ def test_position_functional_role_mapping(db_session):
 
 
 def test_member_position_assignment(db_session):
-    """Member can be assigned to a position; assignment navigates back to member."""
+    """Member can be assigned to a position; assignment navigates to both sides."""
     tenant_id = uuid.uuid4()
     member = _make_member(db_session, tenant_id)
     position = _make_position(db_session, tenant_id, "scoutmaster", is_system=True)
-    db_session.add(
-        MemberPositionAssignment(
-            tenant_id=tenant_id,
-            member=member,
-            position=position,
-            assigned_by_id=member.id,
-        )
+    assignment = MemberPositionAssignment(
+        tenant_id=tenant_id,
+        member=member,
+        position=position,
+        assigned_by_id=member.id,
     )
+    db_session.add(assignment)
     db_session.commit()
-    db_session.refresh(member)
+    db_session.refresh(assignment)
 
-    assert member.position_assignments[0].position is position
+    assert assignment.member is member
+    assert assignment.position is position
 
 
 def test_resolve_permissions_single_position(db_session):

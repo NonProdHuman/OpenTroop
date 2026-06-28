@@ -12,7 +12,6 @@ from app.models.base import TrackedBase
 from app.models.enums import MemberStatus, MemberType, SwimClassification
 
 if TYPE_CHECKING:
-    from app.models.rbac import MemberPositionAssignment  # codeql[py/cyclic-import]
     from app.models.relationship import MemberRelationship
     from app.models.user import User  # User does not import Member, so no cycle
 
@@ -101,12 +100,6 @@ class Member(TrackedBase):
 
     # Patrol membership is folded into the general Group model: a member's patrol
     # is a GroupMember row whose Group is of type PATROL. See app.models.group.
-
-    position_assignments: Mapped[list[MemberPositionAssignment]] = relationship(
-        "MemberPositionAssignment",
-        foreign_keys="MemberPositionAssignment.member_id",
-        back_populates="member",
-    )
 
     # Family relationship graph. outgoing_relationships: relationships where this
     # member is from_member (e.g. a parent's view of their children).

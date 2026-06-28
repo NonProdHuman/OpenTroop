@@ -28,7 +28,7 @@ from app.models.base import TrackedBase
 from app.models.enums import Permission, PositionScope
 
 if TYPE_CHECKING:
-    from app.models.member import Member  # codeql[py/cyclic-import]
+    from app.models.member import Member
 
 
 class Position(TrackedBase):
@@ -163,9 +163,7 @@ class MemberPositionAssignment(TrackedBase):
         ForeignKey("members.id"), nullable=True
     )
 
-    member: Mapped[Member] = relationship(
-        "Member", foreign_keys=[member_id], back_populates="position_assignments"
-    )
+    member: Mapped[Member] = relationship("Member", foreign_keys=[member_id])
     position: Mapped[Position] = relationship(
         "Position", foreign_keys=[position_id], back_populates="member_assignments"
     )
