@@ -25,6 +25,8 @@ resource "google_artifact_registry_repository" "containers" {
   format        = "DOCKER"
 
   depends_on = [google_project_service.required]
+
+  # checkov:skip=CHK_GCP_84: This is a private Docker repository that will only be used by the Cloud Run service
 }
 
 resource "google_service_account" "api" {
