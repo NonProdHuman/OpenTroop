@@ -20,7 +20,7 @@ from app.core.provisioning import invite_admin_member, provision_tenant
 from app.core.tenant_context import unscoped
 from app.models.enums import PlatformRole
 from app.models.member import Member
-from app.models.role import MemberRoleAssignment, Role
+from app.models.rbac import FunctionalRole, MemberPositionAssignment, PositionFunctionalRole
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.schemas.platform import (
@@ -126,18 +126,28 @@ def unsuspend_tenant(tenant_id: uuid.UUID, db: AdminDbDep) -> Tenant:
 # ---------------------------------------------------------------------------
 
 
-def _admin_assignments(db: AdminDbDep, tenant_id: uuid.UUID) -> Sequence[MemberRoleAssignment]:
-    """Active assignments of the tenant's is_admin role(s) to members."""
+def _admin_assignments(db: AdminDbDep, tenant_id: uuid.UUID) -> Sequence[MemberPositionAssignment]:
+    """Active assignments of admin-conferring positions to members.
+
+    A member is a tenant admin when they hold a position mapped to an is_admin
+    functional role. Returns the underlying ``MemberPositionAssignment`` rows.
+    """
     with unscoped():
         return db.scalars(
-            select(MemberRoleAssignment)
-            .join(Role, MemberRoleAssignment.role_id == Role.id)
-            .where(
-                MemberRoleAssignment.tenant_id == tenant_id,
-                MemberRoleAssignment.is_deleted.is_(False),
-                Role.is_admin.is_(True),
-                Role.is_deleted.is_(False),
+            select(MemberPositionAssignment)
+            .join(
+                PositionFunctionalRole,
+                PositionFunctionalRole.position_id == MemberPositionAssignment.position_id,
             )
+            .join(FunctionalRole, FunctionalRole.id == PositionFunctionalRole.functional_role_id)
+            .where(
+                MemberPositionAssignment.tenant_id == tenant_id,
+                MemberPositionAssignment.is_deleted.is_(False),
+                PositionFunctionalRole.is_deleted.is_(False),
+                FunctionalRole.is_admin.is_(True),
+                FunctionalRole.is_deleted.is_(False),
+            )
+            .distinct()
         ).all()
 
 

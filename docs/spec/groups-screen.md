@@ -109,10 +109,10 @@ If the group has no members: "No members yet."
 For **dynamic** groups, show a note below the member list:
 *"Membership is automatic — driven by role rules below."*
 
-### Section: Role Rules (dynamic groups only)
+### Section: Position Rules (dynamic groups only)
 
-Shown only when `group_type = "dynamic"`. Lists each `GroupRoleRule`: the role name
-that triggers membership. Read-only in the detail sheet; managed on the edit page.
+Shown only when `group_type = "dynamic"`. Lists each `GroupPositionRule`: the position
+name that triggers membership. Read-only in the detail sheet; managed on the edit page.
 
 ### Section: Description
 
@@ -180,10 +180,10 @@ Lists current members (same as the detail sheet). From the edit page, members ca
 Changes save immediately (not batched with the form save button), same pattern as
 the `GroupMembershipEditor` on the member edit page.
 
-### Section: Role Rules (dynamic groups only)
+### Section: Position Rules (dynamic groups only)
 
-Shown only for `group_type = "dynamic"`. Lists current `GroupRoleRule` rows. Leaders
-can add a rule (select a role from a dropdown) or remove an existing rule. Changes
+Shown only for `group_type = "dynamic"`. Lists current `GroupPositionRule` rows. Leaders
+can add a rule (select a position from a dropdown) or remove an existing rule. Changes
 save immediately.
 
 ### Save behavior

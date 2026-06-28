@@ -7,6 +7,7 @@ from app.models.enums import (
     MemberType,
     Permission,
     PlatformRole,
+    PositionScope,
     RelationshipType,
     RsvpStatus,
     SwimClassification,
@@ -14,11 +15,17 @@ from app.models.enums import (
 from app.models.event import Event, EventOrganizer, EventParticipant
 from app.models.event_audience import EventAudience
 from app.models.event_type import EventType
-from app.models.group import Group, GroupMember, GroupRoleRule
+from app.models.group import Group, GroupMember, GroupPositionRule
 from app.models.location import Location
 from app.models.member import Member
+from app.models.rbac import (
+    FunctionalRole,
+    FunctionalRolePermission,
+    MemberPositionAssignment,
+    Position,
+    PositionFunctionalRole,
+)
 from app.models.relationship import MemberRelationship
-from app.models.role import MemberRoleAssignment, Role, RoleMembership, RolePermission
 from app.models.tenant import Tenant
 from app.models.user import Identity, User
 
@@ -33,14 +40,15 @@ __all__ = [
     "EventType",
     "Group",
     "GroupMember",
-    "GroupRoleRule",
+    "GroupPositionRule",
     "Location",
     "Member",
     "MemberRelationship",
-    "Role",
-    "RolePermission",
-    "RoleMembership",
-    "MemberRoleAssignment",
+    "Position",
+    "FunctionalRole",
+    "FunctionalRolePermission",
+    "PositionFunctionalRole",
+    "MemberPositionAssignment",
     "Tenant",
     "User",
     "Identity",
@@ -49,6 +57,7 @@ __all__ = [
     "MemberType",
     "Permission",
     "PlatformRole",
+    "PositionScope",
     "RsvpStatus",
     "SwimClassification",
     "RelationshipType",

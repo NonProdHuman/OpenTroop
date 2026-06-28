@@ -10,9 +10,9 @@ from app.core.groups import member_group_ids
 from app.models.enums import GroupType, MemberType
 from app.models.event import Event
 from app.models.event_audience import EventAudience
-from app.models.group import Group, GroupMember, GroupRoleRule
+from app.models.group import Group, GroupMember, GroupPositionRule
 from app.models.member import Member
-from app.models.role import MemberRoleAssignment, Role
+from app.models.rbac import MemberPositionAssignment, Position
 
 _TENANT = uuid.UUID("10000000-0000-0000-0000-000000000001")
 
@@ -48,14 +48,18 @@ def test_member_group_ids_manual_and_dynamic(db_session) -> None:
     session = db_session
     manual_g = _group(session, "Wolf", GroupType.PATROL)
     dynamic_g = _group(session, "PLC", GroupType.DYNAMIC)
-    role = Role(tenant_id=_TENANT, name="Patrol Leader", slug="pl")
+    position = Position(tenant_id=_TENANT, name="Patrol Leader", slug="pl")
     member = _member(session)
-    session.add(role)
+    session.add(position)
     session.flush()
 
     session.add(GroupMember(tenant_id=_TENANT, group_id=manual_g.id, member_id=member.id))
-    session.add(GroupRoleRule(tenant_id=_TENANT, group_id=dynamic_g.id, role_id=role.id))
-    session.add(MemberRoleAssignment(tenant_id=_TENANT, member_id=member.id, role_id=role.id))
+    session.add(
+        GroupPositionRule(tenant_id=_TENANT, group_id=dynamic_g.id, position_id=position.id)
+    )
+    session.add(
+        MemberPositionAssignment(tenant_id=_TENANT, member_id=member.id, position_id=position.id)
+    )
     session.flush()
 
     assert member_group_ids(member.id, session) == frozenset({manual_g.id, dynamic_g.id})

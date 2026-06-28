@@ -67,9 +67,24 @@ export interface Member {
   user_id: string | null
 }
 
-// ── Roles ────────────────────────────────────────────────────────────────────
+// ── RBAC ─────────────────────────────────────────────────────────────────────
 
-export interface Role {
+export type PositionScope = "scout" | "adult" | "any"
+
+export interface Position {
+  id: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  name: string
+  slug: string
+  applies_to: PositionScope
+  sort_order: number
+  is_system: boolean
+}
+
+export interface FunctionalRole {
   id: string
   tenant_id: string
   created_at: string
@@ -81,14 +96,34 @@ export interface Role {
   is_admin: boolean
 }
 
-export interface MemberRoleAssignment {
+export interface FunctionalRolePermission {
+  id: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  functional_role_id: string
+  permission: Permission
+}
+
+export interface PositionFunctionalRole {
+  id: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  position_id: string
+  functional_role_id: string
+}
+
+export interface MemberPositionAssignment {
   id: string
   tenant_id: string
   created_at: string
   updated_at: string
   is_deleted: boolean
   member_id: string
-  role_id: string
+  position_id: string
   assigned_by_id: string | null
 }
 
@@ -125,14 +160,14 @@ export interface Group {
   is_system: boolean
 }
 
-export interface GroupRoleRule {
+export interface GroupPositionRule {
   id: string
   tenant_id: string
   created_at: string
   updated_at: string
   is_deleted: boolean
   group_id: string
-  role_id: string
+  position_id: string
 }
 
 // ── Events ───────────────────────────────────────────────────────────────────

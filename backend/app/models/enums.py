@@ -82,6 +82,19 @@ class GroupType(enum.StrEnum):
     PATROL = "patrol"
 
 
+class PositionScope(enum.StrEnum):
+    """Which kind of member a Position may be assigned to.
+
+    A UI/validation hint, not a hard wall: ``ANY`` positions (e.g. a custom
+    troop role) apply to both. Scout positions (Patrol Leader) vs adult
+    positions (Scoutmaster) are filtered by this when assigning.
+    """
+
+    SCOUT = "scout"
+    ADULT = "adult"
+    ANY = "any"
+
+
 class SwimClassification(enum.StrEnum):
     """Official BSA aquatics classification."""
 

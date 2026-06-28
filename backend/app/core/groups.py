@@ -13,9 +13,9 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.group import GroupMember, GroupRoleRule
+from app.models.group import GroupMember, GroupPositionRule
 from app.models.member import Member
-from app.models.role import MemberRoleAssignment
+from app.models.rbac import MemberPositionAssignment
 
 
 def resolve_group_members(group_id: uuid.UUID, session: Session) -> frozenset[uuid.UUID]:
@@ -23,8 +23,8 @@ def resolve_group_members(group_id: uuid.UUID, session: Session) -> frozenset[uu
 
     The set is the union of:
     - manual inclusions (``GroupMember`` rows), and
-    - dynamic members — everyone *directly* assigned a role named by a
-      ``GroupRoleRule`` (no role-hierarchy expansion).
+    - dynamic members — everyone holding a position named by a
+      ``GroupPositionRule``.
 
     Soft-deleted members, memberships, and rules are excluded.
     """
@@ -37,22 +37,22 @@ def resolve_group_members(group_id: uuid.UUID, session: Session) -> frozenset[uu
         ).all()
     )
 
-    rule_role_ids = set(
+    rule_position_ids = set(
         session.scalars(
-            select(GroupRoleRule.role_id).where(
-                GroupRoleRule.group_id == group_id,
-                GroupRoleRule.is_deleted.is_(False),
+            select(GroupPositionRule.position_id).where(
+                GroupPositionRule.group_id == group_id,
+                GroupPositionRule.is_deleted.is_(False),
             )
         ).all()
     )
 
     dynamic: set[uuid.UUID] = set()
-    if rule_role_ids:
+    if rule_position_ids:
         dynamic = set(
             session.scalars(
-                select(MemberRoleAssignment.member_id).where(
-                    MemberRoleAssignment.role_id.in_(rule_role_ids),
-                    MemberRoleAssignment.is_deleted.is_(False),
+                select(MemberPositionAssignment.member_id).where(
+                    MemberPositionAssignment.position_id.in_(rule_position_ids),
+                    MemberPositionAssignment.is_deleted.is_(False),
                 )
             ).all()
         )
@@ -75,7 +75,7 @@ def member_group_ids(member_id: uuid.UUID, session: Session) -> frozenset[uuid.U
     """Return the set of group IDs a member belongs to — the inverse of resolution.
 
     Unions the member's manual ``GroupMember`` inclusions with the dynamic groups
-    whose ``GroupRoleRule`` names a role the member is directly assigned. Used by
+    whose ``GroupPositionRule`` names a position the member holds. Used by
     event-visibility filtering (and, later, the per-member iCal feed).
     """
     manual = set(
@@ -87,22 +87,22 @@ def member_group_ids(member_id: uuid.UUID, session: Session) -> frozenset[uuid.U
         ).all()
     )
 
-    role_ids = set(
+    position_ids = set(
         session.scalars(
-            select(MemberRoleAssignment.role_id).where(
-                MemberRoleAssignment.member_id == member_id,
-                MemberRoleAssignment.is_deleted.is_(False),
+            select(MemberPositionAssignment.position_id).where(
+                MemberPositionAssignment.member_id == member_id,
+                MemberPositionAssignment.is_deleted.is_(False),
             )
         ).all()
     )
 
     dynamic: set[uuid.UUID] = set()
-    if role_ids:
+    if position_ids:
         dynamic = set(
             session.scalars(
-                select(GroupRoleRule.group_id).where(
-                    GroupRoleRule.role_id.in_(role_ids),
-                    GroupRoleRule.is_deleted.is_(False),
+                select(GroupPositionRule.group_id).where(
+                    GroupPositionRule.position_id.in_(position_ids),
+                    GroupPositionRule.is_deleted.is_(False),
                 )
             ).all()
         )

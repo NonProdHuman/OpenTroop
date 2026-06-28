@@ -4,7 +4,7 @@ import { useMemo } from "react"
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
-import type { Group, GroupRoleRule, Member } from "@/types/api"
+import type { Group, GroupPositionRule, Member } from "@/types/api"
 
 export function useGroups() {
   const { request } = useApi()
@@ -207,28 +207,28 @@ export function useRemoveGroupMember() {
   })
 }
 
-// ── Role rules ───────────────────────────────────────────────────────────────
+// ── Position rules ───────────────────────────────────────────────────────────
 
-export function useGroupRoleRules(groupId: string | null) {
+export function useGroupPositionRules(groupId: string | null) {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: [activeTenantId, "group-role-rules", groupId],
-    queryFn: () => request<GroupRoleRule[]>(`/groups/${groupId}/rules`),
+    queryKey: [activeTenantId, "group-position-rules", groupId],
+    queryFn: () => request<GroupPositionRule[]>(`/groups/${groupId}/rules`),
     enabled: groupId !== null && Boolean(activeTenantId),
   })
 }
 
-export function useRemoveGroupRoleRule() {
+export function useRemoveGroupPositionRule() {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   const queryClient = useQueryClient()
   return useMutation({
-    // Backend DELETE /groups/{id}/rules/{role_id} uses the Role's ID, not the rule row ID
-    mutationFn: ({ groupId, roleId }: { groupId: string; roleId: string }) =>
-      request(`/groups/${groupId}/rules/${roleId}`, { method: "DELETE" }),
+    // Backend DELETE /groups/{id}/rules/{position_id} uses the Position's ID
+    mutationFn: ({ groupId, positionId }: { groupId: string; positionId: string }) =>
+      request(`/groups/${groupId}/rules/${positionId}`, { method: "DELETE" }),
     onSuccess: (_data, { groupId }) => {
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-role-rules", groupId] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-position-rules", groupId] })
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members", groupId] })
     },
   })

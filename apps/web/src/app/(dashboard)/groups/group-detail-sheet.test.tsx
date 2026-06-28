@@ -21,7 +21,7 @@ vi.mock("@/components/ui/popover", () => ({
 
 vi.mock("@/hooks/use-groups", () => ({
   useGroupMembers: vi.fn(),
-  useGroupRoleRules: vi.fn(),
+  useGroupPositionRules: vi.fn(),
   useDeleteGroup: vi.fn(),
   useAddGroupMember: vi.fn(),
   useRemoveGroupMember: vi.fn(),
@@ -31,8 +31,8 @@ vi.mock("@/hooks/use-members", () => ({
   useMembers: vi.fn(),
 }))
 
-vi.mock("@/hooks/use-roles", () => ({
-  useRoles: vi.fn(() => ({ data: [] })),
+vi.mock("@/hooks/use-positions", () => ({
+  usePositions: vi.fn(() => ({ data: [] })),
 }))
 
 vi.mock("sonner", () => ({
@@ -174,7 +174,7 @@ describe("GroupDetailSheet", () => {
       isLoading: false,
     } as any)
 
-    vi.mocked(groupsHook.useGroupRoleRules).mockReturnValue({
+    vi.mocked(groupsHook.useGroupPositionRules).mockReturnValue({
       data: [],
     } as any)
 

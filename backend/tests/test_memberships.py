@@ -10,7 +10,12 @@ from sqlalchemy.orm import Session
 
 from app.models.enums import MemberType
 from app.models.member import Member
-from app.models.role import MemberRoleAssignment, Role
+from app.models.rbac import (
+    FunctionalRole,
+    MemberPositionAssignment,
+    Position,
+    PositionFunctionalRole,
+)
 from app.models.tenant import Tenant
 from tests.conftest import ADMIN_USER_ID, NEW_USER_ID, TENANT_A, TENANT_B
 
@@ -50,7 +55,7 @@ def _seed_member(
 
     if is_admin:
         slug = f"admin-{tenant_id}"
-        role = Role(
+        role = FunctionalRole(
             tenant_id=tenant_id,
             name=slug,
             slug=slug,
@@ -59,7 +64,24 @@ def _seed_member(
         )
         db.add(role)
         db.flush()
-        db.add(MemberRoleAssignment(tenant_id=tenant_id, member_id=member.id, role_id=role.id))
+        position = Position(
+            tenant_id=tenant_id,
+            name=f"admin-position-{tenant_id}",
+            slug=f"admin-position-{tenant_id}",
+            is_system=True,
+        )
+        db.add(position)
+        db.flush()
+        db.add(
+            PositionFunctionalRole(
+                tenant_id=tenant_id, position_id=position.id, functional_role_id=role.id
+            )
+        )
+        db.add(
+            MemberPositionAssignment(
+                tenant_id=tenant_id, member_id=member.id, position_id=position.id
+            )
+        )
         db.flush()
 
     return member

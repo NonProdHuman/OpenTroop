@@ -9,16 +9,16 @@ What is DELETED:
   - All Locations
   - All MemberRelationships
   - All Members whose user_id IS NULL (i.e. imported members with no Clerk claim)
-  - All MemberRoleAssignments for those deleted members
-  - All non-system Roles and their RolePermissions/RoleMemberships
-  - All Patrols
+  - All MemberPositionAssignments for those deleted members
+  - All non-system Positions / FunctionalRoles and their mappings/permissions
+  - All Patrols / Groups
 
 What is KEPT:
   - The Tenant row itself
   - Platform Users and Identities (Clerk linkage is untouched)
   - Members with user_id set (your Clerk-linked admin accounts)
-  - Their role assignments to the Administrators role
-  - System roles (is_system=True) and their permissions
+  - Their Administrator position assignments
+  - System positions and functional roles (is_system=True) and their permissions
 
 After running this script you can immediately re-run:
     uv run import-twh <same-tenant-id> path/to/export.xml
@@ -62,11 +62,17 @@ def main() -> None:
     from app.models import Base  # noqa: F401 — registers all tables
     from app.models.event import Event, EventOrganizer, EventParticipant
     from app.models.event_type import EventType
-    from app.models.group import Group, GroupMember, GroupRoleRule
+    from app.models.group import Group, GroupMember, GroupPositionRule
     from app.models.location import Location
     from app.models.member import Member
+    from app.models.rbac import (
+        FunctionalRole,
+        FunctionalRolePermission,
+        MemberPositionAssignment,
+        Position,
+        PositionFunctionalRole,
+    )
     from app.models.relationship import MemberRelationship
-    from app.models.role import MemberRoleAssignment, Role, RoleMembership, RolePermission
     from app.models.tenant import Tenant
 
     session = SessionLocal()
@@ -85,11 +91,6 @@ def main() -> None:
         )
         print(f"  Keeping {len(linked_ids)} Clerk-linked member(s)")
 
-        # Admin roles — keep these and their assignments.
-        admin_role_ids: list[uuid.UUID] = list(
-            session.scalars(select(Role.id).where(Role.tenant_id == tid, Role.is_admin.is_(True)))
-        )
-
         # -- Delete in FK order --------------------------------------------------
 
         n = _run(session, delete(EventParticipant).where(EventParticipant.tenant_id == tid))
@@ -101,57 +102,78 @@ def main() -> None:
         n = _run(session, delete(Event).where(Event.tenant_id == tid))
         print(f"  Deleted {n} events")
 
-        # Group membership + rules — clear before members/roles/groups (FK order).
+        # Group membership + rules — clear before members/positions/groups (FK order).
         n = _run(session, delete(GroupMember).where(GroupMember.tenant_id == tid))
         print(f"  Deleted {n} group memberships")
 
-        n = _run(session, delete(GroupRoleRule).where(GroupRoleRule.tenant_id == tid))
-        print(f"  Deleted {n} group role rules")
+        n = _run(session, delete(GroupPositionRule).where(GroupPositionRule.tenant_id == tid))
+        print(f"  Deleted {n} group position rules")
 
-        # Role assignments — drop for members we're about to delete.
+        # Position assignments — drop for members we're about to delete (non-linked).
         if linked_ids:
             n = _run(
                 session,
-                delete(MemberRoleAssignment).where(
-                    MemberRoleAssignment.tenant_id == tid,
-                    MemberRoleAssignment.member_id.not_in(linked_ids),
+                delete(MemberPositionAssignment).where(
+                    MemberPositionAssignment.tenant_id == tid,
+                    MemberPositionAssignment.member_id.not_in(linked_ids),
                 ),
             )
         else:
             n = _run(
                 session,
-                delete(MemberRoleAssignment).where(MemberRoleAssignment.tenant_id == tid),
+                delete(MemberPositionAssignment).where(MemberPositionAssignment.tenant_id == tid),
             )
-        print(f"  Deleted {n} role assignments")
+        print(f"  Deleted {n} position assignments")
 
-        # Non-admin roles: memberships, permissions, then the roles themselves.
-        if admin_role_ids:
-            n = _run(
+        # Non-system positions / functional roles: drop their mappings and
+        # permissions first, then the rows. System (seeded) RBAC is kept.
+        non_system_position_ids = list(
+            session.scalars(
+                select(Position.id).where(Position.tenant_id == tid, Position.is_system.is_(False))
+            )
+        )
+        non_system_fr_ids = list(
+            session.scalars(
+                select(FunctionalRole.id).where(
+                    FunctionalRole.tenant_id == tid, FunctionalRole.is_system.is_(False)
+                )
+            )
+        )
+        if non_system_position_ids:
+            _run(
                 session,
-                delete(RoleMembership).where(
-                    RoleMembership.tenant_id == tid,
-                    RoleMembership.group_role_id.not_in(admin_role_ids),
+                delete(PositionFunctionalRole).where(
+                    PositionFunctionalRole.tenant_id == tid,
+                    PositionFunctionalRole.position_id.in_(non_system_position_ids),
                 ),
             )
-            print(f"  Deleted {n} role memberships")
-
-            n = _run(
+        if non_system_fr_ids:
+            _run(
                 session,
-                delete(RolePermission).where(
-                    RolePermission.tenant_id == tid,
-                    RolePermission.role_id.not_in(admin_role_ids),
+                delete(PositionFunctionalRole).where(
+                    PositionFunctionalRole.tenant_id == tid,
+                    PositionFunctionalRole.functional_role_id.in_(non_system_fr_ids),
                 ),
             )
-            print(f"  Deleted {n} role permissions")
-        else:
-            _run(session, delete(RoleMembership).where(RoleMembership.tenant_id == tid))
-            _run(session, delete(RolePermission).where(RolePermission.tenant_id == tid))
-
+            _run(
+                session,
+                delete(FunctionalRolePermission).where(
+                    FunctionalRolePermission.tenant_id == tid,
+                    FunctionalRolePermission.functional_role_id.in_(non_system_fr_ids),
+                ),
+            )
         n = _run(
             session,
-            delete(Role).where(Role.tenant_id == tid, Role.is_system.is_(False)),
+            delete(Position).where(Position.tenant_id == tid, Position.is_system.is_(False)),
         )
-        print(f"  Deleted {n} roles")
+        print(f"  Deleted {n} positions")
+        n = _run(
+            session,
+            delete(FunctionalRole).where(
+                FunctionalRole.tenant_id == tid, FunctionalRole.is_system.is_(False)
+            ),
+        )
+        print(f"  Deleted {n} functional roles")
 
         n = _run(session, delete(MemberRelationship).where(MemberRelationship.tenant_id == tid))
         print(f"  Deleted {n} member relationships")

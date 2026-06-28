@@ -15,12 +15,12 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import {
   useGroupMembers,
-  useGroupRoleRules,
+  useGroupPositionRules,
   useDeleteGroup,
   useAddGroupMember,
   useRemoveGroupMember,
 } from "@/hooks/use-groups"
-import { useRoles } from "@/hooks/use-roles"
+import { usePositions } from "@/hooks/use-positions"
 import { useMembers } from "@/hooks/use-members"
 import type { Group } from "@/types/api"
 import { toast } from "sonner"
@@ -74,17 +74,17 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
   const [addMemberOpen, setAddMemberOpen] = useState(false)
 
   const { data: members = [], isLoading: membersLoading } = useGroupMembers(group?.id ?? null)
-  const { data: roleRules = [] } = useGroupRoleRules(
+  const { data: positionRules = [] } = useGroupPositionRules(
     group?.group_type === "dynamic" ? (group?.id ?? null) : null,
   )
-  const { data: roles = [] } = useRoles()
+  const { data: positions = [] } = usePositions()
   const { data: allMembers = [] } = useMembers()
 
   const deleteGroup = useDeleteGroup()
   const addMember = useAddGroupMember()
   const removeMember = useRemoveGroupMember()
 
-  const roleById = new Map(roles.map((r) => [r.id, r.name]))
+  const positionById = new Map(positions.map((p) => [p.id, p.name]))
 
   if (!group) return null
 
@@ -299,15 +299,15 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
             )}
           </Section>
 
-          {group.group_type === "dynamic" && roleRules.length > 0 && (
+          {group.group_type === "dynamic" && positionRules.length > 0 && (
             <>
               <Separator />
-              <Section title="Role Rules">
+              <Section title="Position Rules">
                 <ul className="space-y-1">
-                  {roleRules.map((rule) => (
+                  {positionRules.map((rule) => (
                     <li key={rule.id} className="text-sm flex items-center gap-2">
                       <Zap className="h-3.5 w-3.5 text-violet-500 shrink-0" />
-                      {roleById.get(rule.role_id) ?? rule.role_id}
+                      {positionById.get(rule.position_id) ?? rule.position_id}
                     </li>
                   ))}
                 </ul>

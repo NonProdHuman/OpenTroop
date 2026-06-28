@@ -35,31 +35,6 @@ from __future__ import annotations
 import argparse
 import sys
 
-_DEFAULT_EVENT_TYPES: list[dict[str, object]] = [
-    {"name": "Meeting", "color": "#4A90D9", "allow_signups": False},
-    {
-        "name": "Campout",
-        "color": "#2ECC71",
-        "tracks_camping_nights": True,
-        "tracks_mileage": True,
-        "require_permission_slip": True,
-    },
-    {
-        "name": "Hike",
-        "color": "#F39C12",
-        "tracks_mileage": True,
-        "require_permission_slip": True,
-    },
-    {
-        "name": "Service Project",
-        "color": "#E74C3C",
-        "tracks_service_hours": True,
-        "require_permission_slip": True,
-    },
-    {"name": "Court of Honor", "color": "#9B59B6"},
-    {"name": "Fundraiser", "color": "#1ABC9C"},
-]
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -85,11 +60,15 @@ def main() -> None:
     from sqlalchemy import select
 
     from app.core.database import SessionLocal
+    from app.core.provisioning import (
+        get_administrator_position,
+        seed_default_event_types,
+        seed_default_rbac,
+    )
     from app.models import Base  # noqa: F401
     from app.models.enums import MemberType
-    from app.models.event_type import EventType
     from app.models.member import Member
-    from app.models.role import MemberRoleAssignment, Role
+    from app.models.rbac import MemberPositionAssignment
     from app.models.tenant import Tenant
     from app.models.user import User
 
@@ -124,6 +103,12 @@ def main() -> None:
         session.add(tenant)
         session.flush()
 
+        # Seed the default RBAC (positions, functional roles, mapping) and the
+        # six default event types, then create the founder and grant them the
+        # Administrator position.
+        seed_default_rbac(session, tenant.id)
+        admin_position = get_administrator_position(session, tenant.id)
+
         founder = Member(
             tenant_id=tenant.id,
             first_name=args.admin_first,
@@ -134,26 +119,15 @@ def main() -> None:
         session.add(founder)
         session.flush()
 
-        admin_role = Role(
-            tenant_id=tenant.id,
-            name="Administrators",
-            slug="administrators",
-            is_admin=True,
-            is_system=True,
-        )
-        session.add(admin_role)
-        session.flush()
-
         session.add(
-            MemberRoleAssignment(
+            MemberPositionAssignment(
                 tenant_id=tenant.id,
                 member_id=founder.id,
-                role_id=admin_role.id,
+                position_id=admin_position.id,
             )
         )
 
-        for defaults in _DEFAULT_EVENT_TYPES:
-            session.add(EventType(tenant_id=tenant.id, is_system=True, **defaults))
+        seed_default_event_types(session, tenant.id)
 
         session.commit()
 

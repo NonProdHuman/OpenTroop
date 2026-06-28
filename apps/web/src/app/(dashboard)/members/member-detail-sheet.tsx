@@ -13,8 +13,8 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import type { Member } from "@/types/api"
 import { formatDate } from "@/lib/format"
-import { useMemberRoleAssignments } from "@/hooks/use-role-assignments"
-import { useRoles } from "@/hooks/use-roles"
+import { useMemberPositions } from "@/hooks/use-member-positions"
+import { usePositions } from "@/hooks/use-positions"
 import { useUpdateMember, useInviteMember } from "@/hooks/use-members"
 import { Pencil, UserCheck, UserMinus, Mail } from "lucide-react"
 
@@ -47,9 +47,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSheetProps) {
   const router = useRouter()
-  const { data: assignments = [] } = useMemberRoleAssignments(member?.id ?? null)
-  const { data: roles = [] } = useRoles()
-  const roleById = new Map(roles.map((r) => [r.id, r.name]))
+  const { data: assignments = [] } = useMemberPositions(member?.id ?? null)
+  const { data: positions = [] } = usePositions()
+  const positionById = new Map(positions.map((p) => [p.id, p.name]))
   const updateMember = useUpdateMember()
   const inviteMember = useInviteMember()
 
@@ -223,10 +223,10 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
           {assignments.length > 0 && (
             <>
               <Separator />
-              <Section title="Roles">
+              <Section title="Positions">
                 <div className="flex flex-wrap gap-1.5">
                   {assignments.map((a) => {
-                    const name = roleById.get(a.role_id)
+                    const name = positionById.get(a.position_id)
                     return name ? (
                       <Badge key={a.id} variant="outline">
                         {name}
