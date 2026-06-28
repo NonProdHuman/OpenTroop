@@ -134,7 +134,7 @@ describe("FunctionalRolesPage", () => {
     expect(screen.getByText("Member Admins")).toBeInTheDocument()
   })
 
-  it("renders a 'System roles' separator for system roles", () => {
+  it("renders system roles alongside non-system roles", () => {
     vi.mocked(functionalRolesHook.useFunctionalRoles).mockReturnValue({
       data: [
         makeRole({ id: "r1", name: "Event Admins", is_system: false }),
@@ -144,8 +144,9 @@ describe("FunctionalRolesPage", () => {
     } as any)
 
     render(<FunctionalRolesPage />)
-    expect(screen.getByText("System roles")).toBeInTheDocument()
+    expect(screen.getByText("Event Admins")).toBeInTheDocument()
     expect(screen.getByText("Administrators")).toBeInTheDocument()
+    expect(screen.queryByText("System roles")).not.toBeInTheDocument()
   })
 
   it("shows loading state", () => {

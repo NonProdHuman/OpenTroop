@@ -8,7 +8,7 @@ stamp registered in :mod:`app.core.database`, so route code never has to carry t
 
 See ``docs/spec/tenant-data-access.md``. Once Postgres RLS lands
 (``docs/spec/postgres-rls.md``), the same dependency that sets this ContextVar will
-also issue ``SET LOCAL app.current_tenant`` so the app layer and the DB layer share
+also issue ``SELECT set_config('app.current_tenant', ...)`` so the app layer and the DB layer share
 one value.
 """
 

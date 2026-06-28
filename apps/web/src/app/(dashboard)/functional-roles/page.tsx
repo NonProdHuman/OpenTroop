@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Lock, Pencil, Trash2, ShieldCheck } from "lucide-react"
+import { Lock, Pencil, Trash2, ShieldCheck, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -204,15 +204,40 @@ export default function FunctionalRolesPage() {
   const [selected, setSelected] = useState<FunctionalRole | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const canManage = has("role:manage")
-
-  const nonSystem = roles.filter((r) => !r.is_system)
-  const system = roles.filter((r) => r.is_system)
+  const [sortField, setSortField] = useState<"name" | "type">("name")
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
 
   function handleRowClick(r: FunctionalRole) {
     setSelected(r)
     setSheetOpen(true)
   }
+
+  function handleSort(field: "name" | "type") {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
+    } else {
+      setSortField(field)
+      setSortDirection("asc")
+    }
+  }
+
+  const sortedRoles = [...roles].sort((a, b) => {
+    let valA = ""
+    let valB = ""
+
+    if (sortField === "name") {
+      valA = a.name
+      valB = b.name
+    } else if (sortField === "type") {
+      valA = a.is_admin ? "Admin" : "Standard"
+      valB = b.is_admin ? "Admin" : "Standard"
+    }
+
+    if (valA.toLowerCase() < valB.toLowerCase()) return sortDirection === "asc" ? -1 : 1
+    if (valA.toLowerCase() > valB.toLowerCase()) return sortDirection === "asc" ? 1 : -1
+    return 0
+  })
+  const canManage = has("role:manage")
 
   return (
     <>
@@ -244,18 +269,47 @@ export default function FunctionalRolesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/40">
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</th>
+                  <th
+                    onClick={() => handleSort("name")}
+                    className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer select-none hover:text-foreground"
+                  >
+                    <div className="flex items-center gap-1">
+                      Name
+                      {sortField === "name" ? (
+                        sortDirection === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
+                      )}
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort("type")}
+                    className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer select-none hover:text-foreground"
+                  >
+                    <div className="flex items-center gap-1">
+                      Type
+                      {sortField === "type" ? (
+                        sortDirection === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
+                      )}
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {nonSystem.map((r) => (
+                {sortedRoles.map((r) => (
                   <tr
                     key={r.id}
                     onClick={() => handleRowClick(r)}
                     className="cursor-pointer hover:bg-muted/40 transition-colors"
                   >
-                    <td className="px-4 py-3 font-medium">{r.name}</td>
+                    <td className="px-4 py-3 font-medium">
+                      <div className="flex items-center gap-2">
+                        <span>{r.name}</span>
+                        {r.is_system && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       {r.is_admin && (
                         <Badge className="gap-1 bg-amber-500 hover:bg-amber-500 text-white text-xs">
@@ -266,40 +320,6 @@ export default function FunctionalRolesPage() {
                     </td>
                   </tr>
                 ))}
-                {system.length > 0 && (
-                  <>
-                    {nonSystem.length > 0 && (
-                      <tr>
-                        <td
-                          colSpan={2}
-                          className="px-4 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/20 uppercase tracking-wide"
-                        >
-                          System roles
-                        </td>
-                      </tr>
-                    )}
-                    {system.map((r) => (
-                      <tr
-                        key={r.id}
-                        onClick={() => handleRowClick(r)}
-                        className="cursor-pointer hover:bg-muted/40 transition-colors"
-                      >
-                        <td className="px-4 py-3 font-medium flex items-center gap-2">
-                          <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          {r.name}
-                        </td>
-                        <td className="px-4 py-3">
-                          {r.is_admin && (
-                            <Badge className="gap-1 bg-amber-500 hover:bg-amber-500 text-white text-xs">
-                              <ShieldCheck className="h-3 w-3" />
-                              Admin
-                            </Badge>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </>
-                )}
               </tbody>
             </table>
           </div>

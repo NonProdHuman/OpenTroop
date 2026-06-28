@@ -153,7 +153,7 @@ describe("PositionsPage", () => {
     expect(screen.getByText("Any")).toBeInTheDocument()
   })
 
-  it("renders a 'System positions' section for system positions", () => {
+  it("renders system positions alongside non-system positions", () => {
     vi.mocked(positionsHook.usePositions).mockReturnValue({
       data: [
         makePosition({ id: "p1", name: "Patrol Leader", is_system: false }),
@@ -163,8 +163,9 @@ describe("PositionsPage", () => {
     } as any)
 
     render(<PositionsPage />)
-    expect(screen.getByText("System positions")).toBeInTheDocument()
+    expect(screen.getByText("Patrol Leader")).toBeInTheDocument()
     expect(screen.getByText("Scoutmaster")).toBeInTheDocument()
+    expect(screen.queryByText("System positions")).not.toBeInTheDocument()
   })
 
   it("shows loading state", () => {

@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 
 const STORAGE_KEY = "opentroop.active_tenant"
 const DEFAULT_TENANT = process.env.NEXT_PUBLIC_TENANT_ID ?? ""
@@ -25,10 +26,16 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     if (stored) setActiveTenantIdState(stored)
   }, [])
 
-  const setActiveTenantId = useCallback((id: string) => {
-    setActiveTenantIdState(id)
-    localStorage.setItem(STORAGE_KEY, id)
-  }, [])
+  const queryClient = useQueryClient()
+
+  const setActiveTenantId = useCallback(
+    (id: string) => {
+      setActiveTenantIdState(id)
+      localStorage.setItem(STORAGE_KEY, id)
+      queryClient.clear()
+    },
+    [queryClient],
+  )
 
   return (
     <TenantContext.Provider value={{ activeTenantId, setActiveTenantId }}>

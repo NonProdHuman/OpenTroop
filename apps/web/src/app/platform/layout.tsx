@@ -54,7 +54,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
           )}
 
           <div className="ml-auto">
-            <Button variant="ghost" size="sm" render={<Link href="/members" />}>
+            <Button variant="ghost" size="sm" render={<Link href="/members" />} nativeButton={false}>
               <ArrowLeft className="h-4 w-4" />
               Back to app
             </Button>
@@ -91,7 +91,7 @@ function NotAuthorized() {
           existing platform admin to grant your account a platform role.
         </p>
       </div>
-      <Button variant="outline" size="sm" render={<Link href="/members" />}>
+      <Button variant="outline" size="sm" render={<Link href="/members" />} nativeButton={false}>
         <ArrowLeft className="h-4 w-4" />
         Back to the app
       </Button>

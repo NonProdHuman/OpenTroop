@@ -83,6 +83,17 @@ def get_or_create_user(claims: dict[str, Any], session: Session) -> User:
     session.add(user)
     session.flush()  # populate user.id before referencing it in Identity
 
+    if email:
+        from sqlalchemy import update
+
+        from app.models.member import Member
+
+        session.execute(
+            update(Member)
+            .where(Member.email == email, Member.user_id.is_(None), Member.is_deleted.is_(False))
+            .values(user_id=user.id)
+        )
+
     identity = Identity(
         id=uuid7(),
         user_id=user.id,

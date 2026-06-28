@@ -35,7 +35,7 @@ export function formatDateTime(
  * Human "when" string for an event. Collapses same-day ranges to a single date
  * with a start–end time; all-day events drop the time entirely.
  */
-export function formatEventWhen(start: string, end: string, allDay = false): string {
+export function formatEventWhen(start: string, end: string, allDay = false, short = false): string {
   const s = new Date(start)
   const e = new Date(end)
   if (Number.isNaN(s.getTime())) return start
@@ -46,6 +46,11 @@ export function formatEventWhen(start: string, end: string, allDay = false): str
     return sd === ed ? sd : `${sd} – ${ed}`
   }
   const sameDay = s.toDateString() === e.toDateString()
+  if (short) {
+    const sd = formatDateTime(start, { dateOnly: true })
+    const ed = formatDateTime(end, { dateOnly: true })
+    return sameDay ? sd : `${sd} – ${ed}`
+  }
   if (sameDay && !Number.isNaN(e.getTime())) {
     const time = e.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
     return `${formatDateTime(start)} – ${time}`

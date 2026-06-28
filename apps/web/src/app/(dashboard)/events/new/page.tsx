@@ -266,7 +266,11 @@ export default function NewEventPage() {
                 value={effectiveTypeId}
                 onValueChange={(v) => set("event_type_id", v as string)}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select event type...">
+                    {activeTypes.find(t => t.id === effectiveTypeId)?.name}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   {activeTypes.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
@@ -337,7 +341,7 @@ export default function NewEventPage() {
               value={form.location_id || NO_LOCATION}
               onValueChange={(v) => set("location_id", v === NO_LOCATION ? "" : (v as string))}
             >
-              <SelectTrigger><SelectValue placeholder="— None —" /></SelectTrigger>
+              <SelectTrigger className="w-full"><SelectValue placeholder="— None —" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={NO_LOCATION}>— None —</SelectItem>
                 {locations.map((l) => (

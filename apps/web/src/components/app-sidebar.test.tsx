@@ -125,9 +125,9 @@ describe("AppSidebar", () => {
     renderSidebar()
     // shadcn sidebar sets data-active="" (empty string = present) on the active button
     const eventsButton = screen.getByText("Events").closest("[data-slot='sidebar-menu-button']")
-    const membersButton = screen.getByText("Members").closest("[data-slot='sidebar-menu-button']")
     expect(eventsButton).toHaveAttribute("data-active", "")
-    expect(membersButton).not.toHaveAttribute("data-active", "")
+    // "Members" is in the collapsed "Membership" group, so it should not render
+    expect(screen.queryByText("Members")).not.toBeInTheDocument()
   })
 
   it("renders the user button in the footer", () => {
@@ -147,20 +147,26 @@ describe("AppSidebar", () => {
     expect(screen.queryByText("Platform")).not.toBeInTheDocument()
   })
 
-  it("shows the Platform link for platform admins", () => {
+  it("shows the Platform link for platform admins", async () => {
     mockMe({ data: { platform_role: "superadmin" } })
     renderSidebar()
-    const link = screen.getByText("Platform").closest("a")
-    expect(link).toHaveAttribute("href", "/platform")
+    expect(screen.getByText("Platform")).toBeInTheDocument()
+    await userEvent.click(screen.getByText("Platform"))
+    expect(screen.getByText("Tenants").closest("a")).toHaveAttribute("href", "/platform/tenants")
+    expect(screen.getByText("Admins").closest("a")).toHaveAttribute("href", "/platform/admins")
   })
 
-  it("hides nav items whose required permission is absent", () => {
+  it("hides nav items whose required permission is absent", async () => {
     mockPermissions((p) => p !== "member:read")
     renderSidebar()
-    expect(screen.queryByText("Members")).not.toBeInTheDocument()
-    expect(screen.queryByText("Groups")).not.toBeInTheDocument()
     // Events requires event:read which is granted
     expect(screen.getByText("Events")).toBeInTheDocument()
+    // Expand Membership group
+    await userEvent.click(screen.getByText("Membership"))
+    expect(screen.queryByText("Members")).not.toBeInTheDocument()
+    expect(screen.queryByText("Groups")).not.toBeInTheDocument()
+    expect(screen.getByText("Positions")).toBeInTheDocument()
+    expect(screen.getByText("Functional Roles")).toBeInTheDocument()
   })
 
   it("shows nav items when the required permission is present", () => {

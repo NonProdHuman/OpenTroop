@@ -43,7 +43,7 @@ export default function TenantDetailPage() {
   return (
     <>
       <ConsoleHeader title={tenant ? tenant.name : "Tenant"}>
-        <Button variant="ghost" size="sm" render={<Link href="/platform/tenants" />}>
+        <Button variant="ghost" size="sm" render={<Link href="/platform/tenants" />} nativeButton={false}>
           <ArrowLeft className="h-4 w-4" />
           All tenants
         </Button>
