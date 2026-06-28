@@ -6,12 +6,12 @@ permissions:
 on:
   pull_request:
     paths:
-      - 'terraform/**'
+      - "terraform/**"
   push:
     branches:
       - main
     paths:
-      - 'terraform/**'
+      - "terraform/**"
 
 jobs:
   validate-tofu:
@@ -53,10 +53,9 @@ jobs:
           output_format: cli
 
       - name: Run Aqua Security Trivy Scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
-          scan-type: 'config'
-          scan-ref: './terraform'
-          hide-secret-key: true
-          exit-code: '1'
-          severity: 'CRITICAL,HIGH'
+          scan-type: "config"
+          scan-ref: "./terraform"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
