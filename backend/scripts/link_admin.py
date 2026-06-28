@@ -16,8 +16,8 @@ Two modes:
         uv run link-admin <tenant-id> --member-id <uuid>
 
 In both cases the script finds the single existing User row (created when you
-signed into the web app) and sets member.user_id = user.id, then ensures a
-MemberRoleAssignment exists for the Administrators role.
+signed into the web app) and sets member.user_id = user.id, then ensures the
+member holds the Administrator position.
 """
 
 from __future__ import annotations
@@ -52,10 +52,11 @@ def main() -> None:
         sys.exit(f"Error: {args.tenant_id!r} is not a valid UUID")
 
     from app.core.database import SessionLocal
+    from app.core.provisioning import get_administrator_position
     from app.models import Base  # noqa: F401
     from app.models.enums import MemberType
     from app.models.member import Member
-    from app.models.role import MemberRoleAssignment, Role
+    from app.models.rbac import MemberPositionAssignment
     from app.models.tenant import Tenant
     from app.models.user import User
 
@@ -128,40 +129,29 @@ def main() -> None:
             member.user_id = user.id
             print(f"Linked user_id → {user.id}")
 
-        # Find the Administrators role
-        admin_role = session.scalar(
-            select(Role).where(
-                Role.tenant_id == tid,
-                Role.is_admin.is_(True),
-                Role.is_deleted.is_(False),
-            )
-        )
-        if not admin_role:
-            sys.exit(
-                f"Error: no admin role found in tenant {tid}. "
-                "Did provision-tenant run successfully?"
-            )
+        # Find (or seed) the Administrator position.
+        admin_position = get_administrator_position(session, tid)
 
-        # Ensure the role assignment exists
+        # Ensure the position assignment exists.
         existing_assignment = session.scalar(
-            select(MemberRoleAssignment).where(
-                MemberRoleAssignment.tenant_id == tid,
-                MemberRoleAssignment.member_id == member.id,
-                MemberRoleAssignment.role_id == admin_role.id,
-                MemberRoleAssignment.is_deleted.is_(False),
+            select(MemberPositionAssignment).where(
+                MemberPositionAssignment.tenant_id == tid,
+                MemberPositionAssignment.member_id == member.id,
+                MemberPositionAssignment.position_id == admin_position.id,
+                MemberPositionAssignment.is_deleted.is_(False),
             )
         )
         if not existing_assignment:
             session.add(
-                MemberRoleAssignment(
+                MemberPositionAssignment(
                     tenant_id=tid,
                     member_id=member.id,
-                    role_id=admin_role.id,
+                    position_id=admin_position.id,
                 )
             )
-            print(f"Granted Administrators role ({admin_role.id})")
+            print(f"Granted Administrator position ({admin_position.id})")
         else:
-            print("Administrators role assignment already exists")
+            print("Administrator position assignment already exists")
 
         session.commit()
         print()

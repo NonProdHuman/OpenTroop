@@ -18,9 +18,7 @@ router = APIRouter(prefix="/event-types", tags=["event-types"])
     dependencies=[Depends(require(Permission.EVENT_READ))],
 )
 def list_event_types(tenant_id: TenantDep, db: DbDep) -> Sequence[EventType]:
-    return db.scalars(
-        select(EventType).where(EventType.tenant_id == tenant_id, EventType.is_deleted.is_(False))
-    ).all()
+    return db.scalars(select(EventType).where(EventType.is_deleted.is_(False))).all()
 
 
 @router.post(

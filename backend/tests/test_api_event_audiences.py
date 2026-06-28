@@ -7,7 +7,13 @@ from sqlalchemy.orm import Session
 
 from app.models.enums import MemberType, Permission
 from app.models.member import Member
-from app.models.role import MemberRoleAssignment, Role, RolePermission
+from app.models.rbac import (
+    FunctionalRole,
+    FunctionalRolePermission,
+    MemberPositionAssignment,
+    Position,
+    PositionFunctionalRole,
+)
 
 TENANT_A = uuid.UUID("10000000-0000-0000-0000-000000000001")
 NEW_USER_ID = uuid.UUID("c0000000-0000-0000-0000-000000000001")
@@ -94,10 +100,22 @@ def test_manager_sees_scoped_event(client: TestClient) -> None:
 
 def _seed_reader(db: Session) -> Member:
     """Create a member linked to NEW_USER_ID holding only event:read in TENANT_A."""
-    role = Role(tenant_id=TENANT_A, name="Reader", slug="reader")
+    role = FunctionalRole(tenant_id=TENANT_A, name="Reader", slug="reader")
     db.add(role)
     db.flush()
-    db.add(RolePermission(tenant_id=TENANT_A, role_id=role.id, permission=Permission.EVENT_READ))
+    db.add(
+        FunctionalRolePermission(
+            tenant_id=TENANT_A, functional_role_id=role.id, permission=Permission.EVENT_READ
+        )
+    )
+    position = Position(tenant_id=TENANT_A, name="Reader Position", slug="reader-position")
+    db.add(position)
+    db.flush()
+    db.add(
+        PositionFunctionalRole(
+            tenant_id=TENANT_A, position_id=position.id, functional_role_id=role.id
+        )
+    )
     reader = Member(
         tenant_id=TENANT_A,
         user_id=NEW_USER_ID,
@@ -107,7 +125,9 @@ def _seed_reader(db: Session) -> Member:
     )
     db.add(reader)
     db.flush()
-    db.add(MemberRoleAssignment(tenant_id=TENANT_A, member_id=reader.id, role_id=role.id))
+    db.add(
+        MemberPositionAssignment(tenant_id=TENANT_A, member_id=reader.id, position_id=position.id)
+    )
     db.commit()
     return reader
 

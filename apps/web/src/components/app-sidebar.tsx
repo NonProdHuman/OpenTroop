@@ -58,6 +58,8 @@ const navItems: NavItem[] = [
     title: "Admin",
     icon: Settings2,
     children: [
+      { title: "Positions", url: "/positions", requires: "role:manage" },
+      { title: "Functional Roles", url: "/functional-roles", requires: "role:manage" },
       { title: "Settings", url: "/settings", requires: "role:manage" },
       { title: "Import", url: "/import", requires: "member:write" },
     ],

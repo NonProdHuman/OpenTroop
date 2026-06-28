@@ -7,14 +7,15 @@ from app.routers import (
     calendar,
     event_types,
     events,
+    functional_roles,
     groups,
     imports,
     locations,
+    member_positions,
     members,
     platform,
+    positions,
     relationships,
-    role_assignments,
-    roles,
 )
 
 app = FastAPI(title=settings.app_name)
@@ -30,8 +31,9 @@ app.add_middleware(
 app.include_router(groups.router)
 app.include_router(members.router)
 app.include_router(relationships.router)
-app.include_router(roles.router)
-app.include_router(role_assignments.router)
+app.include_router(positions.router)
+app.include_router(functional_roles.router)
+app.include_router(member_positions.router)
 app.include_router(auth.router)
 app.include_router(platform.router)
 app.include_router(locations.router)

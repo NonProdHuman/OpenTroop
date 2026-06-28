@@ -24,9 +24,9 @@ def _create_member(client: TestClient, first_name: str = "Alice") -> dict:
     return r.json()
 
 
-def _admin_role_id(client: TestClient) -> str:
-    roles = client.get("/roles/").json()
-    return next(r["id"] for r in roles if r["slug"] == "administrators")
+def _admin_position_id(client: TestClient) -> str:
+    positions = client.get("/positions/").json()
+    return next(p["id"] for p in positions if p["slug"] == "administrator")
 
 
 # --- CRUD -----------------------------------------------------------------
@@ -153,39 +153,39 @@ def test_patrol_membership_is_exclusive(client: TestClient) -> None:
     assert member["id"] in in_p2
 
 
-# --- Dynamic role rules ---------------------------------------------------
+# --- Dynamic position rules -----------------------------------------------
 
 
-def test_role_rule_resolves_dynamic_members(client: TestClient) -> None:
-    """A role rule pulls in everyone holding that role (here, the seeded admin)."""
+def test_position_rule_resolves_dynamic_members(client: TestClient) -> None:
+    """A position rule pulls in everyone holding that position (here, the seeded admin)."""
     group = _create_group(client, "Leaders", "dynamic")
-    role_id = _admin_role_id(client)
+    position_id = _admin_position_id(client)
 
-    r = client.post(f"/groups/{group['id']}/rules", json={"role_id": role_id})
+    r = client.post(f"/groups/{group['id']}/rules", json={"position_id": position_id})
     assert r.status_code == 201
 
     rules = client.get(f"/groups/{group['id']}/rules").json()
-    assert any(rule["role_id"] == role_id for rule in rules)
+    assert any(rule["position_id"] == position_id for rule in rules)
 
     resolved = client.get(f"/groups/{group['id']}/members").json()
     assert any(m["first_name"] == "Admin" for m in resolved)
 
 
-def test_remove_role_rule(client: TestClient) -> None:
+def test_remove_position_rule(client: TestClient) -> None:
     group = _create_group(client, "Leaders", "dynamic")
-    role_id = _admin_role_id(client)
-    client.post(f"/groups/{group['id']}/rules", json={"role_id": role_id})
-    deleted = client.delete(f"/groups/{group['id']}/rules/{role_id}")
+    position_id = _admin_position_id(client)
+    client.post(f"/groups/{group['id']}/rules", json={"position_id": position_id})
+    deleted = client.delete(f"/groups/{group['id']}/rules/{position_id}")
     assert deleted.status_code == 204
     resolved = client.get(f"/groups/{group['id']}/members").json()
     assert not any(m["first_name"] == "Admin" for m in resolved)
 
 
-def test_add_rule_unknown_role_422(client: TestClient) -> None:
+def test_add_rule_unknown_position_422(client: TestClient) -> None:
     group = _create_group(client, "Leaders", "dynamic")
     r = client.post(
         f"/groups/{group['id']}/rules",
-        json={"role_id": "00000000-0000-0000-0000-000000000099"},
+        json={"position_id": "00000000-0000-0000-0000-000000000099"},
     )
     assert r.status_code == 422
 

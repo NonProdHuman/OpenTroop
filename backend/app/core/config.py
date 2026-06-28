@@ -19,6 +19,18 @@ class Settings(BaseSettings):
             return v.replace("postgresql://", "postgresql+psycopg://", 1)
         return v
 
+    # Cross-tenant platform operations (opentroop_admin role, BYPASSRLS).
+    # Required for the /platform control-plane routes.  Self-hosted deployments
+    # may point this at the same URL as DATABASE_URL (one owner role, one DB).
+    # SaaS deployments must use a distinct credential with BYPASSRLS.
+    database_url_admin: str = ""
+
+    # Alembic / DDL migrations (table owner + BYPASSRLS so data backfills under
+    # FORCE see all rows).  Falls back to DATABASE_URL when empty, which is fine
+    # for local dev and self-hosted deployments where the app URL is already the
+    # owner.  SaaS should set this to a separate owner credential.
+    database_url_migrate: str = ""
+
     # OIDC / JWT — point at your provider's JWKS endpoint.
     # Clerk SaaS:    https://<frontend-api>.clerk.accounts.dev/.well-known/jwks.json
     # Authentik:     https://<host>/application/o/<app>/jwks/

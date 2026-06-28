@@ -28,10 +28,7 @@ def list_relationships(
     db: DbDep,
     member_id: Annotated[uuid.UUID | None, Query()] = None,
 ) -> Sequence[MemberRelationship]:
-    q = select(MemberRelationship).where(
-        MemberRelationship.tenant_id == tenant_id,
-        MemberRelationship.is_deleted.is_(False),
-    )
+    q = select(MemberRelationship).where(MemberRelationship.is_deleted.is_(False))
     if member_id is not None:
         q = q.where(
             or_(

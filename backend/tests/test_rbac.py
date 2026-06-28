@@ -1,17 +1,18 @@
-"""Tests for the Role/Permission/RoleMembership/MemberRoleAssignment models
-and the resolve_permissions() algorithm."""
+"""Tests for the Position / FunctionalRole RBAC models and resolve_permissions()."""
 
 import uuid
 
 from app.core.permissions import resolve_permissions
 from app.models import (
+    FunctionalRole,
+    FunctionalRolePermission,
     Member,
-    MemberRoleAssignment,
+    MemberPositionAssignment,
     MemberType,
     Permission,
-    Role,
-    RoleMembership,
-    RolePermission,
+    Position,
+    PositionFunctionalRole,
+    PositionScope,
 )
 
 
@@ -27,32 +28,78 @@ def _make_member(db_session, tenant_id: uuid.UUID, first: str = "Test") -> Membe
     return m
 
 
-def _make_role(db_session, tenant_id: uuid.UUID, slug: str, **kwargs: object) -> Role:
-    r = Role(tenant_id=tenant_id, name=slug.replace("_", " ").title(), slug=slug, **kwargs)
+def _make_position(db_session, tenant_id: uuid.UUID, slug: str, **kwargs: object) -> Position:
+    p = Position(
+        tenant_id=tenant_id,
+        name=slug.replace("-", " ").title(),
+        slug=slug,
+        applies_to=PositionScope.ANY,
+        **kwargs,
+    )
+    db_session.add(p)
+    db_session.flush()
+    return p
+
+
+def _make_functional_role(
+    db_session, tenant_id: uuid.UUID, slug: str, **kwargs: object
+) -> FunctionalRole:
+    r = FunctionalRole(
+        tenant_id=tenant_id, name=slug.replace("-", " ").title(), slug=slug, **kwargs
+    )
     db_session.add(r)
     db_session.flush()
     return r
 
 
-def test_role_creation(db_session):
-    """Role persists with correct fields and defaults."""
+def _grant(db_session, tenant_id, role: FunctionalRole, *perms: Permission) -> None:
+    for perm in perms:
+        db_session.add(
+            FunctionalRolePermission(
+                tenant_id=tenant_id, functional_role_id=role.id, permission=perm
+            )
+        )
+
+
+def _map(db_session, tenant_id, position: Position, role: FunctionalRole) -> None:
+    db_session.add(
+        PositionFunctionalRole(
+            tenant_id=tenant_id, position_id=position.id, functional_role_id=role.id
+        )
+    )
+
+
+def _assign(db_session, tenant_id, member: Member, position: Position) -> None:
+    db_session.add(
+        MemberPositionAssignment(tenant_id=tenant_id, member_id=member.id, position_id=position.id)
+    )
+
+
+def test_position_creation(db_session):
+    """Position persists with correct fields and defaults."""
     tenant_id = uuid.uuid4()
-    role = _make_role(db_session, tenant_id, "event_admin")
+    position = _make_position(db_session, tenant_id, "scoutmaster")
     db_session.commit()
-    db_session.refresh(role)
+    db_session.refresh(position)
 
-    assert role.slug == "event_admin"
-    assert role.is_system is False
-    assert role.is_admin is False
-    assert role.is_deleted is False
+    assert position.slug == "scoutmaster"
+    assert position.is_system is False
+    assert position.applies_to is PositionScope.ANY
+    assert position.is_deleted is False
 
 
-def test_role_permission_assignment(db_session):
-    """Permissions can be attached to a role and navigated via relationship."""
+def test_functional_role_permission_assignment(db_session):
+    """Permissions attach to a functional role and navigate via relationship."""
     tenant_id = uuid.uuid4()
-    role = _make_role(db_session, tenant_id, "event_admin")
-    for perm in (Permission.EVENT_CREATE, Permission.EVENT_WRITE, Permission.EVENT_DELETE):
-        db_session.add(RolePermission(tenant_id=tenant_id, role_id=role.id, permission=perm))
+    role = _make_functional_role(db_session, tenant_id, "event-admins")
+    _grant(
+        db_session,
+        tenant_id,
+        role,
+        Permission.EVENT_CREATE,
+        Permission.EVENT_WRITE,
+        Permission.EVENT_DELETE,
+    )
     db_session.commit()
     db_session.refresh(role)
 
@@ -60,56 +107,49 @@ def test_role_permission_assignment(db_session):
     assert granted == {Permission.EVENT_CREATE, Permission.EVENT_WRITE, Permission.EVENT_DELETE}
 
 
-def test_role_membership_hierarchy(db_session):
-    """Position role linked to functional group via RoleMembership."""
+def test_position_functional_role_mapping(db_session):
+    """A position maps to a functional role and navigates both directions."""
     tenant_id = uuid.uuid4()
-    event_admin = _make_role(db_session, tenant_id, "event_admin")
-    scoutmaster = _make_role(db_session, tenant_id, "scoutmaster")
-
-    membership = RoleMembership(
-        tenant_id=tenant_id,
-        group_role=event_admin,
-        member_role=scoutmaster,
-    )
-    db_session.add(membership)
+    event_admins = _make_functional_role(db_session, tenant_id, "event-admins")
+    scoutmaster = _make_position(db_session, tenant_id, "scoutmaster")
+    _map(db_session, tenant_id, scoutmaster, event_admins)
     db_session.commit()
     db_session.refresh(scoutmaster)
-    db_session.refresh(event_admin)
+    db_session.refresh(event_admins)
 
-    assert scoutmaster.group_memberships[0].group_role is event_admin
-    assert event_admin.role_members[0].member_role is scoutmaster
+    assert scoutmaster.functional_role_links[0].functional_role is event_admins
+    assert event_admins.position_links[0].position is scoutmaster
 
 
-def test_member_role_assignment(db_session):
-    """Member can be assigned to a role; assignment navigates back to member."""
+def test_member_position_assignment(db_session):
+    """Member can be assigned to a position; assignment navigates to both sides."""
     tenant_id = uuid.uuid4()
     member = _make_member(db_session, tenant_id)
-    role = _make_role(db_session, tenant_id, "scoutmaster", is_system=True)
-
-    assignment = MemberRoleAssignment(
+    position = _make_position(db_session, tenant_id, "scoutmaster", is_system=True)
+    assignment = MemberPositionAssignment(
         tenant_id=tenant_id,
         member=member,
-        role=role,
+        position=position,
         assigned_by_id=member.id,
     )
     db_session.add(assignment)
     db_session.commit()
-    db_session.refresh(member)
+    db_session.refresh(assignment)
 
-    assert member.role_assignments[0].role is role
+    assert assignment.member is member
+    assert assignment.position is position
 
 
-def test_resolve_permissions_direct(db_session):
-    """Member directly assigned to a functional group gets its permissions."""
+def test_resolve_permissions_single_position(db_session):
+    """A member holding a position gets its functional roles' permissions."""
     tenant_id = uuid.uuid4()
     member = _make_member(db_session, tenant_id)
-    event_admin = _make_role(db_session, tenant_id, "event_admin")
+    event_admins = _make_functional_role(db_session, tenant_id, "event-admins")
+    scoutmaster = _make_position(db_session, tenant_id, "scoutmaster")
 
-    for perm in (Permission.EVENT_CREATE, Permission.EVENT_WRITE):
-        db_session.add(RolePermission(tenant_id=tenant_id, role_id=event_admin.id, permission=perm))
-    db_session.add(
-        MemberRoleAssignment(tenant_id=tenant_id, member_id=member.id, role_id=event_admin.id)
-    )
+    _grant(db_session, tenant_id, event_admins, Permission.EVENT_CREATE, Permission.EVENT_WRITE)
+    _map(db_session, tenant_id, scoutmaster, event_admins)
+    _assign(db_session, tenant_id, member, scoutmaster)
     db_session.commit()
 
     perms = resolve_permissions(member.id, db_session)
@@ -118,41 +158,20 @@ def test_resolve_permissions_direct(db_session):
     assert Permission.MEMBER_WRITE not in perms
 
 
-def test_resolve_permissions_inherited(db_session):
-    """Member assigned to a position inherits permissions from its functional groups."""
+def test_resolve_permissions_union_across_roles(db_session):
+    """A position mapped to multiple functional roles unions their permissions."""
     tenant_id = uuid.uuid4()
     member = _make_member(db_session, tenant_id)
 
-    event_admin = _make_role(db_session, tenant_id, "event_admin")
-    member_admin = _make_role(db_session, tenant_id, "member_admin")
-    scoutmaster = _make_role(db_session, tenant_id, "scoutmaster")
+    event_admins = _make_functional_role(db_session, tenant_id, "event-admins")
+    member_admins = _make_functional_role(db_session, tenant_id, "member-admins")
+    scoutmaster = _make_position(db_session, tenant_id, "scoutmaster")
 
-    db_session.add(
-        RolePermission(
-            tenant_id=tenant_id, role_id=event_admin.id, permission=Permission.EVENT_CREATE
-        )
-    )
-    db_session.add(
-        RolePermission(
-            tenant_id=tenant_id, role_id=member_admin.id, permission=Permission.MEMBER_WRITE
-        )
-    )
-
-    # Scoutmaster is a member of both functional groups
-    db_session.add(
-        RoleMembership(
-            tenant_id=tenant_id, group_role_id=event_admin.id, member_role_id=scoutmaster.id
-        )
-    )
-    db_session.add(
-        RoleMembership(
-            tenant_id=tenant_id, group_role_id=member_admin.id, member_role_id=scoutmaster.id
-        )
-    )
-
-    db_session.add(
-        MemberRoleAssignment(tenant_id=tenant_id, member_id=member.id, role_id=scoutmaster.id)
-    )
+    _grant(db_session, tenant_id, event_admins, Permission.EVENT_CREATE)
+    _grant(db_session, tenant_id, member_admins, Permission.MEMBER_WRITE)
+    _map(db_session, tenant_id, scoutmaster, event_admins)
+    _map(db_session, tenant_id, scoutmaster, member_admins)
+    _assign(db_session, tenant_id, member, scoutmaster)
     db_session.commit()
 
     perms = resolve_permissions(member.id, db_session)
@@ -161,23 +180,47 @@ def test_resolve_permissions_inherited(db_session):
     assert Permission.FINANCE_READ not in perms
 
 
-def test_resolve_permissions_admin_bypass(db_session):
-    """Member in the administrators role receives all permissions."""
+def test_resolve_permissions_union_across_positions(db_session):
+    """A member holding multiple positions unions all their permissions."""
     tenant_id = uuid.uuid4()
     member = _make_member(db_session, tenant_id)
-    admins = _make_role(db_session, tenant_id, "administrators", is_admin=True, is_system=True)
 
-    db_session.add(
-        MemberRoleAssignment(tenant_id=tenant_id, member_id=member.id, role_id=admins.id)
+    finance = _make_functional_role(db_session, tenant_id, "finance-admins")
+    advancement = _make_functional_role(db_session, tenant_id, "advancement-admins")
+    treasurer = _make_position(db_session, tenant_id, "treasurer")
+    adv_chair = _make_position(db_session, tenant_id, "advancement-chair")
+
+    _grant(db_session, tenant_id, finance, Permission.FINANCE_WRITE)
+    _grant(db_session, tenant_id, advancement, Permission.ADVANCEMENT_APPROVE)
+    _map(db_session, tenant_id, treasurer, finance)
+    _map(db_session, tenant_id, adv_chair, advancement)
+    _assign(db_session, tenant_id, member, treasurer)
+    _assign(db_session, tenant_id, member, adv_chair)
+    db_session.commit()
+
+    perms = resolve_permissions(member.id, db_session)
+    assert Permission.FINANCE_WRITE in perms
+    assert Permission.ADVANCEMENT_APPROVE in perms
+
+
+def test_resolve_permissions_admin_bypass(db_session):
+    """A member whose position maps to an is_admin role receives all permissions."""
+    tenant_id = uuid.uuid4()
+    member = _make_member(db_session, tenant_id)
+    admins = _make_functional_role(
+        db_session, tenant_id, "administrators", is_admin=True, is_system=True
     )
+    admin_position = _make_position(db_session, tenant_id, "administrator", is_system=True)
+    _map(db_session, tenant_id, admin_position, admins)
+    _assign(db_session, tenant_id, member, admin_position)
     db_session.commit()
 
     perms = resolve_permissions(member.id, db_session)
     assert perms == frozenset(Permission)
 
 
-def test_resolve_permissions_no_roles(db_session):
-    """Member with no role assignments has no permissions."""
+def test_resolve_permissions_no_positions(db_session):
+    """A member with no positions has no permissions."""
     tenant_id = uuid.uuid4()
     member = _make_member(db_session, tenant_id)
     db_session.commit()
@@ -185,25 +228,23 @@ def test_resolve_permissions_no_roles(db_session):
     assert resolve_permissions(member.id, db_session) == frozenset()
 
 
-def test_resolve_permissions_cycle_safe(db_session):
-    """Circular role memberships do not cause infinite recursion."""
+def test_resolve_permissions_excludes_soft_deleted(db_session):
+    """Soft-deleting the position assignment removes the permissions."""
     tenant_id = uuid.uuid4()
     member = _make_member(db_session, tenant_id)
-    role_a = _make_role(db_session, tenant_id, "role_a")
-    role_b = _make_role(db_session, tenant_id, "role_b")
+    event_admins = _make_functional_role(db_session, tenant_id, "event-admins")
+    scoutmaster = _make_position(db_session, tenant_id, "scoutmaster")
 
-    # A → B → A cycle
-    db_session.add(
-        RoleMembership(tenant_id=tenant_id, group_role_id=role_b.id, member_role_id=role_a.id)
+    _grant(db_session, tenant_id, event_admins, Permission.EVENT_CREATE)
+    _map(db_session, tenant_id, scoutmaster, event_admins)
+    assignment = MemberPositionAssignment(
+        tenant_id=tenant_id, member_id=member.id, position_id=scoutmaster.id
     )
-    db_session.add(
-        RoleMembership(tenant_id=tenant_id, group_role_id=role_a.id, member_role_id=role_b.id)
-    )
-    db_session.add(
-        MemberRoleAssignment(tenant_id=tenant_id, member_id=member.id, role_id=role_a.id)
-    )
+    db_session.add(assignment)
     db_session.commit()
 
-    # Should not raise RecursionError; result is empty (no permissions on either role)
-    perms = resolve_permissions(member.id, db_session)
-    assert isinstance(perms, frozenset)
+    assert Permission.EVENT_CREATE in resolve_permissions(member.id, db_session)
+
+    assignment.is_deleted = True
+    db_session.commit()
+    assert resolve_permissions(member.id, db_session) == frozenset()

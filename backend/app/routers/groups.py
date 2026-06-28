@@ -7,16 +7,16 @@ from sqlalchemy import select
 from app.core.deps import DbDep, TenantDep, get_or_404, require, require_tenant_fk
 from app.core.groups import resolve_group_members
 from app.models.enums import GroupType, MemberType, Permission
-from app.models.group import Group, GroupMember, GroupRoleRule
+from app.models.group import Group, GroupMember, GroupPositionRule
 from app.models.member import Member
-from app.models.role import Role
+from app.models.rbac import Position
 from app.schemas.group import (
     GroupCreate,
     GroupMemberCreate,
     GroupMemberRead,
+    GroupPositionRuleCreate,
+    GroupPositionRuleRead,
     GroupRead,
-    GroupRoleRuleCreate,
-    GroupRoleRuleRead,
     GroupUpdate,
 )
 from app.schemas.member import MemberRead
@@ -33,9 +33,7 @@ router = APIRouter(prefix="/groups", tags=["groups"])
     "/", response_model=list[GroupRead], dependencies=[Depends(require(Permission.MEMBER_READ))]
 )
 def list_groups(tenant_id: TenantDep, db: DbDep) -> Sequence[Group]:
-    return db.scalars(
-        select(Group).where(Group.tenant_id == tenant_id, Group.is_deleted.is_(False))
-    ).all()
+    return db.scalars(select(Group).where(Group.is_deleted.is_(False))).all()
 
 
 @router.post(
@@ -47,7 +45,6 @@ def list_groups(tenant_id: TenantDep, db: DbDep) -> Sequence[Group]:
 def create_group(body: GroupCreate, tenant_id: TenantDep, db: DbDep) -> Group:
     existing = db.scalar(
         select(Group).where(
-            Group.tenant_id == tenant_id,
             Group.name == body.name,
             Group.is_deleted.is_(False),
         )
@@ -116,11 +113,7 @@ def list_group_members(group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> 
     if not member_ids:
         return []
     return db.scalars(
-        select(Member).where(
-            Member.id.in_(member_ids),
-            Member.tenant_id == tenant_id,
-            Member.is_deleted.is_(False),
-        )
+        select(Member).where(Member.id.in_(member_ids), Member.is_deleted.is_(False))
     ).all()
 
 
@@ -166,7 +159,7 @@ def add_group_member(
         )
 
     if group.group_type is GroupType.PATROL:
-        _clear_patrol_membership(db, tenant_id, body.member_id)
+        _clear_patrol_membership(db, body.member_id)
 
     gm = GroupMember(tenant_id=tenant_id, group_id=group_id, member_id=body.member_id)
     db.add(gm)
@@ -188,7 +181,6 @@ def remove_group_member(
         select(GroupMember).where(
             GroupMember.group_id == group_id,
             GroupMember.member_id == member_id,
-            GroupMember.tenant_id == tenant_id,
             GroupMember.is_deleted.is_(False),
         )
     )
@@ -199,53 +191,53 @@ def remove_group_member(
 
 
 # ---------------------------------------------------------------------------
-# Dynamic role rules
+# Dynamic position rules
 # ---------------------------------------------------------------------------
 
 
 @router.get(
     "/{group_id}/rules",
-    response_model=list[GroupRoleRuleRead],
+    response_model=list[GroupPositionRuleRead],
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
 def list_group_rules(
     group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
-) -> Sequence[GroupRoleRule]:
+) -> Sequence[GroupPositionRule]:
     get_or_404(db, Group, group_id, tenant_id, "Group not found")
     return db.scalars(
-        select(GroupRoleRule).where(
-            GroupRoleRule.group_id == group_id, GroupRoleRule.is_deleted.is_(False)
+        select(GroupPositionRule).where(
+            GroupPositionRule.group_id == group_id, GroupPositionRule.is_deleted.is_(False)
         )
     ).all()
 
 
 @router.post(
     "/{group_id}/rules",
-    response_model=GroupRoleRuleRead,
+    response_model=GroupPositionRuleRead,
     status_code=201,
     dependencies=[Depends(require(Permission.MEMBER_WRITE))],
 )
 def add_group_rule(
-    group_id: uuid.UUID, body: GroupRoleRuleCreate, tenant_id: TenantDep, db: DbDep
-) -> GroupRoleRule:
-    """Add a dynamic membership rule — members holding ``role_id`` join the group.
+    group_id: uuid.UUID, body: GroupPositionRuleCreate, tenant_id: TenantDep, db: DbDep
+) -> GroupPositionRule:
+    """Add a dynamic membership rule — members holding ``position_id`` join the group.
 
     Idempotent — re-adding an existing rule returns the existing row.
     """
     get_or_404(db, Group, group_id, tenant_id, "Group not found")
-    require_tenant_fk(db, Role, body.role_id, tenant_id, "role_id")
+    require_tenant_fk(db, Position, body.position_id, tenant_id, "position_id")
 
     existing = db.scalar(
-        select(GroupRoleRule).where(
-            GroupRoleRule.group_id == group_id,
-            GroupRoleRule.role_id == body.role_id,
-            GroupRoleRule.is_deleted.is_(False),
+        select(GroupPositionRule).where(
+            GroupPositionRule.group_id == group_id,
+            GroupPositionRule.position_id == body.position_id,
+            GroupPositionRule.is_deleted.is_(False),
         )
     )
     if existing is not None:
         return existing
 
-    rule = GroupRoleRule(tenant_id=tenant_id, group_id=group_id, role_id=body.role_id)
+    rule = GroupPositionRule(tenant_id=tenant_id, group_id=group_id, position_id=body.position_id)
     db.add(rule)
     db.commit()
     db.refresh(rule)
@@ -253,20 +245,19 @@ def add_group_rule(
 
 
 @router.delete(
-    "/{group_id}/rules/{role_id}",
+    "/{group_id}/rules/{position_id}",
     status_code=204,
     dependencies=[Depends(require(Permission.MEMBER_WRITE))],
 )
 def remove_group_rule(
-    group_id: uuid.UUID, role_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
+    group_id: uuid.UUID, position_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
 ) -> None:
     get_or_404(db, Group, group_id, tenant_id, "Group not found")
     rule = db.scalar(
-        select(GroupRoleRule).where(
-            GroupRoleRule.group_id == group_id,
-            GroupRoleRule.role_id == role_id,
-            GroupRoleRule.tenant_id == tenant_id,
-            GroupRoleRule.is_deleted.is_(False),
+        select(GroupPositionRule).where(
+            GroupPositionRule.group_id == group_id,
+            GroupPositionRule.position_id == position_id,
+            GroupPositionRule.is_deleted.is_(False),
         )
     )
     if rule is None:
@@ -275,14 +266,13 @@ def remove_group_rule(
     db.commit()
 
 
-def _clear_patrol_membership(db: DbDep, tenant_id: uuid.UUID, member_id: uuid.UUID) -> None:
+def _clear_patrol_membership(db: DbDep, member_id: uuid.UUID) -> None:
     """Soft-delete a member's existing PATROL-group memberships (one patrol per member)."""
     rows = db.scalars(
         select(GroupMember)
         .join(Group, Group.id == GroupMember.group_id)
         .where(
             GroupMember.member_id == member_id,
-            GroupMember.tenant_id == tenant_id,
             GroupMember.is_deleted.is_(False),
             Group.group_type == GroupType.PATROL,
         )

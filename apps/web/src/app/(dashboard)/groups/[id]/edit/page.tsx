@@ -35,14 +35,14 @@ import { buttonVariants } from "@/components/ui/button"
 import {
   useGroup,
   useGroupMembers,
-  useGroupRoleRules,
+  useGroupPositionRules,
   useUpdateGroup,
   useAddGroupMember,
   useRemoveGroupMember,
-  useRemoveGroupRoleRule,
+  useRemoveGroupPositionRule,
 } from "@/hooks/use-groups"
 import { useMembers } from "@/hooks/use-members"
-import { useRoles } from "@/hooks/use-roles"
+import { usePositions } from "@/hooks/use-positions"
 import type { Group, GroupType } from "@/types/api"
 
 const PRESET_COLORS = [
@@ -124,16 +124,16 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
   const router = useRouter()
 
   const { data: members = [] } = useGroupMembers(id)
-  const { data: roleRules = [] } = useGroupRoleRules(
+  const { data: positionRules = [] } = useGroupPositionRules(
     group.group_type === "dynamic" ? id : null,
   )
   const { data: allMembers = [] } = useMembers()
-  const { data: allRoles = [] } = useRoles()
+  const { data: allPositions = [] } = usePositions()
 
   const updateGroup = useUpdateGroup()
   const addMember = useAddGroupMember()
   const removeMember = useRemoveGroupMember()
-  const removeRule = useRemoveGroupRoleRule()
+  const removeRule = useRemoveGroupPositionRule()
 
   const [name, setName] = useState(group.name)
   const [type, setType] = useState<GroupType>(group.group_type)
@@ -153,7 +153,7 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
     return true
   })
 
-  const roleById = new Map(allRoles.map((r) => [r.id, r.name]))
+  const positionById = new Map(allPositions.map((p) => [p.id, p.name]))
 
   async function handleSave() {
     if (!name.trim()) { setNameError("Name is required."); return }
@@ -307,30 +307,30 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
 
           {isDynamic && (
             <p className="text-xs text-muted-foreground italic">
-              Members are resolved automatically from role rules below.
+              Members are resolved automatically from position rules below.
             </p>
           )}
         </div>
 
-        {/* ── Role Rules (dynamic only) ─────────────────────── */}
+        {/* ── Position Rules (dynamic only) ─────────────────── */}
         {isDynamic && (
           <>
             <Separator />
-            <SectionTitle>Role Rules</SectionTitle>
+            <SectionTitle>Position Rules</SectionTitle>
             <div className="space-y-2">
-              {roleRules.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No role rules defined.</p>
+              {positionRules.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No position rules defined.</p>
               ) : (
                 <ul className="divide-y rounded-md border">
-                  {roleRules.map((rule) => (
+                  {positionRules.map((rule) => (
                     <li key={rule.id} className="flex items-center justify-between px-3 py-2 text-sm">
                       <div className="flex items-center gap-2">
                         <Zap className="h-3.5 w-3.5 text-violet-500 shrink-0" />
-                        {roleById.get(rule.role_id) ?? rule.role_id}
+                        {positionById.get(rule.position_id) ?? rule.position_id}
                       </div>
                       <button
                         type="button"
-                        onClick={() => removeRule.mutate({ groupId: id, roleId: rule.role_id })}
+                        onClick={() => removeRule.mutate({ groupId: id, positionId: rule.position_id })}
                         disabled={removeRule.isPending}
                         className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
                         aria-label="Remove rule"
@@ -342,7 +342,7 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                 </ul>
               )}
               <p className="text-xs text-muted-foreground">
-                Adding new role rules via the UI is coming soon.
+                Adding new position rules via the UI is coming soon.
               </p>
             </div>
           </>

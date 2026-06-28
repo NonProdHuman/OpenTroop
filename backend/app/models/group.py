@@ -12,7 +12,7 @@ from app.models.enums import GroupType
 
 if TYPE_CHECKING:
     from app.models.member import Member
-    from app.models.role import Role
+    from app.models.rbac import Position
 
 
 class Group(TrackedBase):
@@ -48,8 +48,8 @@ class Group(TrackedBase):
     members: Mapped[list[GroupMember]] = relationship(
         "GroupMember", back_populates="group", cascade="all, delete-orphan"
     )
-    role_rules: Mapped[list[GroupRoleRule]] = relationship(
-        "GroupRoleRule", back_populates="group", cascade="all, delete-orphan"
+    position_rules: Mapped[list[GroupPositionRule]] = relationship(
+        "GroupPositionRule", back_populates="group", cascade="all, delete-orphan"
     )
 
 
@@ -76,22 +76,23 @@ class GroupMember(TrackedBase):
     added_by: Mapped[Member | None] = relationship("Member", foreign_keys=[added_by_id])
 
 
-class GroupRoleRule(TrackedBase):
-    """Dynamic membership rule: members directly assigned ``role_id`` belong to the group.
+class GroupPositionRule(TrackedBase):
+    """Dynamic membership rule: members holding ``position_id`` belong to the group.
 
-    Matches *direct* ``MemberRoleAssignment`` to the named role (no role-hierarchy
-    expansion), which keeps role-driven groups like the PLC predictable: add one
-    rule per position role (PL, SPL, ASM, SM) and the group resolves to exactly
-    the members holding those positions.
+    Matches members directly assigned the named position, which keeps
+    position-driven groups like the PLC predictable: add one rule per position
+    (PL, SPL, ASM, SM) and the group resolves to exactly the members holding them.
     """
 
-    __tablename__ = "group_role_rules"
+    __tablename__ = "group_position_rules"
     __table_args__ = (
-        UniqueConstraint("group_id", "role_id", name="uq_group_role_rules_group_role"),
+        UniqueConstraint("group_id", "position_id", name="uq_group_position_rules_group_position"),
     )
 
     group_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("groups.id"), nullable=False, index=True)
-    role_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("roles.id"), nullable=False, index=True)
+    position_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("positions.id"), nullable=False, index=True
+    )
 
-    group: Mapped[Group] = relationship("Group", back_populates="role_rules")
-    role: Mapped[Role] = relationship("Role")
+    group: Mapped[Group] = relationship("Group", back_populates="position_rules")
+    position: Mapped[Position] = relationship("Position")

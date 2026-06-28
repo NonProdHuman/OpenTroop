@@ -52,7 +52,7 @@ def list_events(tenant_id: TenantDep, db: DbDep, member: CurrentMemberDep) -> Se
     Event managers (``event:write``) see every event; everyone else sees troop-wide
     events plus events whose audience includes one of their groups.
     """
-    query = select(Event).where(Event.tenant_id == tenant_id, Event.is_deleted.is_(False))
+    query = select(Event).where(Event.is_deleted.is_(False))
     if Permission.EVENT_WRITE not in resolve_permissions(member.id, db):
         query = query.where(visibility_clause(member_group_ids(member.id, db), tenant_id))
     return db.scalars(query).all()
@@ -193,7 +193,6 @@ def remove_event_audience(
         select(EventAudience).where(
             EventAudience.event_id == event_id,
             EventAudience.group_id == group_id,
-            EventAudience.tenant_id == tenant_id,
             EventAudience.is_deleted.is_(False),
         )
     )

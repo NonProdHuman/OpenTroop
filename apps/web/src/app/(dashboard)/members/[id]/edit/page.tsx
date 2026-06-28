@@ -4,7 +4,11 @@ import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useMember, useUpdateMember } from "@/hooks/use-members"
 import { useGroups, useMemberGroups } from "@/hooks/use-groups"
+import { useMemberPositions } from "@/hooks/use-member-positions"
+import { usePositions } from "@/hooks/use-positions"
+import { usePermissions } from "@/hooks/use-session"
 import { GroupMembershipEditor } from "@/components/group-membership-editor"
+import { MemberPositionsEditor } from "@/components/member-positions-editor"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -189,8 +193,11 @@ export default function MemberEditPage() {
 
 function MemberEditForm({ id, member }: { id: string; member: Member }) {
   const router = useRouter()
+  const { has } = usePermissions()
   const { data: groups = [] } = useGroups()
   const memberGroups = useMemberGroups(id)
+  const { data: assignments = [] } = useMemberPositions(id)
+  const { data: allPositions = [] } = usePositions()
   const updateMember = useUpdateMember()
 
   const [form, setForm] = useState<FormState>(() => toFormState(member))
@@ -444,6 +451,17 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
           memberId={id}
           memberGroups={memberGroups}
           allGroups={groups}
+        />
+
+        <Separator />
+
+        {/* ── Positions ────────────────────────────────────── */}
+        <SectionTitle>Positions</SectionTitle>
+        <MemberPositionsEditor
+          memberId={id}
+          assignments={assignments}
+          allPositions={allPositions}
+          canAssign={has("role:assign")}
         />
 
         <Separator />

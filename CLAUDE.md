@@ -139,12 +139,12 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   `group_type` (`manual`/`dynamic`/`patrol`) classifies how membership is managed — a
   patrol is a `PATROL`-type group a member belongs to **at most one of** (enforced in the
   API). Membership resolves as the **union** of manual inclusions (`GroupMember`) and
-  **dynamic**, rule-based members (`GroupRoleRule` — everyone *directly* holding a role,
+  **dynamic**, rule-based members (`GroupPositionRule` — everyone holding a *position*,
   e.g. PLC = PL/SPL/ASM/SM). Groups drive event visibility (audiences) and, later, email/
   SMS distribution lists and report scoping.
 - `GroupMember` — an explicit (manual) inclusion of a member in a group; also stores patrol
-  membership. Soft-deletable. `GroupRoleRule` — a dynamic rule: members assigned `role_id`
-  belong to the group.
+  membership. Soft-deletable. `GroupPositionRule` — a dynamic rule: members holding
+  `position_id` belong to the group.
 - `resolve_group_members(group_id, session)` in `app/core/groups.py` — walks manual + role
   rules and returns the resolved `frozenset[member_id]` (mirrors `resolve_permissions`,
   excludes soft-deleted). `member_group_ids(member_id, session)` is the inverse (which groups
@@ -175,24 +175,30 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   `other`. Navigate via `Member.outgoing_relationships` (relationships where this
   member is from_member) and `Member.incoming_relationships` (where this member is
   to_member).
-- `Role` — tenant-scoped named role. Two kinds in practice: **functional groups**
-  (`event_admin`, `member_admin`, `advancement_admin`, `finance_admin`) that hold
-  permissions directly, and **positions** (`scoutmaster`, `patrol_leader`, etc.) that
-  inherit from functional groups via `RoleMembership`. `is_system=True` marks seeded
-  roles that can't be deleted. `is_admin=True` bypasses all permission checks
-  (reserved for the `administrators` role).
-- `RolePermission` — grants a single `Permission` enum value to a `Role`.
-- `RoleMembership` — records that a position role is a member of a functional group.
-  `group_role_id` (the functional group) / `member_role_id` (the position). Members
-  assigned to a position inherit all permissions of the group transitively.
-- `MemberRoleAssignment` — assigns a member to any role (position or functional group
-  directly). `assigned_by_id` provides an audit trail. Soft-delete preserves history.
-  A member may hold multiple roles simultaneously.
+- **RBAC is two levels deep** (see [`docs/spec/roles-rbac.md`](docs/spec/roles-rbac.md)):
+  `member → Position(s) → FunctionalRole(s) → Permission(s)`. The only routine write is
+  assigning a member a **position**; permissions live only on functional roles.
+- `Position` (`app/models/rbac.py`) — what a member *is* (`scoutmaster`, `patrol_leader`,
+  `committee_chair`). The sole assignable unit. `applies_to` (`PositionScope`:
+  scout/adult/any) is a UI/validation hint; `is_system=True` marks seeded positions
+  (reconfigurable, not deletable); `sort_order` orders the troop's list.
+- `FunctionalRole` — a named **permission bundle** (`member-admins`, `event-admins`,
+  `advancement-admins`, …). Positions map into it via `PositionFunctionalRole`.
+  `is_admin=True` short-circuits to **all** permissions (the `administrators` role).
+- `FunctionalRolePermission` — grants a single `Permission` to a `FunctionalRole`.
+- `PositionFunctionalRole` — the many-to-many mapping (position ↔ functional role); the
+  product surface, seeded with sensible defaults and edited rarely to tune governance.
+- `MemberPositionAssignment` — assigns a member to a position (the routine write).
+  `assigned_by_id` is the audit trail; soft-delete preserves history; a member may hold
+  multiple positions (permissions union across them). There is deliberately **no** path
+  to assign a functional role or raw permission directly to a member.
 - `Permission` — `StrEnum` in `enums.py` listing all system capabilities, namespaced
   by domain (`member:read`, `event:create`, `role:manage`, etc.).
-- `resolve_permissions(member_id, session)` in `app/core/permissions.py` — walks
-  `MemberRoleAssignment` → `RoleMembership` transitively (cycle-safe) and returns a
-  `frozenset[Permission]`. Short-circuits to all permissions for `is_admin` roles.
+- `resolve_permissions(member_id, session)` in `app/core/permissions.py` — a flat 2-hop
+  join `positions → functional roles → permissions`, returning a `frozenset[Permission]`.
+  Short-circuits to all permissions for `is_admin` roles. Written as a union over
+  permission *sources* so a future direct `PositionPermission` source drops in additively.
+  Defaults are seeded at provisioning by `seed_default_rbac` (`app/core/provisioning.py`).
 - `Location` — reusable named locations (name, address, phone, website_url, directions,
   description, distance_miles). Referenced by `Event.location_id`; events may also
   carry a free-text `location_notes` for one-off spots.
@@ -261,7 +267,8 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   gated by `PlatformAdminDep`): the SaaS control plane.
   - `POST /platform/tenants` — **provision a tenant**: atomically creates the Tenant, an
     **unclaimed** founding admin Member (`user_id` null, named/emailed via the request body),
-    the administrators Role, the role assignment, and the six default event types. Returns the
+    the default RBAC (positions, functional roles, mapping) with the founder holding the
+    Administrator position, and the six default event types. Returns the
     tenant plus a 7-day invite token for the founder. The provisioning admin does **not**
     become a member of the new tenant.
   - `GET /platform/tenants`, `GET /platform/tenants/{id}` — list / inspect tenants.
@@ -278,7 +285,8 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
     has never signed in; revoke 409s on the last remaining superadmin.
 
   The shared building blocks live in `app/core/provisioning.py` (`provision_tenant`,
-  `invite_admin_member`, `ensure_administrators_role`, `seed_default_event_types` +
+  `invite_admin_member`, `seed_default_rbac` / `get_administrator_position`,
+  `seed_default_event_types` + `DEFAULT_FUNCTIONAL_ROLES` / `DEFAULT_POSITIONS` /
   `DEFAULT_EVENT_TYPES`). The `provision-tenant` CLI is the separate dev/self-host path: it
   writes the DB directly, bypassing the API gate, and auto-links the single signed-in `User`
   as founder.

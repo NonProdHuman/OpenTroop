@@ -11,13 +11,18 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.auth import get_current_user
-from app.core.database import get_db
+from app.core.database import get_admin_db, get_db
 from app.core.tenant import get_tenant_id
 from app.main import app
 from app.models import Base  # registers all models on Base.metadata
-from app.models.enums import MemberType, PlatformRole
+from app.models.enums import MemberType, PlatformRole, PositionScope
 from app.models.member import Member
-from app.models.role import MemberRoleAssignment, Role
+from app.models.rbac import (
+    FunctionalRole,
+    MemberPositionAssignment,
+    Position,
+    PositionFunctionalRole,
+)
 from app.models.user import User
 
 TENANT_A = uuid.UUID("10000000-0000-0000-0000-000000000001")
@@ -85,11 +90,11 @@ async def _test_current_user(
 
 
 def _seed_admin(session: Session, tenant_id: uuid.UUID) -> None:
-    """Seed an admin User + Member + Role for the given tenant (idempotent).
+    """Seed an admin User + Member + Administrator position for the tenant (idempotent).
 
-    Ensures that requests made via the test client pass the require() permission
-    check — the seeded member holds the administrators role (is_admin=True), which
-    bypasses all individual permission checks.
+    Ensures requests made via the test client pass the require() permission check —
+    the seeded member holds the Administrator position, which maps to the
+    is_admin Administrators functional role, bypassing all individual checks.
     """
     if session.get(User, ADMIN_USER_ID) is None:
         session.add(User(id=ADMIN_USER_ID, email="admin@test.com", display_name="Test Admin"))
@@ -107,21 +112,44 @@ def _seed_admin(session: Session, tenant_id: uuid.UUID) -> None:
             )
         )
         session.flush()
-        role = Role(
+        functional_role = FunctionalRole(
             tenant_id=tenant_id,
             name="Administrators",
             slug="administrators",
             is_admin=True,
             is_system=True,
         )
-        session.add(role)
+        session.add(functional_role)
         session.flush()
-        session.add(MemberRoleAssignment(tenant_id=tenant_id, member_id=member_id, role_id=role.id))
+        position = Position(
+            tenant_id=tenant_id,
+            name="Administrator",
+            slug="administrator",
+            applies_to=PositionScope.ADULT,
+            is_system=True,
+        )
+        session.add(position)
+        session.flush()
+        session.add(
+            PositionFunctionalRole(
+                tenant_id=tenant_id,
+                position_id=position.id,
+                functional_role_id=functional_role.id,
+            )
+        )
+        session.add(
+            MemberPositionAssignment(
+                tenant_id=tenant_id, member_id=member_id, position_id=position.id
+            )
+        )
         session.flush()
 
 
 def _set_shared_overrides(db_session: Session) -> None:
     app.dependency_overrides[get_db] = lambda: db_session
+    # Platform routes use AdminDbDep; wire the same test session so platform
+    # tests work without DATABASE_URL_ADMIN being set (self-hosted / test mode).
+    app.dependency_overrides[get_admin_db] = lambda: db_session
     app.dependency_overrides[get_tenant_id] = _simple_tenant_id
     app.dependency_overrides[get_current_user] = _test_current_user
 
