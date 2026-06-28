@@ -71,7 +71,7 @@ jobs:
       # --- FRONTEND ---
       - name: Build Frontend Image
         # Note: Next.js build might require NEXT_PUBLIC_* args at build time
-        run: docker build --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }} --build-arg NEXT_PUBLIC_TENANT_ID=${{ secrets.NEXT_PUBLIC_TENANT_ID }} -f apps/web/Dockerfile -t ${{ env.FRONTEND_IMAGE }} .
+        run: docker build --build-arg NEXT_PUBLIC_API_URL=${{ steps.deploy-backend.outputs.url }} --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }} --build-arg NEXT_PUBLIC_TENANT_ID=${{ secrets.NEXT_PUBLIC_TENANT_ID }} -f apps/web/Dockerfile -t ${{ env.FRONTEND_IMAGE }} .
 
       - name: Push Frontend Image
         run: docker push ${{ env.FRONTEND_IMAGE }}
