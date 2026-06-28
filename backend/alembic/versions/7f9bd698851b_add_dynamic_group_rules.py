@@ -12,6 +12,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 import uuid6
 
 from app.core import rls
@@ -42,8 +43,10 @@ def _standard_indexes(table: str) -> None:
 def upgrade() -> None:
     bind = op.get_bind()
 
-    # --- Create Postgres Enums if they don't exist ---
+    # --- Create Postgres Enums if they don't exist (ensuring clean slate first) ---
     if bind.dialect.name == "postgresql":
+        bind.execute(sa.text("DROP TYPE IF EXISTS rulelogic CASCADE"))
+        bind.execute(sa.text("DROP TYPE IF EXISTS ruledimension CASCADE"))
         sa.Enum("and", "or", name="rulelogic").create(bind, checkfirst=True)
         sa.Enum(
             "member_type",
@@ -58,14 +61,14 @@ def upgrade() -> None:
         ).create(bind, checkfirst=True)
 
     # --- Add rule_logic to groups ---
-    rule_logic_enum = sa.Enum("and", "or", name="rulelogic")
+    rule_logic_enum = postgresql.ENUM("and", "or", name="rulelogic", create_type=False)
     op.add_column(
         "groups",
         sa.Column("rule_logic", rule_logic_enum, nullable=False, server_default="and")
     )
 
     # --- Create group_rules ---
-    rule_dimension_enum = sa.Enum(
+    rule_dimension_enum = postgresql.ENUM(
         "member_type",
         "membership_status",
         "oa_member",
@@ -75,6 +78,7 @@ def upgrade() -> None:
         "relationship",
         "rank",
         name="ruledimension",
+        create_type=False,
     )
     op.create_table(
         "group_rules",
