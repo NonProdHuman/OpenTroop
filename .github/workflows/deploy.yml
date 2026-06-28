@@ -66,6 +66,8 @@ jobs:
             APP_SECRET=${{ secrets.APP_SECRET }}
             APP_DOMAIN=${{ secrets.APP_DOMAIN }}
             DATABASE_URL=${{ secrets.DATABASE_URL }}
+            DATABASE_URL_ADMIN=${{ secrets.DATABASE_URL_ADMIN || secrets.DATABASE_URL }}
+            DATABASE_URL_MIGRATE=${{ secrets.DATABASE_URL_MIGRATE || secrets.DATABASE_URL }}
             CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
 
       # --- FRONTEND ---
