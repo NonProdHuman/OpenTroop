@@ -65,13 +65,16 @@ export function EventsTable({ data, columns, isLoading, onRowClick }: EventsTabl
         <TableHeader>
           {table.getHeaderGroups().map((hg) => (
             <TableRow key={hg.id}>
-              {hg.headers.map((header) => (
-                <TableHead key={header.id}>
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(header.column.columnDef.header, header.getContext())}
-                </TableHead>
-              ))}
+              {hg.headers.map((header) => {
+                const meta = header.column.columnDef.meta as { className?: string } | undefined
+                return (
+                  <TableHead key={header.id} className={meta?.className}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                )
+              })}
             </TableRow>
           ))}
         </TableHeader>
@@ -82,11 +85,14 @@ export function EventsTable({ data, columns, isLoading, onRowClick }: EventsTabl
               className="cursor-pointer"
               onClick={() => onRowClick(row.original)}
             >
-              {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </TableCell>
-              ))}
+              {row.getVisibleCells().map((cell) => {
+                const meta = cell.column.columnDef.meta as { className?: string } | undefined
+                return (
+                  <TableCell key={cell.id} className={meta?.className}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                )
+              })}
             </TableRow>
           ))}
         </TableBody>
