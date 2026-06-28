@@ -1,3 +1,4 @@
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,6 +9,15 @@ class Settings(BaseSettings):
 
     app_name: str = "OpenTroop"
     database_url: str = "postgresql+psycopg://opentroop:opentroop@localhost:5432/opentroop"
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def fix_database_url(cls, v: str) -> str:
+        if v and v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+psycopg://", 1)
+        if v and v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+psycopg://", 1)
+        return v
 
     # Cross-tenant platform operations (opentroop_admin role, BYPASSRLS).
     # Required for the /platform control-plane routes.  Self-hosted deployments
@@ -30,13 +40,13 @@ class Settings(BaseSettings):
 
     # Comma-separated list of origins allowed by CORS.
     # In production this should be your actual frontend URL(s).
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str]
 
     # Domain used for subdomain tenant routing (e.g. troop123.opentroop.app → "opentroop.app")
-    app_domain: str = "opentroop.app"
+    app_domain: str = Field(min_length=1)
 
     # Secret used to sign member invite/claim tokens (HS256). Must be changed in production.
-    app_secret: str = "change-me-in-production"  # noqa: S105
+    app_secret: str = Field(min_length=1)
 
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]

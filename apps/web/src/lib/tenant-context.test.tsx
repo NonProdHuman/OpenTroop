@@ -2,6 +2,18 @@ import { act, render, renderHook, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { TenantProvider, useActiveTenant } from "./tenant-context"
 
+const localStorageMock = (() => {
+  let store: Record<string, string> = {}
+  return {
+    getItem: (key: string) => store[key] || null,
+    setItem: (key: string, value: string) => { store[key] = value.toString() },
+    clear: () => { store = {} },
+    removeItem: (key: string) => { delete store[key] },
+  }
+})()
+Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+Object.defineProperty(global, 'localStorage', { value: localStorageMock })
+
 const STORAGE_KEY = "opentroop.active_tenant"
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -10,7 +22,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 
 describe("TenantProvider / useActiveTenant", () => {
   beforeEach(() => {
-    localStorage.clear()
+    window.localStorage.clear()
     // Reset NEXT_PUBLIC_TENANT_ID between tests
     vi.stubEnv("NEXT_PUBLIC_TENANT_ID", "")
   })
@@ -19,13 +31,13 @@ describe("TenantProvider / useActiveTenant", () => {
     vi.unstubAllEnvs()
   })
 
-  it("starts with an empty activeTenantId when localStorage is empty", () => {
+  it("starts with an empty activeTenantId when window.localStorage is empty", () => {
     const { result } = renderHook(() => useActiveTenant(), { wrapper })
     expect(result.current.activeTenantId).toBe("")
   })
 
-  it("hydrates activeTenantId from localStorage on mount", async () => {
-    localStorage.setItem(STORAGE_KEY, "tenant-from-storage")
+  it("hydrates activeTenantId from window.localStorage on mount", async () => {
+    window.localStorage.setItem(STORAGE_KEY, "tenant-from-storage")
 
     const { result } = renderHook(() => useActiveTenant(), { wrapper })
 
@@ -45,19 +57,19 @@ describe("TenantProvider / useActiveTenant", () => {
     expect(result.current.activeTenantId).toBe("new-tenant-id")
   })
 
-  it("setActiveTenantId persists to localStorage", () => {
+  it("setActiveTenantId persists to window.localStorage", () => {
     const { result } = renderHook(() => useActiveTenant(), { wrapper })
 
     act(() => {
       result.current.setActiveTenantId("persisted-id")
     })
 
-    expect(localStorage.getItem(STORAGE_KEY)).toBe("persisted-id")
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBe("persisted-id")
   })
 
-  it("localStorage value is picked up by a newly mounted component", async () => {
+  it("window.localStorage value is picked up by a newly mounted component", async () => {
     // Simulate: user selected a tenant in a previous session
-    localStorage.setItem(STORAGE_KEY, "remembered-tenant")
+    window.localStorage.setItem(STORAGE_KEY, "remembered-tenant")
 
     const { result } = renderHook(() => useActiveTenant(), { wrapper })
     await act(async () => {})
