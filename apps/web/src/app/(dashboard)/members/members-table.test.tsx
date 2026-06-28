@@ -127,6 +127,7 @@ describe("MembersTable", () => {
       group_type: "patrol",
       color: null,
       is_system: false,
+      rule_logic: "and",
     }
     const testGroup2: Group = {
       id: "g2",
@@ -139,6 +140,7 @@ describe("MembersTable", () => {
       group_type: "manual",
       color: null,
       is_system: false,
+      rule_logic: "and",
     }
     const groupMap = new Map<string, Group[]>([["m1", [testGroup, testGroup2]]])
     const columnsWithGroups = buildColumns(groupMap, new Map())

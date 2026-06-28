@@ -98,12 +98,10 @@ lands before them (data model before UI).
 - [x] TWH importer maps `Patrol` → `PATROL` group and each scout's patrol → `GroupMember`
 - [x] Migration folds `patrols` + `members.patrol_id` into the group tables
 - [x] Groups management UI (sidebar "Groups", replaces "Patrols") — spec: `docs/spec/groups-screen.md`
-- [ ] **Dynamic group rule editor** — UI for defining `GroupRoleRule` entries that drive
-      dynamic group membership. Phase 1: role-based rules (members holding role X belong to
-      group Y). Phase 2: additional dimensions — `member_type`, `membership_status`,
-      patrol-of-patrols. Requires a rule-builder component; spec deferred until the
-      Groups screen UI is complete and UX patterns for rule composition are clearer.
-- [ ] Additional dynamic rule dimensions (member_type, membership_status, patrol-of-patrols)
+- [x] **Dynamic group rule editor** — UI for defining generalized group rules, supporting
+      multiple dimensions (member type, status, OA, position, group membership, relationships)
+      and combinator logic (AND/OR).
+- [x] Additional dynamic rule dimensions (member_type, membership_status, patrol-of-patrols, OA, relationships)
 
 ### Pillar 2 — Multi-Tenant Isolation & Data Access
 

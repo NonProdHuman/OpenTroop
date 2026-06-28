@@ -8,11 +8,11 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import TrackedBase
-from app.models.enums import GroupType
+from app.models.enums import GroupType, RuleDimension, RuleLogic
+from app.models.types import JsonList
 
 if TYPE_CHECKING:
     from app.models.member import Member
-    from app.models.rbac import Position
 
 
 class Group(TrackedBase):
@@ -20,12 +20,17 @@ class Group(TrackedBase):
 
     A group's membership is the union of:
     - manual inclusions (``GroupMember`` rows), and
-    - dynamic, rule-based members (``GroupRoleRule`` — everyone holding a role).
+    - dynamic, rule-based members (``GroupRule`` rows evaluated per dimension).
 
     ``group_type`` classifies how a group is primarily managed and flags patrols,
     the roster's unit-of-belonging. Patrols are folded into Group: a patrol is a
     ``PATROL``-type group whose members are explicit ``GroupMember`` rows, and a
     member belongs to at most one ``PATROL`` group at a time.
+
+    ``rule_logic`` controls how multiple rules combine:
+    - AND (default): a member must match all rules (intersection).
+    - OR: a member matching any rule is included (union).
+    Manual members are always included regardless of rule_logic.
 
     Groups drive event visibility (audiences) and, later, email/SMS distribution
     lists and report scoping — every consumer resolves them the same way via
@@ -44,12 +49,18 @@ class Group(TrackedBase):
     )
     color: Mapped[str | None] = mapped_column(String(20), nullable=True)
     is_system: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    rule_logic: Mapped[RuleLogic] = mapped_column(
+        SAEnum(RuleLogic, values_callable=lambda x: [e.value for e in x]),
+        default=RuleLogic.AND,
+        nullable=False,
+        server_default="and",
+    )
 
     members: Mapped[list[GroupMember]] = relationship(
         "GroupMember", back_populates="group", cascade="all, delete-orphan"
     )
-    position_rules: Mapped[list[GroupPositionRule]] = relationship(
-        "GroupPositionRule", back_populates="group", cascade="all, delete-orphan"
+    rules: Mapped[list[GroupRule]] = relationship(
+        "GroupRule", back_populates="group", cascade="all, delete-orphan"
     )
 
 
@@ -76,23 +87,29 @@ class GroupMember(TrackedBase):
     added_by: Mapped[Member | None] = relationship("Member", foreign_keys=[added_by_id])
 
 
-class GroupPositionRule(TrackedBase):
-    """Dynamic membership rule: members holding ``position_id`` belong to the group.
+class GroupRule(TrackedBase):
+    """A dynamic membership rule for one dimension.
 
-    Matches members directly assigned the named position, which keeps
-    position-driven groups like the PLC predictable: add one rule per position
-    (PL, SPL, ASM, SM) and the group resolves to exactly the members holding them.
+    Each rule targets a ``RuleDimension`` (member type, OA status, position, etc.)
+    and optionally carries a ``values`` list specifying what to match (enum values,
+    UUIDs, etc.). Boolean dimensions like ``oa_member`` use ``values=None`` — the
+    presence of the rule is the predicate.
+
+    A group has at most one rule per dimension (enforced by unique constraint).
+    Multiple values for a dimension (e.g. positions PL + SPL + SM) are stored
+    as a JSON list in ``values``.
     """
 
-    __tablename__ = "group_position_rules"
+    __tablename__ = "group_rules"
     __table_args__ = (
-        UniqueConstraint("group_id", "position_id", name="uq_group_position_rules_group_position"),
+        UniqueConstraint("group_id", "dimension", name="uq_group_rules_group_dimension"),
     )
 
     group_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("groups.id"), nullable=False, index=True)
-    position_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("positions.id"), nullable=False, index=True
+    dimension: Mapped[RuleDimension] = mapped_column(
+        SAEnum(RuleDimension, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
     )
+    values: Mapped[list[str] | None] = mapped_column(JsonList, nullable=True)
 
-    group: Mapped[Group] = relationship("Group", back_populates="position_rules")
-    position: Mapped[Position] = relationship("Position")
+    group: Mapped[Group] = relationship("Group", back_populates="rules")

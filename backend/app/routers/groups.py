@@ -6,17 +6,23 @@ from sqlalchemy import select
 
 from app.core.deps import DbDep, TenantDep, get_or_404, require, require_tenant_fk
 from app.core.groups import resolve_group_members
-from app.models.enums import GroupType, MemberType, Permission
-from app.models.group import Group, GroupMember, GroupPositionRule
+from app.models.enums import (
+    GroupType,
+    MemberStatus,
+    MemberType,
+    Permission,
+    RuleDimension,
+)
+from app.models.group import Group, GroupMember, GroupRule
 from app.models.member import Member
 from app.models.rbac import Position
 from app.schemas.group import (
     GroupCreate,
     GroupMemberCreate,
     GroupMemberRead,
-    GroupPositionRuleCreate,
-    GroupPositionRuleRead,
     GroupRead,
+    GroupRuleRead,
+    GroupRuleUpsert,
     GroupUpdate,
 )
 from app.schemas.member import MemberRead
@@ -191,53 +197,148 @@ def remove_group_member(
 
 
 # ---------------------------------------------------------------------------
-# Dynamic position rules
+# Dynamic rules
 # ---------------------------------------------------------------------------
 
 
 @router.get(
     "/{group_id}/rules",
-    response_model=list[GroupPositionRuleRead],
+    response_model=list[GroupRuleRead],
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
-def list_group_rules(
-    group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
-) -> Sequence[GroupPositionRule]:
+def list_group_rules(group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Sequence[GroupRule]:
     get_or_404(db, Group, group_id, tenant_id, "Group not found")
     return db.scalars(
-        select(GroupPositionRule).where(
-            GroupPositionRule.group_id == group_id, GroupPositionRule.is_deleted.is_(False)
-        )
+        select(GroupRule).where(GroupRule.group_id == group_id, GroupRule.is_deleted.is_(False))
     ).all()
 
 
-@router.post(
-    "/{group_id}/rules",
-    response_model=GroupPositionRuleRead,
-    status_code=201,
+@router.put(
+    "/{group_id}/rules/{dimension}",
+    response_model=GroupRuleRead,
     dependencies=[Depends(require(Permission.MEMBER_WRITE))],
 )
-def add_group_rule(
-    group_id: uuid.UUID, body: GroupPositionRuleCreate, tenant_id: TenantDep, db: DbDep
-) -> GroupPositionRule:
-    """Add a dynamic membership rule — members holding ``position_id`` join the group.
-
-    Idempotent — re-adding an existing rule returns the existing row.
-    """
+def upsert_group_rule(
+    group_id: uuid.UUID,
+    dimension: RuleDimension,
+    body: GroupRuleUpsert,
+    tenant_id: TenantDep,
+    db: DbDep,
+) -> GroupRule:
+    """Create or update a dynamic membership rule for a specific dimension."""
     get_or_404(db, Group, group_id, tenant_id, "Group not found")
-    require_tenant_fk(db, Position, body.position_id, tenant_id, "position_id")
+
+    values = body.values
+    if dimension in (RuleDimension.OA_MEMBER, RuleDimension.OA_ACTIVE):
+        if values is not None and len(values) > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Values must be null or empty for boolean dimension {dimension}",
+            )
+    elif dimension == RuleDimension.MEMBER_TYPE:
+        if not values:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Values are required for member_type dimension",
+            )
+        for val in values:
+            try:
+                MemberType(val)
+            except ValueError as err:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid member_type value: {val}",
+                ) from err
+    elif dimension == RuleDimension.MEMBERSHIP_STATUS:
+        if not values:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Values are required for membership_status dimension",
+            )
+        for val in values:
+            try:
+                MemberStatus(val)
+            except ValueError as err:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid membership_status value: {val}",
+                ) from err
+    elif dimension == RuleDimension.POSITION:
+        if not values:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Values are required for position dimension",
+            )
+        for val in values:
+            try:
+                pos_id = uuid.UUID(val)
+            except ValueError as err:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid position UUID: {val}",
+                ) from err
+            require_tenant_fk(db, Position, pos_id, tenant_id, "position_id")
+    elif dimension in (RuleDimension.GROUP_MEMBER, RuleDimension.RELATIONSHIP):
+        if not values:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Values are required for {dimension} dimension",
+            )
+        for val in values:
+            try:
+                ref_group_id = uuid.UUID(val)
+            except ValueError as err:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid group UUID: {val}",
+                ) from err
+            if ref_group_id == group_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Rule cannot self-reference the group {group_id}",
+                )
+            require_tenant_fk(db, Group, ref_group_id, tenant_id, "group_id")
+    elif dimension == RuleDimension.RANK:
+        if not values:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Values are required for rank dimension",
+            )
+        for val in values:
+            if not isinstance(val, str) or not val.strip():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid rank value: {val}",
+                )
 
     existing = db.scalar(
-        select(GroupPositionRule).where(
-            GroupPositionRule.group_id == group_id,
-            GroupPositionRule.position_id == body.position_id,
-            GroupPositionRule.is_deleted.is_(False),
+        select(GroupRule).where(
+            GroupRule.group_id == group_id,
+            GroupRule.dimension == dimension,
+            GroupRule.is_deleted.is_(False),
         )
     )
     if existing is not None:
+        existing.values = values
+        db.commit()
+        db.refresh(existing)
         return existing
 
-    rule = GroupPositionRule(tenant_id=tenant_id, group_id=group_id, position_id=body.position_id)
+    soft_deleted = db.scalar(
+        select(GroupRule).where(
+            GroupRule.group_id == group_id,
+            GroupRule.dimension == dimension,
+            GroupRule.is_deleted.is_(True),
+        )
+    )
+    if soft_deleted is not None:
+        soft_deleted.is_deleted = False
+        soft_deleted.values = values
+        db.commit()
+        db.refresh(soft_deleted)
+        return soft_deleted
+
+    rule = GroupRule(tenant_id=tenant_id, group_id=group_id, dimension=dimension, values=values)
     db.add(rule)
     db.commit()
     db.refresh(rule)
@@ -245,19 +346,19 @@ def add_group_rule(
 
 
 @router.delete(
-    "/{group_id}/rules/{position_id}",
+    "/{group_id}/rules/{dimension}",
     status_code=204,
     dependencies=[Depends(require(Permission.MEMBER_WRITE))],
 )
 def remove_group_rule(
-    group_id: uuid.UUID, position_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
+    group_id: uuid.UUID, dimension: RuleDimension, tenant_id: TenantDep, db: DbDep
 ) -> None:
     get_or_404(db, Group, group_id, tenant_id, "Group not found")
     rule = db.scalar(
-        select(GroupPositionRule).where(
-            GroupPositionRule.group_id == group_id,
-            GroupPositionRule.position_id == position_id,
-            GroupPositionRule.is_deleted.is_(False),
+        select(GroupRule).where(
+            GroupRule.group_id == group_id,
+            GroupRule.dimension == dimension,
+            GroupRule.is_deleted.is_(False),
         )
     )
     if rule is None:

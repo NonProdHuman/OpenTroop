@@ -4,7 +4,7 @@ import { useMemo } from "react"
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
-import type { Group, GroupPositionRule, Member } from "@/types/api"
+import type { Group, GroupRule, Member } from "@/types/api"
 
 export function useGroups() {
   const { request } = useApi()
@@ -141,7 +141,7 @@ export function useCreateGroup() {
   const { activeTenantId } = useActiveTenant()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (body: { name: string; group_type: string; color: string | null; description: string | null }) =>
+    mutationFn: (body: { name: string; group_type: string; color: string | null; description: string | null; rule_logic?: string }) =>
       request<Group>("/groups/", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups"] })
@@ -154,7 +154,7 @@ export function useUpdateGroup() {
   const { activeTenantId } = useActiveTenant()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Pick<Group, "name" | "description" | "group_type" | "color">> }) =>
+    mutationFn: ({ id, data }: { id: string; data: Partial<Pick<Group, "name" | "description" | "group_type" | "color" | "rule_logic">> }) =>
       request<Group>(`/groups/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups"] })
@@ -207,28 +207,44 @@ export function useRemoveGroupMember() {
   })
 }
 
-// ── Position rules ───────────────────────────────────────────────────────────
+// ── Group rules ──────────────────────────────────────────────────────────────
 
-export function useGroupPositionRules(groupId: string | null) {
+export function useGroupRules(groupId: string | null) {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: [activeTenantId, "group-position-rules", groupId],
-    queryFn: () => request<GroupPositionRule[]>(`/groups/${groupId}/rules`),
+    queryKey: [activeTenantId, "group-rules", groupId],
+    queryFn: () => request<GroupRule[]>(`/groups/${groupId}/rules`),
     enabled: groupId !== null && Boolean(activeTenantId),
   })
 }
 
-export function useRemoveGroupPositionRule() {
+export function useUpsertGroupRule() {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   const queryClient = useQueryClient()
   return useMutation({
-    // Backend DELETE /groups/{id}/rules/{position_id} uses the Position's ID
-    mutationFn: ({ groupId, positionId }: { groupId: string; positionId: string }) =>
-      request(`/groups/${groupId}/rules/${positionId}`, { method: "DELETE" }),
+    mutationFn: ({ groupId, dimension, values }: { groupId: string; dimension: string; values: string[] | null }) =>
+      request<GroupRule>(`/groups/${groupId}/rules/${dimension}`, {
+        method: "PUT",
+        body: JSON.stringify({ values }),
+      }),
     onSuccess: (_data, { groupId }) => {
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-position-rules", groupId] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-rules", groupId] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members", groupId] })
+    },
+  })
+}
+
+export function useDeleteGroupRule() {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ groupId, dimension }: { groupId: string; dimension: string }) =>
+      request(`/groups/${groupId}/rules/${dimension}`, { method: "DELETE" }),
+    onSuccess: (_data, { groupId }) => {
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-rules", groupId] })
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members", groupId] })
     },
   })

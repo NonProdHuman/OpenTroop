@@ -2,7 +2,7 @@ import uuid
 
 from pydantic import BaseModel
 
-from app.models.enums import GroupType
+from app.models.enums import GroupType, RuleDimension, RuleLogic
 from app.schemas.base import TrackedRead
 
 
@@ -11,6 +11,7 @@ class GroupBase(BaseModel):
     description: str | None = None
     group_type: GroupType = GroupType.MANUAL
     color: str | None = None
+    rule_logic: RuleLogic = RuleLogic.AND
 
 
 class GroupCreate(GroupBase):
@@ -22,6 +23,7 @@ class GroupUpdate(BaseModel):
     description: str | None = None
     group_type: GroupType | None = None
     color: str | None = None
+    rule_logic: RuleLogic | None = None
 
 
 class GroupRead(GroupBase, TrackedRead):
@@ -38,10 +40,13 @@ class GroupMemberRead(TrackedRead):
     added_by_id: uuid.UUID | None = None
 
 
-class GroupPositionRuleCreate(BaseModel):
-    position_id: uuid.UUID
+class GroupRuleUpsert(BaseModel):
+    """Body for PUT /groups/{id}/rules/{dimension}."""
+
+    values: list[str] | None = None
 
 
-class GroupPositionRuleRead(TrackedRead):
+class GroupRuleRead(TrackedRead):
     group_id: uuid.UUID
-    position_id: uuid.UUID
+    dimension: RuleDimension
+    values: list[str] | None = None

@@ -7,10 +7,10 @@ from sqlalchemy import select
 
 from app.core.event_visibility import event_visible_to_member, visibility_clause
 from app.core.groups import member_group_ids
-from app.models.enums import GroupType, MemberType
+from app.models.enums import GroupType, MemberType, RuleDimension
 from app.models.event import Event
 from app.models.event_audience import EventAudience
-from app.models.group import Group, GroupMember, GroupPositionRule
+from app.models.group import Group, GroupMember, GroupRule
 from app.models.member import Member
 from app.models.rbac import MemberPositionAssignment, Position
 
@@ -55,7 +55,12 @@ def test_member_group_ids_manual_and_dynamic(db_session) -> None:
 
     session.add(GroupMember(tenant_id=_TENANT, group_id=manual_g.id, member_id=member.id))
     session.add(
-        GroupPositionRule(tenant_id=_TENANT, group_id=dynamic_g.id, position_id=position.id)
+        GroupRule(
+            tenant_id=_TENANT,
+            group_id=dynamic_g.id,
+            dimension=RuleDimension.POSITION,
+            values=[str(position.id)],
+        )
     )
     session.add(
         MemberPositionAssignment(tenant_id=_TENANT, member_id=member.id, position_id=position.id)
