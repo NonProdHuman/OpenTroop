@@ -1,3 +1,5 @@
+import re
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -20,9 +22,18 @@ from app.routers import (
 
 app = FastAPI(title=settings.app_name)
 
+# Compute regex for CORS origins based on app_domain
+# This allows https://opentroop.app and https://*.opentroop.app
+cors_regex = None
+if settings.app_domain:
+    domain_escaped = re.escape(settings.app_domain)
+    # e.g. ^https://([a-zA-Z0-9-]+\.)?opentroop\.app$
+    cors_regex = rf"^https://([a-zA-Z0-9-]+\.)?{domain_escaped}$"
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
+    allow_origin_regex=cors_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
