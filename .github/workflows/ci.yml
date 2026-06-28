@@ -13,7 +13,7 @@ concurrency:
 env:
   APP_DOMAIN: opentroop.test
   APP_SECRET: this-is-a-dummy-secret-for-ci-testing-purposes-only # gitleaks:allow
-  CORS_ORIGINS: http://localhost:3000
+  CORS_ORIGINS: '["http://localhost:3000"]'
 
 jobs:
   lint-and-test:
