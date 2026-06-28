@@ -58,44 +58,56 @@ locals {
   ))
 
   runtime_secret_values = {
-    APP_SECRET                        = local.app_secret
-    AUTH_AUDIENCE                     = var.auth_audience
-    AUTH_ISSUER                       = local.auth_issuer
-    AUTH_JWKS_URI                     = local.auth_jwks_uri
-    CLERK_SECRET_KEY                  = var.clerk_secret_key
-    DATABASE_URL                      = local.database_url
-    DATABASE_URL_ADMIN                = local.database_url_admin
-    DATABASE_URL_MIGRATE              = local.database_url_migrate
-    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = var.clerk_publishable_key
+    for k, v in {
+      APP_SECRET           = local.app_secret
+      AUTH_AUDIENCE        = var.auth_audience
+      AUTH_ISSUER          = local.auth_issuer
+      AUTH_JWKS_URI        = local.auth_jwks_uri
+      CLERK_SECRET_KEY     = var.clerk_secret_key
+      DATABASE_URL         = local.database_url
+      DATABASE_URL_ADMIN   = local.database_url_admin
+      DATABASE_URL_MIGRATE = local.database_url_migrate
+    } : k => v if v != null
   }
 
   runtime_secret_names = toset(keys(local.runtime_secret_values))
 
   api_secret_env_names = [
-    "APP_SECRET",
-    "AUTH_AUDIENCE",
-    "AUTH_ISSUER",
-    "AUTH_JWKS_URI",
-    "DATABASE_URL",
-    "DATABASE_URL_ADMIN",
-    "DATABASE_URL_MIGRATE",
+    for name in [
+      "APP_SECRET",
+      "AUTH_AUDIENCE",
+      "AUTH_ISSUER",
+      "AUTH_JWKS_URI",
+      "DATABASE_URL",
+      "DATABASE_URL_ADMIN",
+      "DATABASE_URL_MIGRATE",
+    ] : name if lookup(local.runtime_secret_values, name, null) != null
   ]
 
   web_secret_env_names = [
-    "CLERK_SECRET_KEY",
-    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+    for name in [
+      "CLERK_SECRET_KEY",
+    ] : name if lookup(local.runtime_secret_values, name, null) != null
   ]
 
-  cloud_run_service_account_id = "${substr(local.name_prefix, 0, 20)}-run"
-  github_service_account_id    = "${substr(local.name_prefix, 0, 20)}-github"
-  workload_identity_pool_id    = "${substr(local.name_prefix, 0, 24)}-github"
-  worker_name                  = "${local.name_prefix}-proxy"
+  api_service_account_id    = "${substr(local.name_prefix, 0, 20)}-api"
+  web_service_account_id    = "${substr(local.name_prefix, 0, 20)}-web"
+  github_service_account_id = "${substr(local.name_prefix, 0, 20)}-github"
+  workload_identity_pool_id = "${substr(local.name_prefix, 0, 24)}-github"
+  worker_name               = "${local.name_prefix}-proxy"
 }
 
 check "database_url_configured" {
   assert {
     condition     = local.database_url != null && local.database_url != ""
     error_message = "DATABASE_URL is not configured. Set manage_neon=true with neon_api_key or provide database_url."
+  }
+}
+
+check "database_url_admin_not_app_role" {
+  assert {
+    condition     = local.database_url_admin == null || local.database_url == null || local.database_url_admin != local.database_url
+    error_message = "DATABASE_URL_ADMIN falls back to the application-level DATABASE_URL. An administrative database role is required to manage migrations and admin features."
   }
 }
 

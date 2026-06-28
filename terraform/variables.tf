@@ -317,3 +317,15 @@ variable "cloudflare_api_record_name" {
   type        = string
   default     = null
 }
+
+variable "api_ingress" {
+  description = "Ingress traffic policy for the API service. Can be INGRESS_TRAFFIC_ALL, INGRESS_TRAFFIC_INTERNAL_ONLY, or INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER."
+  type        = string
+  default     = "INGRESS_TRAFFIC_ALL"
+}
+
+variable "web_ingress" {
+  description = "Ingress traffic policy for the Web service. Can be INGRESS_TRAFFIC_ALL, INGRESS_TRAFFIC_INTERNAL_ONLY, or INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER."
+  type        = string
+  default     = "INGRESS_TRAFFIC_ALL"
+}

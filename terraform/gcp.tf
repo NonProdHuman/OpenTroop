@@ -27,9 +27,16 @@ resource "google_artifact_registry_repository" "containers" {
   depends_on = [google_project_service.required]
 }
 
-resource "google_service_account" "cloud_run" {
-  account_id   = local.cloud_run_service_account_id
-  display_name = "OpenTroop ${var.environment} Cloud Run runtime"
+resource "google_service_account" "api" {
+  account_id   = local.api_service_account_id
+  display_name = "OpenTroop ${var.environment} API runtime"
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_service_account" "web" {
+  account_id   = local.web_service_account_id
+  display_name = "OpenTroop ${var.environment} Web runtime"
 
   depends_on = [google_project_service.required]
 }
@@ -44,7 +51,7 @@ resource "google_service_account" "github_deploy" {
 resource "google_project_iam_member" "github_deploy" {
   for_each = toset([
     "roles/artifactregistry.writer",
-    "roles/run.admin",
+    "roles/run.developer",
     "roles/secretmanager.viewer",
   ])
 
@@ -53,9 +60,16 @@ resource "google_project_iam_member" "github_deploy" {
   member  = "serviceAccount:${google_service_account.github_deploy.email}"
 }
 
-# Scoped to just the Cloud Run SA — avoids project-wide serviceAccountUser privilege.
-resource "google_service_account_iam_member" "github_deploy_act_as_cloud_run" {
-  service_account_id = google_service_account.cloud_run.name
+# Scoped to just the API Cloud Run SA — avoids project-wide serviceAccountUser privilege.
+resource "google_service_account_iam_member" "github_deploy_act_as_api" {
+  service_account_id = google_service_account.api.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.github_deploy.email}"
+}
+
+# Scoped to just the Web Cloud Run SA — avoids project-wide serviceAccountUser privilege.
+resource "google_service_account_iam_member" "github_deploy_act_as_web" {
+  service_account_id = google_service_account.web.name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.github_deploy.email}"
 }
@@ -76,24 +90,32 @@ resource "google_secret_manager_secret_version" "runtime" {
   for_each = local.runtime_secret_names
 
   secret      = google_secret_manager_secret.runtime[each.key].id
-  secret_data = local.runtime_secret_values[each.key] == null ? "" : local.runtime_secret_values[each.key]
+  secret_data = local.runtime_secret_values[each.key]
 }
 
-resource "google_secret_manager_secret_iam_member" "cloud_run_access" {
-  for_each = google_secret_manager_secret.runtime
+resource "google_secret_manager_secret_iam_member" "api_secret_access" {
+  for_each = toset(local.api_secret_env_names)
 
-  secret_id = each.value.secret_id
+  secret_id = google_secret_manager_secret.runtime[each.key].secret_id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.cloud_run.email}"
+  member    = "serviceAccount:${google_service_account.api.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "web_secret_access" {
+  for_each = toset(local.web_secret_env_names)
+
+  secret_id = google_secret_manager_secret.runtime[each.key].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.web.email}"
 }
 
 resource "google_cloud_run_v2_service" "api" {
   name     = local.api_service_name
   location = var.gcp_region
-  ingress  = "INGRESS_TRAFFIC_ALL"
+  ingress  = var.api_ingress
 
   template {
-    service_account = google_service_account.cloud_run.email
+    service_account = google_service_account.api.email
 
     scaling {
       min_instance_count = var.api_min_instances
@@ -149,7 +171,7 @@ resource "google_cloud_run_v2_service" "api" {
 
   depends_on = [
     google_project_service.required,
-    google_secret_manager_secret_iam_member.cloud_run_access,
+    google_secret_manager_secret_iam_member.api_secret_access,
     google_secret_manager_secret_version.runtime,
   ]
 }
@@ -157,10 +179,10 @@ resource "google_cloud_run_v2_service" "api" {
 resource "google_cloud_run_v2_service" "web" {
   name     = local.web_service_name
   location = var.gcp_region
-  ingress  = "INGRESS_TRAFFIC_ALL"
+  ingress  = var.web_ingress
 
   template {
-    service_account = google_service_account.cloud_run.email
+    service_account = google_service_account.web.email
 
     scaling {
       min_instance_count = var.web_min_instances
@@ -192,6 +214,11 @@ resource "google_cloud_run_v2_service" "web" {
         value = var.manage_clerk_jwt_template ? var.clerk_jwt_template_name : ""
       }
 
+      env {
+        name  = "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"
+        value = var.clerk_publishable_key
+      }
+
       dynamic "env" {
         for_each = local.web_secret_env_names
 
@@ -211,7 +238,7 @@ resource "google_cloud_run_v2_service" "web" {
 
   depends_on = [
     google_project_service.required,
-    google_secret_manager_secret_iam_member.cloud_run_access,
+    google_secret_manager_secret_iam_member.web_secret_access,
     google_secret_manager_secret_version.runtime,
   ]
 }

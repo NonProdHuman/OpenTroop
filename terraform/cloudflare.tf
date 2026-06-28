@@ -31,9 +31,11 @@ resource "cloudflare_record" "api" {
 resource "cloudflare_workers_script" "proxy" {
   count = var.cloudflare_enabled ? 1 : 0
 
-  account_id = var.cloudflare_account_id
-  name       = local.worker_name
-  content    = file("${path.module}/worker/opentroop-proxy.js")
+  account_id         = var.cloudflare_account_id
+  name               = local.worker_name
+  content            = file("${path.module}/worker/opentroop-proxy.js")
+  module             = true
+  compatibility_date = "2024-04-03"
 
   plain_text_binding {
     name = "APP_DOMAIN"
