@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     # Domain used for subdomain tenant routing (e.g. troop123.opentroop.app → "opentroop.app")
     app_domain: str = "opentroop.app"
 
+    @field_validator("app_domain", mode="before")
+    @classmethod
+    def prevent_empty_app_domain(cls, v: str | None) -> str:
+        if not v:
+            return "opentroop.app"
+        return v
+
     # Secret used to sign member invite/claim tokens (HS256). Must be changed in production.
     app_secret: str = "change-me-in-production"  # noqa: S105
 
