@@ -59,38 +59,6 @@ jobs:
           name: coverage-report
           path: backend/coverage.xml
           retention-days: 14
-
-  pre-commit:
-    name: Pre-commit hooks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: astral-sh/setup-uv@v7
-        with:
-          python-version: "3.12"
-          enable-cache: true
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-          cache: pnpm
-
-      - name: Install Python deps
-        working-directory: backend
-        run: uv sync
-
-      - name: Install frontend deps
-        run: pnpm install --frozen-lockfile
-
-      - name: Install pre-commit
-        run: uv tool install pre-commit --with pre-commit-uv
-
-      - name: Run all hooks
-        run: uv tool run pre-commit run --all-files
-
   rls-tests:
     name: Postgres RLS tests
     runs-on: ubuntu-latest

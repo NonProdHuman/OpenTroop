@@ -55,3 +55,28 @@ repos:
     rev: v8.18.4
     hooks:
       - id: gitleaks
+
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.105.0 # Ensure you are on a recent version supporting OpenTofu features
+    hooks:
+      - id: terraform_fmt
+        name: opentofu_fmt  # Optional: Rename the UI string for clarity
+        files: ^terraform/
+        args:
+          - --hook-config=--tf-path=tofu
+
+      - id: terraform_validate
+        name: opentofu_validate
+        files: ^terraform/
+        args:
+          - --hook-config=--tf-path=tofu
+          - --tf-init-args=-backend=false
+
+      - id: terraform_tflint
+        files: ^terraform/
+
+      - id: terraform_trivy
+        files: ^terraform/
+
+      - id: terraform_docs
+        files: ^terraform/

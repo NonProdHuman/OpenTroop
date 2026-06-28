@@ -9,9 +9,13 @@ on:
 env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID || vars.PROJECT_ID || 'opentroop' }}
   REGION: ${{ vars.GCP_REGION || vars.REGION || 'us-central1' }}
-  AR_REPO: opentroop-containers
-  BACKEND_IMAGE: ${{ vars.GCP_REGION || vars.REGION || 'us-central1' }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID || vars.PROJECT_ID || 'opentroop' }}/opentroop-containers/opentroop-api:${{ github.sha }}
-  FRONTEND_IMAGE: ${{ vars.GCP_REGION || vars.REGION || 'us-central1' }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID || vars.PROJECT_ID || 'opentroop' }}/opentroop-containers/opentroop-web:${{ github.sha }}
+  AR_REPO: ${{ vars.GCP_ARTIFACT_REPOSITORY || vars.AR_REPO || 'opentroop-containers' }}
+  API_SERVICE: ${{ vars.GCP_API_SERVICE_NAME || vars.API_SERVICE_NAME || 'opentroop-api' }}
+  WEB_SERVICE: ${{ vars.GCP_WEB_SERVICE_NAME || vars.WEB_SERVICE_NAME || 'opentroop-web' }}
+  DEPLOY_ENVIRONMENT: ${{ vars.DEPLOY_ENVIRONMENT || vars.ENVIRONMENT || 'production' }}
+  PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || vars.API_PUBLIC_URL || '' }}
+  BACKEND_IMAGE: ${{ vars.GCP_REGION || vars.REGION || 'us-central1' }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID || vars.PROJECT_ID || 'opentroop' }}/${{ vars.GCP_ARTIFACT_REPOSITORY || vars.AR_REPO || 'opentroop-containers' }}/opentroop-api:${{ github.sha }}
+  FRONTEND_IMAGE: ${{ vars.GCP_REGION || vars.REGION || 'us-central1' }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID || vars.PROJECT_ID || 'opentroop' }}/${{ vars.GCP_ARTIFACT_REPOSITORY || vars.AR_REPO || 'opentroop-containers' }}/opentroop-web:${{ github.sha }}
 
 jobs:
   build-and-deploy:
@@ -52,14 +56,14 @@ jobs:
         id: deploy-backend
         uses: google-github-actions/deploy-cloudrun@v2
         with:
-          service: opentroop-api
+          service: ${{ env.API_SERVICE }}
           region: ${{ env.REGION }}
           image: ${{ env.BACKEND_IMAGE }}
           flags: >-
             --allow-unauthenticated
             --port=8000
           env_vars: |
-            ENVIRONMENT=production
+            ENVIRONMENT=${{ env.DEPLOY_ENVIRONMENT }}
             AUTH_ISSUER=${{ secrets.AUTH_ISSUER }}
             AUTH_JWKS_URI=${{ secrets.AUTH_JWKS_URI }}
             AUTH_AUDIENCE=${{ secrets.AUTH_AUDIENCE }}
@@ -73,7 +77,7 @@ jobs:
       # --- FRONTEND ---
       - name: Build Frontend Image
         # Note: Next.js build might require NEXT_PUBLIC_* args at build time
-        run: docker build --build-arg NEXT_PUBLIC_API_URL=${{ steps.deploy-backend.outputs.url }} --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }} --build-arg NEXT_PUBLIC_TENANT_ID=${{ secrets.NEXT_PUBLIC_TENANT_ID }} -f apps/web/Dockerfile -t ${{ env.FRONTEND_IMAGE }} .
+        run: docker build --build-arg NEXT_PUBLIC_API_URL=${PUBLIC_API_URL:-${{ steps.deploy-backend.outputs.url }}} --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }} --build-arg NEXT_PUBLIC_CLERK_JWT_TEMPLATE=${{ vars.NEXT_PUBLIC_CLERK_JWT_TEMPLATE || secrets.NEXT_PUBLIC_CLERK_JWT_TEMPLATE }} --build-arg NEXT_PUBLIC_TENANT_ID=${{ secrets.NEXT_PUBLIC_TENANT_ID }} -f apps/web/Dockerfile -t ${{ env.FRONTEND_IMAGE }} .
 
       - name: Push Frontend Image
         run: docker push ${{ env.FRONTEND_IMAGE }}
@@ -82,7 +86,7 @@ jobs:
         id: deploy-frontend
         uses: google-github-actions/deploy-cloudrun@v2
         with:
-          service: opentroop-web
+          service: ${{ env.WEB_SERVICE }}
           region: ${{ env.REGION }}
           image: ${{ env.FRONTEND_IMAGE }}
           flags: >-
@@ -90,8 +94,9 @@ jobs:
             --port=3000
           # Set API URL for the frontend to point to the backend we just deployed
           env_vars: |
-            NEXT_PUBLIC_API_URL=${{ steps.deploy-backend.outputs.url }}
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL || vars.API_PUBLIC_URL || steps.deploy-backend.outputs.url }}
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+            NEXT_PUBLIC_CLERK_JWT_TEMPLATE=${{ vars.NEXT_PUBLIC_CLERK_JWT_TEMPLATE || secrets.NEXT_PUBLIC_CLERK_JWT_TEMPLATE }}
             NEXT_PUBLIC_TENANT_ID=${{ secrets.NEXT_PUBLIC_TENANT_ID }}
             CLERK_SECRET_KEY=${{ secrets.CLERK_SECRET_KEY }}
 

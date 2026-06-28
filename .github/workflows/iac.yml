@@ -1,0 +1,61 @@
+name: "Infrastructure Verification"
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths:
+      - "terraform/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "terraform/**"
+
+jobs:
+  validate-tofu:
+    name: "OpenTofu Lint & Validate"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.8.0"
+
+      - name: OpenTofu Format Check
+        run: tofu fmt -check -recursive
+        working-directory: ./terraform
+
+      - name: OpenTofu Initialization & Validation
+        run: |
+          tofu init -backend=false
+          tofu validate
+        working-directory: ./terraform
+
+  security-scan:
+    name: "IaC Security Scanning"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov Static Analysis
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: ./terraform
+          framework: terraform
+          quiet: true
+          compact: true
+          output_format: cli
+
+      - name: Run Aqua Security Trivy Scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: "config"
+          scan-ref: "./terraform"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
