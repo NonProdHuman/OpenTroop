@@ -42,6 +42,21 @@ def _standard_indexes(table: str) -> None:
 def upgrade() -> None:
     bind = op.get_bind()
 
+    # --- Create Postgres Enums if they don't exist ---
+    if bind.dialect.name == "postgresql":
+        sa.Enum("and", "or", name="rulelogic").create(bind, checkfirst=True)
+        sa.Enum(
+            "member_type",
+            "membership_status",
+            "oa_member",
+            "oa_active",
+            "position",
+            "group_member",
+            "relationship",
+            "rank",
+            name="ruledimension",
+        ).create(bind, checkfirst=True)
+
     # --- Add rule_logic to groups ---
     rule_logic_enum = sa.Enum("and", "or", name="rulelogic")
     op.add_column(
