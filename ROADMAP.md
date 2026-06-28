@@ -33,10 +33,8 @@ is the foundation; notification and configuration systems follow the same patter
 ## Next Features to address:
 - Dynamic Groups
 - Event RSVP and Permission workflow
-- Tenant Data Access and full RLS enforcement (docs/spec/tenant-data-access.md)
-- Hosting and deployment pipeline (docs/spec/hosting-and-deployment.md)
 - Infrastructure-as-Code / Terraform Automation (docs/spec/devops-automation.md)
-
+- Tenant selector, context switching, and global admins (docs/spec/tenant-context-and-global-admins.md)
 
 ## Capability Pillars
 

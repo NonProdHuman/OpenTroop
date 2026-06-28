@@ -16,8 +16,17 @@ Object.defineProperty(global, 'localStorage', { value: localStorageMock })
 
 const STORAGE_KEY = "opentroop.active_tenant"
 
-function wrapper({ children }: { children: React.ReactNode }) {
-  return <TenantProvider>{children}</TenantProvider>
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+
+import { useState } from "react"
+
+function Wrapper({ children }: { children: React.ReactNode }) {
+  const [queryClient] = useState(() => new QueryClient())
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TenantProvider>{children}</TenantProvider>
+    </QueryClientProvider>
+  )
 }
 
 describe("TenantProvider / useActiveTenant", () => {
@@ -32,14 +41,14 @@ describe("TenantProvider / useActiveTenant", () => {
   })
 
   it("starts with an empty activeTenantId when window.localStorage is empty", () => {
-    const { result } = renderHook(() => useActiveTenant(), { wrapper })
+    const { result } = renderHook(() => useActiveTenant(), { wrapper: Wrapper })
     expect(result.current.activeTenantId).toBe("")
   })
 
   it("hydrates activeTenantId from window.localStorage on mount", async () => {
     window.localStorage.setItem(STORAGE_KEY, "tenant-from-storage")
 
-    const { result } = renderHook(() => useActiveTenant(), { wrapper })
+    const { result } = renderHook(() => useActiveTenant(), { wrapper: Wrapper })
 
     // useEffect runs after first render; wait for the state update
     await act(async () => {})
@@ -48,7 +57,7 @@ describe("TenantProvider / useActiveTenant", () => {
   })
 
   it("setActiveTenantId updates the context value", () => {
-    const { result } = renderHook(() => useActiveTenant(), { wrapper })
+    const { result } = renderHook(() => useActiveTenant(), { wrapper: Wrapper })
 
     act(() => {
       result.current.setActiveTenantId("new-tenant-id")
@@ -58,7 +67,7 @@ describe("TenantProvider / useActiveTenant", () => {
   })
 
   it("setActiveTenantId persists to window.localStorage", () => {
-    const { result } = renderHook(() => useActiveTenant(), { wrapper })
+    const { result } = renderHook(() => useActiveTenant(), { wrapper: Wrapper })
 
     act(() => {
       result.current.setActiveTenantId("persisted-id")
@@ -71,7 +80,7 @@ describe("TenantProvider / useActiveTenant", () => {
     // Simulate: user selected a tenant in a previous session
     window.localStorage.setItem(STORAGE_KEY, "remembered-tenant")
 
-    const { result } = renderHook(() => useActiveTenant(), { wrapper })
+    const { result } = renderHook(() => useActiveTenant(), { wrapper: Wrapper })
     await act(async () => {})
 
     expect(result.current.activeTenantId).toBe("remembered-tenant")
@@ -80,7 +89,7 @@ describe("TenantProvider / useActiveTenant", () => {
   it("does not overwrite a stored value with empty string on mount", async () => {
     localStorage.setItem(STORAGE_KEY, "existing-tenant")
 
-    const { result } = renderHook(() => useActiveTenant(), { wrapper })
+    const { result } = renderHook(() => useActiveTenant(), { wrapper: Wrapper })
     await act(async () => {})
 
     // Should still be the stored value, not reset to ""
@@ -88,7 +97,7 @@ describe("TenantProvider / useActiveTenant", () => {
   })
 
   it("useActiveTenant returns stable setActiveTenantId reference across renders", () => {
-    const { result, rerender } = renderHook(() => useActiveTenant(), { wrapper })
+    const { result, rerender } = renderHook(() => useActiveTenant(), { wrapper: Wrapper })
 
     const firstRef = result.current.setActiveTenantId
     rerender()
@@ -101,10 +110,13 @@ describe("TenantProvider / useActiveTenant", () => {
       return <div data-testid="tid">{activeTenantId || "none"}</div>
     }
 
+    const queryClient = new QueryClient()
     render(
-      <TenantProvider>
-        <Child />
-      </TenantProvider>,
+      <QueryClientProvider client={queryClient}>
+        <TenantProvider>
+          <Child />
+        </TenantProvider>
+      </QueryClientProvider>,
     )
 
     expect(screen.getByTestId("tid")).toHaveTextContent("none")
@@ -120,11 +132,14 @@ describe("TenantProvider / useActiveTenant", () => {
       return <button onClick={() => setActiveTenantId("shared-id")}>set</button>
     }
 
+    const queryClient = new QueryClient()
     render(
-      <TenantProvider>
-        <Display />
-        <Setter />
-      </TenantProvider>,
+      <QueryClientProvider client={queryClient}>
+        <TenantProvider>
+          <Display />
+          <Setter />
+        </TenantProvider>
+      </QueryClientProvider>,
     )
 
     act(() => {

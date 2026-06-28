@@ -36,6 +36,7 @@ The goal is to maintain a `terraform/` directory in the repository containing de
 **Provider:** API automation (via `terraform-provider-http` or custom script)
 - While Clerk does not currently have an official 1.0 Terraform provider, its Management API is robust.
 - Terraform can trigger API calls to provision a new Clerk application instance, extract the `PUBLISHABLE_KEY` and `SECRET_KEY`, and pipe them directly into the frontend and backend Cloud Run environments.
+- **JWT Customization:** Terraform must also automate updating the Clerk Session Token template to include the user's email address. The backend uses this `email` claim to auto-link users to pre-provisioned `Member` records during their first login. The claim mapping should be `"email": "{{user.primary_email_address}}"`.
 
 ## The "One-Click" Workflow
 

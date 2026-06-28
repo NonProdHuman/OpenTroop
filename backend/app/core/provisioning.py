@@ -343,9 +343,20 @@ def invite_admin_member(
     """
     with unscoped():
         admin_position = get_administrator_position(db, tenant_id)
+
+        user_id = None
+        if email:
+            from app.models.user import User
+
+            existing_user = db.scalar(
+                select(User).where(User.email == email, User.is_deleted.is_(False))
+            )
+            if existing_user:
+                user_id = existing_user.id
+
         member = Member(
             tenant_id=tenant_id,
-            user_id=None,
+            user_id=user_id,
             first_name=first_name,
             last_name=last_name,
             email=email,
