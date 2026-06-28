@@ -34,7 +34,6 @@ is the foundation; notification and configuration systems follow the same patter
 - Dynamic Groups
 - Event RSVP and Permission workflow
 - Infrastructure-as-Code / Terraform Automation (docs/spec/devops-automation.md)
-- Tenant selector, context switching, and global admins (docs/spec/tenant-context-and-global-admins.md)
 
 ## Capability Pillars
 
@@ -98,7 +97,7 @@ lands before them (data model before UI).
 - [x] Groups API (`/groups`) — CRUD, manual membership, role rules, resolved members
 - [x] TWH importer maps `Patrol` → `PATROL` group and each scout's patrol → `GroupMember`
 - [x] Migration folds `patrols` + `members.patrol_id` into the group tables
-- [ ] Groups management UI (sidebar "Groups", replaces "Patrols") — spec: `docs/spec/groups-screen.md`
+- [x] Groups management UI (sidebar "Groups", replaces "Patrols") — spec: `docs/spec/groups-screen.md`
 - [ ] **Dynamic group rule editor** — UI for defining `GroupRoleRule` entries that drive
       dynamic group membership. Phase 1: role-based rules (members holding role X belong to
       group Y). Phase 2: additional dimensions — `member_type`, `membership_status`,
@@ -115,7 +114,7 @@ endpoint leaks" — already observed once in review. This cross-cutting workstre
 isolation automatic and default-on, backstopped at the database, and explicit in the UI.
 The three items are independently shippable but share one current-tenant source of truth.
 
-- [~] **Tenant-scoped data access layer** — a request-scoped current-tenant `ContextVar`
+- [x] **Tenant-scoped data access layer** — a request-scoped current-tenant `ContextVar`
       plus a SQLAlchemy `do_orm_execute` listener that auto-applies the `tenant_id`
       filter to every `TrackedBase` read (including relationship loads) and a
       `before_flush` hook that stamps `tenant_id` on writes. Route code stops carrying the
@@ -128,7 +127,7 @@ The three items are independently shippable but share one current-tenant source 
       `tenant_id ==` predicates from the routers (~21 still present across 10 routers)
       and wrap every cross-tenant `TrackedBase` access (platform plane, auth memberships)
       in `unscoped()` — a prerequisite for enforcing RLS below.
-- [ ] **Postgres Row-Level Security (RLS)** — the database-layer backstop: a restricted
+- [x] **Postgres Row-Level Security (RLS)** — the database-layer backstop: a restricted
       non-owner app role, a per-transaction `SET LOCAL app.current_tenant` GUC, and
       `USING` + `WITH CHECK` policies (`FORCE ROW LEVEL SECURITY`) generated per
       `TrackedBase` table from the model registry. Catches any query that bypasses the app
@@ -137,7 +136,7 @@ The three items are independently shippable but share one current-tenant source 
       (SQLite can't exercise RLS) run **per-PR** via a CI service container against a
       migrated DB — including a policy-completeness introspection test; the SQLite suite
       stays the fast default. Spec: [`docs/spec/postgres-rls.md`](docs/spec/postgres-rls.md).
-  - [ ] **RLS enforcement cutover** — the sequenced plan to move RLS from installed-but-
+  - [x] **RLS enforcement cutover** — the sequenced plan to move RLS from installed-but-
         dormant to actually enforcing without breaking the app or migrations: finish the
         redundant-predicate cleanup, put every cross-tenant path on `unscoped()`, wire
         physically separate app/admin connection pools (`opentroop_app` RLS-enforced vs
@@ -153,7 +152,7 @@ The three items are independently shippable but share one current-tenant source 
         capability. Stays a deployment flag (`MOUNT_PLATFORM`), not a code fork —
         self-hosted keeps running one all-in-one process. See "Deployment topology" in
         [`docs/spec/rls-enforcement-rollout.md`](docs/spec/rls-enforcement-rollout.md).
-- [ ] **Tenant switcher UI + `GET /auth/memberships`** — a user who is a `Member` of
+- [x] **Tenant switcher UI + `GET /auth/memberships`** — a user who is a `Member` of
       several troops picks the active tenant from a pulldown; the app shows exactly one
       tenant at a time (never a merged view). New auth-only, cross-tenant-for-one-user
       endpoint lists the caller's memberships; the web app replaces the build-time

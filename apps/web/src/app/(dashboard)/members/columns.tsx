@@ -66,7 +66,23 @@ export function buildColumns(
     },
     {
       id: "groups",
-      header: () => <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Groups</span>,
+      accessorFn: (row) => {
+        const memberGroups = groupMap.get(row.id) ?? []
+        return memberGroups
+          .map((g) => g.name)
+          .sort()
+          .join(", ")
+      },
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="-ml-3"
+        >
+          Groups
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => {
         const memberGroups = groupMap.get(row.original.id) ?? []
         if (memberGroups.length === 0) {
@@ -100,7 +116,17 @@ export function buildColumns(
     },
     {
       id: "position",
-      header: () => <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Position</span>,
+      accessorFn: (row) => positionMap.get(row.id) ?? "",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="-ml-3"
+        >
+          Position
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => {
         const position = positionMap.get(row.original.id)
         return position ? (
@@ -113,7 +139,16 @@ export function buildColumns(
     {
       id: "member_type",
       accessorKey: "member_type",
-      header: () => <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</span>,
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="-ml-3"
+        >
+          Type
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ getValue }) => {
         const val = getValue<string>()
         return (
@@ -127,7 +162,16 @@ export function buildColumns(
     {
       id: "membership_status",
       accessorKey: "membership_status",
-      header: () => <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</span>,
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="-ml-3"
+        >
+          Status
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ getValue }) => {
         const val = getValue<string>()
         if (val === "active") return null
@@ -138,7 +182,16 @@ export function buildColumns(
     {
       id: "email",
       accessorKey: "email",
-      header: () => <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</span>,
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="-ml-3"
+        >
+          Email
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ getValue }) => {
         const email = getValue<string | null>()
         return email ? (

@@ -41,7 +41,7 @@ def _get_admin_engine() -> Engine:
 def _stamp_tenant_guc(session: Session, transaction: Any, connection: Any) -> None:
     """Publish the active tenant to Postgres as a transaction-local GUC.
 
-    ``SET LOCAL app.current_tenant`` scopes the value to the current transaction,
+    ``SELECT set_config('app.current_tenant', ...)`` scopes the value to the current transaction,
     so it cannot leak across pooled connections.  The RLS policy on every
     ``TrackedBase`` table reads this GUC and enforces the tenant boundary at the
     database layer (see ``docs/spec/postgres-rls.md``).
@@ -54,7 +54,10 @@ def _stamp_tenant_guc(session: Session, transaction: Any, connection: Any) -> No
     tid = current_tenant()
     if tid is None:
         return
-    connection.execute(text("SET LOCAL app.current_tenant = :tid"), {"tid": str(tid)})
+    connection.execute(
+        text("SELECT set_config('app.current_tenant', :tid, true)"),
+        {"tid": str(tid)},
+    )
 
 
 @event.listens_for(Session, "do_orm_execute")

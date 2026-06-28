@@ -38,7 +38,7 @@ export function InviteTokenDisplay({ token, expiresAt }: { token: string; expire
             {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
             {copied ? "Copied" : "Copy"}
           </Button>
-          <Button type="button" size="sm" render={<a href={claimUrl} target="_blank" rel="noopener noreferrer" />}>
+          <Button type="button" size="sm" render={<a href={claimUrl} target="_blank" rel="noopener noreferrer" />} nativeButton={false}>
             Claim Now
           </Button>
         </div>

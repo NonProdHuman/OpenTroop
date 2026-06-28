@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Lock, Pencil, Trash2 } from "lucide-react"
+import { Lock, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -166,13 +166,36 @@ export default function PositionsPage() {
 
   const canManage = has("role:manage")
 
-  const nonSystem = positions.filter((p) => !p.is_system)
-  const system = positions.filter((p) => p.is_system)
+  const [sortField, setSortField] = useState<"name" | "applies_to">("name")
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
 
   function handleRowClick(p: Position) {
     setSelected(p)
     setSheetOpen(true)
   }
+
+  function handleSort(field: "name" | "applies_to") {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
+    } else {
+      setSortField(field)
+      setSortDirection("asc")
+    }
+  }
+
+  const sortedPositions = [...positions].sort((a, b) => {
+    let valA = a[sortField] || ""
+    let valB = b[sortField] || ""
+
+    if (sortField === "applies_to") {
+      valA = SCOPE_LABELS[a.applies_to] ?? a.applies_to
+      valB = SCOPE_LABELS[b.applies_to] ?? b.applies_to
+    }
+
+    if (valA.toLowerCase() < valB.toLowerCase()) return sortDirection === "asc" ? -1 : 1
+    if (valA.toLowerCase() > valB.toLowerCase()) return sortDirection === "asc" ? 1 : -1
+    return 0
+  })
 
   return (
     <>
@@ -204,19 +227,48 @@ export default function PositionsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/40">
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Name</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Scope</th>
+                  <th
+                    onClick={() => handleSort("name")}
+                    className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer select-none hover:text-foreground"
+                  >
+                    <div className="flex items-center gap-1">
+                      Name
+                      {sortField === "name" ? (
+                        sortDirection === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
+                      )}
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort("applies_to")}
+                    className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer select-none hover:text-foreground"
+                  >
+                    <div className="flex items-center gap-1">
+                      Scope
+                      {sortField === "applies_to" ? (
+                        sortDirection === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+                      ) : (
+                        <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
+                      )}
+                    </div>
+                  </th>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground w-8"></th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {nonSystem.map((p) => (
+                {sortedPositions.map((p) => (
                   <tr
                     key={p.id}
                     onClick={() => handleRowClick(p)}
                     className="cursor-pointer hover:bg-muted/40 transition-colors"
                   >
-                    <td className="px-4 py-3 font-medium">{p.name}</td>
+                    <td className="px-4 py-3 font-medium">
+                      <div className="flex items-center gap-2">
+                        <span>{p.name}</span>
+                        {p.is_system && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <TintBadge
                         label={SCOPE_LABELS[p.applies_to] ?? p.applies_to}
@@ -226,39 +278,6 @@ export default function PositionsPage() {
                     <td className="px-4 py-3"></td>
                   </tr>
                 ))}
-                {system.length > 0 && (
-                  <>
-                    {nonSystem.length > 0 && (
-                      <tr>
-                        <td
-                          colSpan={3}
-                          className="px-4 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/20 uppercase tracking-wide"
-                        >
-                          System positions
-                        </td>
-                      </tr>
-                    )}
-                    {system.map((p) => (
-                      <tr
-                        key={p.id}
-                        onClick={() => handleRowClick(p)}
-                        className="cursor-pointer hover:bg-muted/40 transition-colors"
-                      >
-                        <td className="px-4 py-3 font-medium flex items-center gap-2">
-                          <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          {p.name}
-                        </td>
-                        <td className="px-4 py-3">
-                          <TintBadge
-                            label={SCOPE_LABELS[p.applies_to] ?? p.applies_to}
-                            className={SCOPE_BADGE[p.applies_to] ?? ""}
-                          />
-                        </td>
-                        <td className="px-4 py-3"></td>
-                      </tr>
-                    ))}
-                  </>
-                )}
               </tbody>
             </table>
           </div>

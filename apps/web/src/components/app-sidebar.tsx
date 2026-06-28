@@ -96,10 +96,25 @@ export function AppSidebar() {
   const isActive = (url: string) => pathname === url || pathname.startsWith(url + "/")
   const groupActive = (item: NavItem) => item.children?.some((c) => isActive(c.url)) ?? false
 
-  // Track which groups the user has toggled. A group defaults to open when it
-  // contains the active route, so the active section is always revealed.
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
-  const isOpen = (item: NavItem) => openGroups[item.title] ?? groupActive(item)
+  // Track which group is open. Only one group can be open at a time.
+  const [openGroup, setOpenGroup] = useState<string | null>(null)
+  const [lastPathname, setLastPathname] = useState<string | null>(null)
+
+  const activeGroupItem = navItems.find((item) => groupActive(item))
+  const activeGroupTitle = activeGroupItem ? activeGroupItem.title : null
+
+  // If the pathname has changed, reset the openGroup to the active group.
+  if (pathname !== lastPathname) {
+    setLastPathname(pathname)
+    setOpenGroup(activeGroupTitle)
+  }
+
+  const isOpen = (item: NavItem) => {
+    if (openGroup !== null) {
+      return item.title === openGroup
+    }
+    return groupActive(item)
+  }
 
   const [autoExpanded, setAutoExpanded] = useState(false)
 
@@ -111,10 +126,10 @@ export function AppSidebar() {
     if (state === "collapsed") {
       setOpen(true)
       setAutoExpanded(true)
-      setOpenGroups((prev) => ({ ...prev, [item.title]: true }))
+      setOpenGroup(item.title)
     } else {
       setAutoExpanded(false)
-      setOpenGroups((prev) => ({ ...prev, [item.title]: !isOpen(item) }))
+      setOpenGroup((prev) => (prev === item.title ? "" : item.title))
     }
   }
 

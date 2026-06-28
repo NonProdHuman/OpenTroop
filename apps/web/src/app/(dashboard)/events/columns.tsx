@@ -34,7 +34,16 @@ export function buildColumns(): ColumnDef<Event>[] {
     {
       id: "type",
       accessorFn: (row) => row.event_type.name,
-      header: "Type",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="-ml-3"
+        >
+          Type
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => <EventTypeBadge type={row.original.event_type} />,
     },
     {
@@ -62,7 +71,16 @@ export function buildColumns(): ColumnDef<Event>[] {
     {
       id: "location",
       accessorFn: (row) => row.location?.name ?? row.location_notes ?? "",
-      header: "Location",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="-ml-3"
+        >
+          Location
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       meta: {
         className: "hidden md:table-cell",
       },
