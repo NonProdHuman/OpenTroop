@@ -125,17 +125,28 @@ gcloud run jobs execute migrate --wait
 
 Re-run this job after every deployment that includes a migration.
 
-### Step 7 — Frontend on Vercel
+### Step 7 — Frontend on Vercel (or Cloud Run)
 
-The Next.js frontend deploys to Vercel for free:
+The Next.js frontend can be deployed to Cloud Run (as in Step 5 for the backend, but using the `frontend/Dockerfile` when we build it) or to Vercel for free:
 
 1. Push the repo to GitHub.
 2. Import the project at vercel.com.
-3. Set the root directory to `frontend/`.
+3. Set the root directory to `apps/web/`.
 4. Add environment variables: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, the backend
-   URL, etc.
+   URL (`NEXT_PUBLIC_API_URL`), etc.
 
 Vercel handles CDN, TLS, and preview deployments automatically.
+
+### Step 8 — Seed the Superadmin
+
+Once both your frontend and backend are deployed and the database is migrated:
+
+1. Visit your deployed frontend application.
+2. Sign in via Clerk.
+3. Because the database is completely empty, **the first user to successfully authenticate is automatically granted the Platform `SUPERADMIN` role**.
+4. You will be redirected to `/platform/tenants` where you can create your first tenant.
+
+> **Note:** If you miss this window or need to grant superadmin to another user later, you can use the `promote_platform_admin.py` script via a Cloud Run job similar to Step 6.
 
 ---
 
