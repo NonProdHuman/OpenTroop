@@ -150,6 +150,10 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
   const [addGroupOpen, setAddGroupOpen] = useState(false)
   const [addRelOpen, setAddRelOpen] = useState(false)
 
+  // Local state to keep track of dimensions that have been checked (expanded) by the user
+  // but do not yet have saved filters in the database.
+  const [expandedDimensions, setExpandedDimensions] = useState<Set<RuleDimension>>(new Set())
+
   const isSystem = group.is_system
   const memberIds = new Set(members.map((m) => m.id))
 
@@ -185,17 +189,36 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
     return m.nickname ? `${m.first_name} "${m.nickname}" ${m.last_name}` : `${m.first_name} ${m.last_name}`
   }
 
-  // Helper to toggle a rule dimension on/off
+  // Toggle rule for boolean dimensions (OA member/active) which do not require additional configuration
   function handleRuleToggle(dimension: RuleDimension, enabled: boolean) {
     if (enabled) {
-      // Create with default values (null or empty array)
       upsertRule.mutate({ groupId: id, dimension, values: [] })
     } else {
       deleteRule.mutate({ groupId: id, dimension })
     }
   }
 
-  // Helper to save rule values
+  // Expand/collapse multi-select dimensions locally first before they select values
+  function toggleExpandDimension(dimension: RuleDimension, checked: boolean) {
+    if (checked) {
+      setExpandedDimensions((prev) => {
+        const next = new Set(prev)
+        next.add(dimension)
+        return next
+      })
+    } else {
+      setExpandedDimensions((prev) => {
+        const next = new Set(prev)
+        next.delete(dimension)
+        return next
+      })
+      if (activeRulesMap.has(dimension)) {
+        deleteRule.mutate({ groupId: id, dimension })
+      }
+    }
+  }
+
+  // Helper to save rule values to the backend
   function handleRuleSave(dimension: RuleDimension, values: string[] | null) {
     upsertRule.mutate({ groupId: id, dimension, values })
   }
@@ -361,8 +384,8 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                 {/* 1. Member Type Rule */}
                 <RuleRow
                   label="Filter by Member Type"
-                  enabled={activeRulesMap.has("member_type")}
-                  onToggle={(checked) => handleRuleToggle("member_type", checked)}
+                  enabled={activeRulesMap.has("member_type") || expandedDimensions.has("member_type")}
+                  onToggle={(checked) => toggleExpandDimension("member_type", checked)}
                 >
                   <div className="flex gap-4">
                     {["scout", "adult"].map((t) => {
@@ -378,8 +401,11 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                               const next = checked
                                 ? currentVals.filter((x) => x !== t)
                                 : [...currentVals, t]
-                              if (next.length === 0) handleRuleToggle("member_type", false)
-                              else handleRuleSave("member_type", next)
+                              if (next.length === 0) {
+                                toggleExpandDimension("member_type", false)
+                              } else {
+                                handleRuleSave("member_type", next)
+                              }
                             }}
                           />
                           {t}s
@@ -392,8 +418,8 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                 {/* 2. Membership Status Rule */}
                 <RuleRow
                   label="Filter by Membership Status"
-                  enabled={activeRulesMap.has("membership_status")}
-                  onToggle={(checked) => handleRuleToggle("membership_status", checked)}
+                  enabled={activeRulesMap.has("membership_status") || expandedDimensions.has("membership_status")}
+                  onToggle={(checked) => toggleExpandDimension("membership_status", checked)}
                 >
                   <div className="flex gap-4">
                     {["active", "inactive", "alumni"].map((s) => {
@@ -409,8 +435,11 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                               const next = checked
                                 ? currentVals.filter((x) => x !== s)
                                 : [...currentVals, s]
-                              if (next.length === 0) handleRuleToggle("membership_status", false)
-                              else handleRuleSave("membership_status", next)
+                              if (next.length === 0) {
+                                toggleExpandDimension("membership_status", false)
+                              } else {
+                                handleRuleSave("membership_status", next)
+                              }
                             }}
                           />
                           {s}
@@ -437,8 +466,8 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                 {/* 5. Position Rule */}
                 <RuleRow
                   label="Filter by Position(s)"
-                  enabled={activeRulesMap.has("position")}
-                  onToggle={(checked) => handleRuleToggle("position", checked)}
+                  enabled={activeRulesMap.has("position") || expandedDimensions.has("position")}
+                  onToggle={(checked) => toggleExpandDimension("position", checked)}
                 >
                   <div className="space-y-2">
                     <div className="flex flex-wrap gap-1.5">
@@ -449,8 +478,11 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                             type="button"
                             onClick={() => {
                               const next = (activeRulesMap.get("position")?.values || []).filter((x) => x !== id)
-                              if (next.length === 0) handleRuleToggle("position", false)
-                              else handleRuleSave("position", next)
+                              if (next.length === 0) {
+                                toggleExpandDimension("position", false)
+                              } else {
+                                handleRuleSave("position", next)
+                              }
                             }}
                             className="text-muted-foreground hover:text-destructive transition-colors"
                           >
@@ -499,8 +531,8 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                 {/* 6. Group Member Rule */}
                 <RuleRow
                   label="Filter by Group Membership"
-                  enabled={activeRulesMap.has("group_member")}
-                  onToggle={(checked) => handleRuleToggle("group_member", checked)}
+                  enabled={activeRulesMap.has("group_member") || expandedDimensions.has("group_member")}
+                  onToggle={(checked) => toggleExpandDimension("group_member", checked)}
                 >
                   <div className="space-y-2">
                     <div className="flex flex-wrap gap-1.5">
@@ -511,8 +543,11 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                             type="button"
                             onClick={() => {
                               const next = (activeRulesMap.get("group_member")?.values || []).filter((x) => x !== id)
-                              if (next.length === 0) handleRuleToggle("group_member", false)
-                              else handleRuleSave("group_member", next)
+                              if (next.length === 0) {
+                                toggleExpandDimension("group_member", false)
+                              } else {
+                                handleRuleSave("group_member", next)
+                              }
                             }}
                             className="text-muted-foreground hover:text-destructive transition-colors"
                           >
@@ -561,8 +596,8 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                 {/* 7. Relationship Rule */}
                 <RuleRow
                   label="Filter by Parents/Guardians of Group"
-                  enabled={activeRulesMap.has("relationship")}
-                  onToggle={(checked) => handleRuleToggle("relationship", checked)}
+                  enabled={activeRulesMap.has("relationship") || expandedDimensions.has("relationship")}
+                  onToggle={(checked) => toggleExpandDimension("relationship", checked)}
                 >
                   <div className="space-y-2">
                     <div className="flex flex-wrap gap-1.5">
@@ -573,8 +608,11 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                             type="button"
                             onClick={() => {
                               const next = (activeRulesMap.get("relationship")?.values || []).filter((x) => x !== id)
-                              if (next.length === 0) handleRuleToggle("relationship", false)
-                              else handleRuleSave("relationship", next)
+                              if (next.length === 0) {
+                                toggleExpandDimension("relationship", false)
+                              } else {
+                                handleRuleSave("relationship", next)
+                              }
                             }}
                             className="text-muted-foreground hover:text-destructive transition-colors"
                           >
