@@ -146,6 +146,16 @@ export interface MemberRelationship {
 // app/models/group.py).
 
 export type GroupType = "manual" | "dynamic" | "patrol"
+export type RuleLogic = "and" | "or"
+export type RuleDimension =
+  | "member_type"
+  | "membership_status"
+  | "oa_member"
+  | "oa_active"
+  | "position"
+  | "group_member"
+  | "relationship"
+  | "rank"
 
 export interface Group {
   id: string
@@ -158,16 +168,18 @@ export interface Group {
   group_type: GroupType
   color: string | null
   is_system: boolean
+  rule_logic: RuleLogic
 }
 
-export interface GroupPositionRule {
+export interface GroupRule {
   id: string
   tenant_id: string
   created_at: string
   updated_at: string
   is_deleted: boolean
   group_id: string
-  position_id: string
+  dimension: RuleDimension
+  values: string[] | null
 }
 
 // ── Events ───────────────────────────────────────────────────────────────────

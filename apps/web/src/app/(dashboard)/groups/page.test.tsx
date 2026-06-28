@@ -75,6 +75,7 @@ describe("GroupsPage", () => {
       is_system: false,
       color: "#F59E0B",
       description: "Alpha patrol description",
+      rule_logic: "and",
     },
     {
       id: "g2",
@@ -87,6 +88,7 @@ describe("GroupsPage", () => {
       is_system: true,
       color: null,
       description: "System group",
+      rule_logic: "and",
     }
   ]
 

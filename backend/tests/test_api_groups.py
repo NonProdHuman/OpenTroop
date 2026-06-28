@@ -1,4 +1,4 @@
-"""API tests for /groups/ endpoints (CRUD, membership, role rules, resolution)."""
+"""API tests for /groups/ endpoints (CRUD, membership, dynamic rules, resolution)."""
 
 import uuid
 
@@ -9,8 +9,12 @@ from sqlalchemy.orm import Session
 from tests.conftest import TENANT_A
 
 
-def _create_group(client: TestClient, name: str = "PLC", group_type: str = "manual") -> dict:
-    r = client.post("/groups/", json={"name": name, "group_type": group_type})
+def _create_group(
+    client: TestClient, name: str = "PLC", group_type: str = "manual", rule_logic: str = "and"
+) -> dict:
+    r = client.post(
+        "/groups/", json={"name": name, "group_type": group_type, "rule_logic": rule_logic}
+    )
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -36,6 +40,7 @@ def test_create_group(client: TestClient) -> None:
     data = _create_group(client, "Wolf", "patrol")
     assert data["name"] == "Wolf"
     assert data["group_type"] == "patrol"
+    assert data["rule_logic"] == "and"
     assert data["is_system"] is False
     assert data["is_deleted"] is False
 
@@ -58,10 +63,10 @@ def test_list_groups_with_migration_written_lowercase_group_type(
         sa.text(
             "INSERT INTO groups "
             "  (id, tenant_id, name, group_type, color, description, "
-            "   is_system, created_at, updated_at, is_deleted) "
+            "   is_system, rule_logic, created_at, updated_at, is_deleted) "
             "VALUES "
             "  (:id, :tenant_id, 'Raw Patrol', 'patrol', NULL, NULL, "
-            "   0, datetime('now'), datetime('now'), 0)"
+            "   0, 'and', datetime('now'), datetime('now'), 0)"
         ),
         # SQLAlchemy's Uuid type stores without hyphens in SQLite — match that format.
         {"id": group_id.hex, "tenant_id": TENANT_A.hex},
@@ -77,10 +82,13 @@ def test_list_groups_with_migration_written_lowercase_group_type(
 
 def test_patch_group(client: TestClient) -> None:
     g = _create_group(client)
-    r = client.patch(f"/groups/{g['id']}", json={"name": "Renamed", "color": "#ABCDEF"})
+    r = client.patch(
+        f"/groups/{g['id']}", json={"name": "Renamed", "color": "#ABCDEF", "rule_logic": "or"}
+    )
     assert r.status_code == 200
     assert r.json()["name"] == "Renamed"
     assert r.json()["color"] == "#ABCDEF"
+    assert r.json()["rule_logic"] == "or"
 
 
 def test_delete_group(client: TestClient) -> None:
@@ -153,41 +161,70 @@ def test_patrol_membership_is_exclusive(client: TestClient) -> None:
     assert member["id"] in in_p2
 
 
-# --- Dynamic position rules -----------------------------------------------
+# --- Dynamic rules API -----------------------------------------------
 
 
-def test_position_rule_resolves_dynamic_members(client: TestClient) -> None:
-    """A position rule pulls in everyone holding that position (here, the seeded admin)."""
-    group = _create_group(client, "Leaders", "dynamic")
+def test_rule_crud_and_validation(client: TestClient) -> None:
+    group = _create_group(client, "DynamicGroup", "dynamic")
     position_id = _admin_position_id(client)
 
-    r = client.post(f"/groups/{group['id']}/rules", json={"position_id": position_id})
-    assert r.status_code == 201
+    # 1. GET rules - should be empty initially
+    r = client.get(f"/groups/{group['id']}/rules")
+    assert r.status_code == 200
+    assert r.json() == []
 
-    rules = client.get(f"/groups/{group['id']}/rules").json()
-    assert any(rule["position_id"] == position_id for rule in rules)
+    # 2. PUT invalid member_type values - should fail
+    r = client.put(f"/groups/{group['id']}/rules/member_type", json={"values": ["invalid_type"]})
+    assert r.status_code == 400
 
-    resolved = client.get(f"/groups/{group['id']}/members").json()
-    assert any(m["first_name"] == "Admin" for m in resolved)
+    # 3. PUT valid member_type
+    r = client.put(f"/groups/{group['id']}/rules/member_type", json={"values": ["scout"]})
+    assert r.status_code == 200
+    assert r.json()["dimension"] == "member_type"
+    assert r.json()["values"] == ["scout"]
 
+    # 4. PUT boolean dimension with values - should fail
+    r = client.put(f"/groups/{group['id']}/rules/oa_member", json={"values": ["some_value"]})
+    assert r.status_code == 400
 
-def test_remove_position_rule(client: TestClient) -> None:
-    group = _create_group(client, "Leaders", "dynamic")
-    position_id = _admin_position_id(client)
-    client.post(f"/groups/{group['id']}/rules", json={"position_id": position_id})
-    deleted = client.delete(f"/groups/{group['id']}/rules/{position_id}")
-    assert deleted.status_code == 204
-    resolved = client.get(f"/groups/{group['id']}/members").json()
-    assert not any(m["first_name"] == "Admin" for m in resolved)
+    # 5. PUT boolean dimension with null/empty values
+    r = client.put(f"/groups/{group['id']}/rules/oa_member", json={"values": []})
+    assert r.status_code == 200
+    assert r.json()["dimension"] == "oa_member"
+    assert r.json()["values"] == []
 
+    # 6. PUT position rule with valid position
+    r = client.put(f"/groups/{group['id']}/rules/position", json={"values": [position_id]})
+    assert r.status_code == 200
 
-def test_add_rule_unknown_position_422(client: TestClient) -> None:
-    group = _create_group(client, "Leaders", "dynamic")
-    r = client.post(
-        f"/groups/{group['id']}/rules",
-        json={"position_id": "00000000-0000-0000-0000-000000000099"},
+    # 7. PUT position rule with invalid UUID - 400
+    r = client.put(f"/groups/{group['id']}/rules/position", json={"values": ["not-a-uuid"]})
+    assert r.status_code == 400
+
+    # 8. PUT position rule with unknown position UUID - 422
+    r = client.put(
+        f"/groups/{group['id']}/rules/position",
+        json={"values": ["00000000-0000-0000-0000-000000000099"]},
     )
     assert r.status_code == 422
+
+    # 9. PUT group self-reference - 400
+    r = client.put(f"/groups/{group['id']}/rules/group_member", json={"values": [group["id"]]})
+    assert r.status_code == 400
+
+    # 10. GET rules - should return the rules we added
+    rules = client.get(f"/groups/{group['id']}/rules").json()
+    dimensions = {rule["dimension"] for rule in rules}
+    assert {"member_type", "oa_member", "position"} <= dimensions
+
+    # 11. DELETE rule
+    r = client.delete(f"/groups/{group['id']}/rules/oa_member")
+    assert r.status_code == 204
+
+    # 12. GET rules again - oa_member should be gone
+    rules = client.get(f"/groups/{group['id']}/rules").json()
+    dimensions = {rule["dimension"] for rule in rules}
+    assert "oa_member" not in dimensions
 
 
 # --- Tenant isolation -----------------------------------------------------

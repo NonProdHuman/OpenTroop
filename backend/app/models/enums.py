@@ -82,6 +82,40 @@ class GroupType(enum.StrEnum):
     PATROL = "patrol"
 
 
+class RuleLogic(enum.StrEnum):
+    """How a group's dynamic rules combine to produce the resolved member set.
+
+    AND — a member must match *all* rules (intersection). Default. Each rule
+          narrows the set — "active scouts who are OA members".
+    OR  — a member matching *any* rule is included (union). Each rule broadens
+          the set — "adults or leadership-position holders".
+
+    Manual members (``GroupMember`` rows) are always included regardless of
+    rule logic.
+    """
+
+    AND = "and"
+    OR = "or"
+
+
+class RuleDimension(enum.StrEnum):
+    """Dimensions available for dynamic group membership rules.
+
+    Each dimension targets one aspect of a member's data. A group has at most
+    one rule per dimension; multiple values for a dimension (e.g. several
+    positions) are stored as a JSON list in ``GroupRule.values``.
+    """
+
+    MEMBER_TYPE = "member_type"
+    MEMBERSHIP_STATUS = "membership_status"
+    OA_MEMBER = "oa_member"
+    OA_ACTIVE = "oa_active"
+    POSITION = "position"
+    GROUP_MEMBER = "group_member"
+    RELATIONSHIP = "relationship"
+    RANK = "rank"  # Phase 2 — no-op until Pillar 4 advancement model
+
+
 class PositionScope(enum.StrEnum):
     """Which kind of member a Position may be assigned to.
 
