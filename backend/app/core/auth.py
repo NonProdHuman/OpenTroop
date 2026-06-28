@@ -7,7 +7,7 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from uuid6 import uuid7
 
@@ -74,7 +74,12 @@ def get_or_create_user(claims: dict[str, Any], session: Session) -> User:
     email: str | None = claims.get("email")
     display_name: str | None = claims.get("name")
 
-    user = User(id=uuid7(), email=email, display_name=display_name)
+    from app.models.enums import PlatformRole
+
+    user_count = session.scalar(select(func.count()).select_from(User))
+    role = PlatformRole.SUPERADMIN if user_count == 0 else None
+
+    user = User(id=uuid7(), email=email, display_name=display_name, platform_role=role)
     session.add(user)
     session.flush()  # populate user.id before referencing it in Identity
 
