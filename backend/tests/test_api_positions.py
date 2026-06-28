@@ -49,13 +49,15 @@ def test_patch_position(client: TestClient) -> None:
 
 def test_delete_position(client: TestClient) -> None:
     pos = _create_position(client, "temp-pos")
-    assert client.delete(f"/positions/{pos['id']}").status_code == 204
+    resp = client.delete(f"/positions/{pos['id']}")
+    assert resp.status_code == 204
     assert client.get(f"/positions/{pos['id']}").status_code == 404
 
 
 def test_cannot_delete_system_position(client: TestClient) -> None:
     admin_pos = _administrator_position(client)
-    assert client.delete(f"/positions/{admin_pos['id']}").status_code == 403
+    resp = client.delete(f"/positions/{admin_pos['id']}")
+    assert resp.status_code == 403
 
 
 def test_map_functional_role_to_position(client: TestClient) -> None:
@@ -87,7 +89,8 @@ def test_detach_functional_role(client: TestClient) -> None:
     pos = _create_position(client)
     role = _create_functional_role(client)
     client.post(f"/positions/{pos['id']}/functional-roles", json={"functional_role_id": role["id"]})
-    assert client.delete(f"/positions/{pos['id']}/functional-roles/{role['id']}").status_code == 204
+    resp = client.delete(f"/positions/{pos['id']}/functional-roles/{role['id']}")
+    assert resp.status_code == 204
     links = client.get(f"/positions/{pos['id']}/functional-roles").json()
     assert not any(link["functional_role_id"] == role["id"] for link in links)
 

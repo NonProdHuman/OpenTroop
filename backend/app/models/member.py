@@ -12,7 +12,7 @@ from app.models.base import TrackedBase
 from app.models.enums import MemberStatus, MemberType, SwimClassification
 
 if TYPE_CHECKING:
-    from app.models.rbac import MemberPositionAssignment
+    from app.models.rbac import MemberPositionAssignment  # codeql[py/cyclic-import]
     from app.models.relationship import MemberRelationship
     from app.models.user import User  # User does not import Member, so no cycle
 

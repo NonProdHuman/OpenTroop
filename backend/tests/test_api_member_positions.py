@@ -58,7 +58,8 @@ def test_unassign_position(client: TestClient) -> None:
     m = _create_member(client)
     pos = _create_position(client)
     _assign(client, m["id"], pos["id"])
-    assert client.delete(f"/members/{m['id']}/positions/{pos['id']}").status_code == 204
+    resp = client.delete(f"/members/{m['id']}/positions/{pos['id']}")
+    assert resp.status_code == 204
     assert client.get(f"/members/{m['id']}/positions").json() == []
 
 
@@ -74,7 +75,8 @@ def test_reassign_after_unassign_revives(client: TestClient) -> None:
 def test_unassign_missing_returns_404(client: TestClient) -> None:
     m = _create_member(client)
     pos = _create_position(client)
-    assert client.delete(f"/members/{m['id']}/positions/{pos['id']}").status_code == 404
+    resp = client.delete(f"/members/{m['id']}/positions/{pos['id']}")
+    assert resp.status_code == 404
 
 
 def test_assign_position_wrong_tenant(client: TestClient, other_client: TestClient) -> None:

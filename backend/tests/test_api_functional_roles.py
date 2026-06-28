@@ -41,14 +41,16 @@ def test_patch_functional_role_name(client: TestClient) -> None:
 
 def test_delete_functional_role(client: TestClient) -> None:
     role = _create_role(client, "temp-role")
-    assert client.delete(f"/functional-roles/{role['id']}").status_code == 204
+    resp = client.delete(f"/functional-roles/{role['id']}")
+    assert resp.status_code == 204
     assert client.get(f"/functional-roles/{role['id']}").status_code == 404
 
 
 def test_cannot_delete_system_functional_role(client: TestClient) -> None:
     admins = _administrators_role(client)
     assert admins["is_system"] is True
-    assert client.delete(f"/functional-roles/{admins['id']}").status_code == 403
+    resp = client.delete(f"/functional-roles/{admins['id']}")
+    assert resp.status_code == 403
 
 
 def test_add_and_list_permissions(client: TestClient) -> None:
@@ -77,9 +79,8 @@ def test_add_permission_is_idempotent(client: TestClient) -> None:
 def test_remove_permission(client: TestClient) -> None:
     role = _create_role(client)
     client.post(f"/functional-roles/{role['id']}/permissions", json={"permission": "member:read"})
-    assert (
-        client.delete(f"/functional-roles/{role['id']}/permissions/member:read").status_code == 204
-    )
+    resp = client.delete(f"/functional-roles/{role['id']}/permissions/member:read")
+    assert resp.status_code == 204
     perms = {
         p["permission"] for p in client.get(f"/functional-roles/{role['id']}/permissions").json()
     }

@@ -28,7 +28,7 @@ from app.models.base import TrackedBase
 from app.models.enums import Permission, PositionScope
 
 if TYPE_CHECKING:
-    from app.models.member import Member
+    from app.models.member import Member  # codeql[py/cyclic-import]
 
 
 class Position(TrackedBase):
