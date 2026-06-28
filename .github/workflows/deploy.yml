@@ -66,6 +66,7 @@ jobs:
             APP_SECRET=${{ secrets.APP_SECRET }}
             APP_DOMAIN=${{ secrets.APP_DOMAIN }}
             DATABASE_URL=${{ secrets.DATABASE_URL }}
+            CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
 
       # --- FRONTEND ---
       - name: Build Frontend Image
