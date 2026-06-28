@@ -148,8 +148,8 @@ def evaluate_rule(
         case RuleDimension.RANK:
             # Phase 2 — no-op until Pillar 4 advancement model exists
             return set()
-        case _:
-            return set()
+
+    return set()
 
 
 # ---------------------------------------------------------------------------
