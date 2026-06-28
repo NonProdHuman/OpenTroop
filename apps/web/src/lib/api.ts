@@ -5,6 +5,7 @@ import { useCallback } from "react"
 import { useActiveTenant } from "@/lib/tenant-context"
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+const CLERK_JWT_TEMPLATE = process.env.NEXT_PUBLIC_CLERK_JWT_TEMPLATE || undefined
 
 export function useApi() {
   const { getToken } = useAuth()
@@ -12,7 +13,9 @@ export function useApi() {
 
   const request = useCallback(
     async <T>(path: string, init?: RequestInit): Promise<T> => {
-      const token = await getToken()
+      const token = await getToken(
+        CLERK_JWT_TEMPLATE ? { template: CLERK_JWT_TEMPLATE } : undefined,
+      )
       const res = await fetch(`${BASE}${path}`, {
         ...init,
         headers: {

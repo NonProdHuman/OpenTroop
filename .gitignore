@@ -13,8 +13,17 @@ coverage.xml
 .env
 .env.local
 
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
 # Node / Next.js / Turborepo
 node_modules/
+.pnpm-store/
 .next/
 out/
 .turbo/
