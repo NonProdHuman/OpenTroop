@@ -58,37 +58,40 @@ locals {
   ))
 
   runtime_secret_values = {
-    for k, v in {
-      APP_SECRET           = local.app_secret
-      AUTH_AUDIENCE        = var.auth_audience
-      AUTH_ISSUER          = local.auth_issuer
-      AUTH_JWKS_URI        = local.auth_jwks_uri
-      CLERK_SECRET_KEY     = var.clerk_secret_key
-      DATABASE_URL         = local.database_url
-      DATABASE_URL_ADMIN   = local.database_url_admin
-      DATABASE_URL_MIGRATE = local.database_url_migrate
-    } : k => v if v != null
+    APP_SECRET           = local.app_secret
+    AUTH_AUDIENCE        = var.auth_audience
+    AUTH_ISSUER          = local.auth_issuer
+    AUTH_JWKS_URI        = local.auth_jwks_uri
+    CLERK_SECRET_KEY     = var.clerk_secret_key
+    DATABASE_URL         = local.database_url
+    DATABASE_URL_ADMIN   = local.database_url_admin
+    DATABASE_URL_MIGRATE = local.database_url_migrate
   }
 
-  runtime_secret_names = nonsensitive(toset(keys(local.runtime_secret_values)))
+  runtime_secret_names = nonsensitive(toset(concat(
+    ["APP_SECRET"],
+    var.auth_audience != null ? ["AUTH_AUDIENCE"] : [],
+    var.auth_issuer != null || var.clerk_frontend_api != null ? ["AUTH_ISSUER"] : [],
+    var.auth_jwks_uri != null || var.auth_issuer != null || var.clerk_frontend_api != null ? ["AUTH_JWKS_URI"] : [],
+    var.clerk_secret_key != null ? ["CLERK_SECRET_KEY"] : [],
+    var.database_url != null || var.manage_neon ? ["DATABASE_URL"] : [],
+    var.database_url_admin != null || var.manage_neon || var.database_url != null ? ["DATABASE_URL_ADMIN"] : [],
+    var.database_url_migrate != null || var.manage_neon || var.database_url != null ? ["DATABASE_URL_MIGRATE"] : [],
+  )))
 
-  api_secret_env_names = nonsensitive([
-    for name in [
-      "APP_SECRET",
-      "AUTH_AUDIENCE",
-      "AUTH_ISSUER",
-      "AUTH_JWKS_URI",
-      "DATABASE_URL",
-      "DATABASE_URL_ADMIN",
-      "DATABASE_URL_MIGRATE",
-    ] : name if lookup(local.runtime_secret_values, name, null) != null
-  ])
+  api_secret_env_names = nonsensitive(compact([
+    "APP_SECRET",
+    var.auth_audience != null ? "AUTH_AUDIENCE" : "",
+    var.auth_issuer != null || var.clerk_frontend_api != null ? "AUTH_ISSUER" : "",
+    var.auth_jwks_uri != null || var.auth_issuer != null || var.clerk_frontend_api != null ? "AUTH_JWKS_URI" : "",
+    var.database_url != null || var.manage_neon ? "DATABASE_URL" : "",
+    var.database_url_admin != null || var.manage_neon || var.database_url != null ? "DATABASE_URL_ADMIN" : "",
+    var.database_url_migrate != null || var.manage_neon || var.database_url != null ? "DATABASE_URL_MIGRATE" : "",
+  ]))
 
-  web_secret_env_names = nonsensitive([
-    for name in [
-      "CLERK_SECRET_KEY",
-    ] : name if lookup(local.runtime_secret_values, name, null) != null
-  ])
+  web_secret_env_names = nonsensitive(compact([
+    var.clerk_secret_key != null ? "CLERK_SECRET_KEY" : "",
+  ]))
 
   api_service_account_id = "${substr(local.name_prefix, 0, 20)}-api"
   web_service_account_id = "${substr(local.name_prefix, 0, 20)}-web"
