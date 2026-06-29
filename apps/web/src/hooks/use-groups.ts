@@ -4,7 +4,7 @@ import { useMemo } from "react"
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
-import type { Group, GroupRule, Member } from "@/types/api"
+import type { Group, GroupMemberRow, GroupRule, Member } from "@/types/api"
 
 export function useGroups() {
   const { request } = useApi()
@@ -33,6 +33,17 @@ export function useGroupMembers(groupId: string | null) {
   return useQuery({
     queryKey: [activeTenantId, "group-members", groupId],
     queryFn: () => request<Member[]>(`/groups/${groupId}/members`),
+    enabled: groupId !== null && Boolean(activeTenantId),
+  })
+}
+
+/** Explicit (manual) membership rows for a group — excludes rule-derived members. */
+export function useGroupManualMembers(groupId: string | null) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  return useQuery({
+    queryKey: [activeTenantId, "group-manual-members", groupId],
+    queryFn: () => request<GroupMemberRow[]>(`/groups/${groupId}/manual-members`),
     enabled: groupId !== null && Boolean(activeTenantId),
   })
 }
@@ -192,6 +203,7 @@ export function useAddGroupMember() {
       // Invalidate ALL group-member caches: the backend may silently remove
       // the member from a previous patrol, so every cached list could be stale.
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-manual-members"] })
     },
   })
 }
@@ -206,6 +218,7 @@ export function useRemoveGroupMember() {
     onSuccess: () => {
       // Invalidate ALL group-member caches for consistency.
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-manual-members"] })
     },
   })
 }

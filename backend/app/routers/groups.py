@@ -123,6 +123,29 @@ def list_group_members(group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> 
     ).all()
 
 
+@router.get(
+    "/{group_id}/manual-members",
+    response_model=list[GroupMemberRead],
+    dependencies=[Depends(require(Permission.MEMBER_READ))],
+)
+def list_group_manual_members(
+    group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
+) -> Sequence[GroupMember]:
+    """Return only the **explicit** (manual) memberships of a group.
+
+    These are the ``GroupMember`` rows — the members a leader added by hand, as
+    opposed to those resolved dynamically by rules. The UI uses this to separate
+    removable manual members from rule-derived ones.
+    """
+    get_or_404(db, Group, group_id, tenant_id, "Group not found")
+    return db.scalars(
+        select(GroupMember).where(
+            GroupMember.group_id == group_id,
+            GroupMember.is_deleted.is_(False),
+        )
+    ).all()
+
+
 @router.post(
     "/{group_id}/members",
     response_model=GroupMemberRead,

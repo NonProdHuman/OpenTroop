@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils"
 export interface ChipOption {
   id: string
   label: string
+  /** Optional short qualifier shown muted after the label (e.g. "Youth", "Adult"). */
+  badge?: string
 }
 
 interface MultiSelectChipsProps {
@@ -54,7 +56,7 @@ export function MultiSelectChips({
 }: MultiSelectChipsProps) {
   const [open, setOpen] = useState(false)
   const selected = new Set(selectedIds)
-  const labelById = new Map(options.map((o) => [o.id, o.label]))
+  const optionById = new Map(options.map((o) => [o.id, o]))
 
   function toggle(id: string) {
     onChange(selected.has(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id])
@@ -64,20 +66,26 @@ export function MultiSelectChips({
     <div className="space-y-2">
       {selectedIds.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {selectedIds.map((id) => (
-            <Badge key={id} variant="secondary" className="text-xs gap-1 py-0.5">
-              {chipPrefix}
-              {labelById.get(id) ?? id}
-              <button
-                type="button"
-                onClick={() => toggle(id)}
-                aria-label={`Remove ${labelById.get(id) ?? id}`}
-                className="text-muted-foreground hover:text-destructive transition-colors"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
+          {selectedIds.map((id) => {
+            const opt = optionById.get(id)
+            return (
+              <Badge key={id} variant="secondary" className="text-xs gap-1 py-0.5">
+                {chipPrefix}
+                {opt?.label ?? id}
+                {opt?.badge && (
+                  <span className="text-[10px] font-normal text-muted-foreground">{opt.badge}</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => toggle(id)}
+                  aria-label={`Remove ${opt?.label ?? id}`}
+                  className="text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )
+          })}
         </div>
       )}
 
@@ -106,6 +114,9 @@ export function MultiSelectChips({
                     >
                       <Check className={cn("h-3.5 w-3.5", isSelected ? "opacity-100" : "opacity-0")} />
                       <span>{o.label}</span>
+                      {o.badge && (
+                        <span className="ml-auto text-xs text-muted-foreground">{o.badge}</span>
+                      )}
                     </CommandItem>
                   )
                 })}

@@ -227,6 +227,27 @@ def test_rule_crud_and_validation(client: TestClient) -> None:
     assert "oa_member" not in dimensions
 
 
+def test_manual_members_endpoint_excludes_rule_derived(client: TestClient) -> None:
+    """GET /manual-members returns only explicit GroupMember rows, not rule-matched."""
+    group = _create_group(client, "Scouts", "custom")
+    manual = _create_member(client, "ManuallyAdded")
+    # A second scout who is only resolved via a member_type rule.
+    client.post(
+        "/members/",
+        json={"first_name": "RuleOnly", "last_name": "Scout", "member_type": "scout"},
+    )
+    client.post(f"/groups/{group['id']}/members", json={"member_id": manual["id"]})
+    client.put(f"/groups/{group['id']}/rules/member_type", json={"values": ["scout"]})
+
+    resolved = {m["id"] for m in client.get(f"/groups/{group['id']}/members").json()}
+    manual_ids = {gm["member_id"] for gm in client.get(f"/groups/{group['id']}/manual-members").json()}
+
+    assert manual["id"] in resolved and manual["id"] in manual_ids
+    # The rule-only scout is resolved but is NOT a manual member.
+    assert len(resolved) >= 2
+    assert manual_ids == {manual["id"]}
+
+
 def test_patrol_rejects_rules(client: TestClient) -> None:
     """Patrols are manual-only — the rule editor is closed to them."""
     patrol = _create_group(client, "Wolf", "patrol")

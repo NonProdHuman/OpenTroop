@@ -36,6 +36,7 @@ import { MultiSelectChips } from "@/components/multi-select-chips"
 import {
   useGroup,
   useGroupMembers,
+  useGroupManualMembers,
   useGroupRules,
   useUpsertGroupRule,
   useDeleteGroupRule,
@@ -95,6 +96,13 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (v: string)
   )
 }
 
+// Youth/adult hint for the position picker, derived from Position.applies_to.
+function positionScopeLabel(scope: string): string | undefined {
+  if (scope === "scout") return "Youth"
+  if (scope === "adult") return "Adult"
+  return undefined
+}
+
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
@@ -127,6 +135,7 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
   const router = useRouter()
 
   const { data: members = [] } = useGroupMembers(id)
+  const { data: manualRows = [] } = useGroupManualMembers(id)
   const { data: rules = [] } = useGroupRules(id)
   const { data: allMembers = [] } = useMembers()
   const { data: allPositions = [] } = usePositions()
@@ -156,6 +165,11 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
 
   const isSystem = group.is_system
   const memberIds = new Set(members.map((m) => m.id))
+
+  // Split the resolved set into hand-added (removable) vs rule-derived (display only).
+  const manualIds = new Set(manualRows.map((r) => r.member_id))
+  const manualMembers = members.filter((m) => manualIds.has(m.id))
+  const dynamicMembers = members.filter((m) => !manualIds.has(m.id))
 
   const addableMembers = allMembers.filter((m) => {
     if (m.is_deleted) return false
@@ -286,13 +300,13 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
         <Separator />
 
         {/* ── Members ──────────────────────────────────────── */}
-        <SectionTitle>Members</SectionTitle>
+        <SectionTitle>Members{manualMembers.length > 0 ? ` (${manualMembers.length})` : ""}</SectionTitle>
         <div className="space-y-2">
-          {members.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No members yet.</p>
+          {manualMembers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No members added by hand.</p>
           ) : (
             <ul className="divide-y rounded-md border max-h-60 overflow-y-auto">
-              {members.map((m) => (
+              {manualMembers.map((m) => (
                 <li key={m.id} className="flex items-center justify-between px-3 py-2 text-sm">
                   <span>{displayName(m)}</span>
                   {!isSystem && (
@@ -350,13 +364,28 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
               </PopoverContent>
             </Popover>
           )}
-
-          {type === "custom" && (
-            <p className="text-xs text-muted-foreground italic">
-              Members added here are combined with anyone matching the rules below.
-            </p>
-          )}
         </div>
+
+        {/* ── Rule-derived members (display only) ───────────── */}
+        {dynamicMembers.length > 0 && (
+          <div className="space-y-2">
+            <SectionTitle>From Rules ({dynamicMembers.length})</SectionTitle>
+            <ul className="divide-y rounded-md border max-h-60 overflow-y-auto bg-muted/20">
+              {dynamicMembers.map((m) => (
+                <li
+                  key={m.id}
+                  className="flex items-center justify-between px-3 py-2 text-sm text-muted-foreground"
+                >
+                  <span>{displayName(m)}</span>
+                  <span className="text-xs italic">{group.include_parents && m.member_type === "adult" ? "rule / parent" : "via rules"}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-muted-foreground italic">
+              Resolved automatically from the rules below — adjust the rules to change who&apos;s included.
+            </p>
+          </div>
+        )}
 
         {/* ── Dynamic Rules (custom only) ─────────────────── */}
         {type === "custom" && (
@@ -467,7 +496,9 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                   onToggle={(checked) => toggleExpandDimension("position", checked)}
                 >
                   <MultiSelectChips
-                    options={allPositions.filter((p) => !p.is_deleted).map((p) => ({ id: p.id, label: p.name }))}
+                    options={allPositions
+                      .filter((p) => !p.is_deleted)
+                      .map((p) => ({ id: p.id, label: p.name, badge: positionScopeLabel(p.applies_to) }))}
                     selectedIds={activeRulesMap.get("position")?.values || []}
                     onChange={(next) =>
                       next.length === 0

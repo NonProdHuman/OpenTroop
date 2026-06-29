@@ -15,6 +15,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import {
   useGroupMembers,
+  useGroupManualMembers,
   useGroupRules,
   useDeleteGroup,
   useAddGroupMember,
@@ -73,6 +74,7 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
   const [addMemberOpen, setAddMemberOpen] = useState(false)
 
   const { data: members = [], isLoading: membersLoading } = useGroupMembers(group?.id ?? null)
+  const { data: manualRows = [] } = useGroupManualMembers(group?.id ?? null)
   const { data: rules = [] } = useGroupRules(group?.id ?? null)
   const { data: positions = [] } = usePositions()
   const { data: groups = [] } = useGroups()
@@ -88,6 +90,7 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
   if (!group) return null
 
   const isSystem = group.is_system
+  const manualIds = new Set(manualRows.map((r) => r.member_id))
   const memberIds = new Set(members.map((m) => m.id))
   const addableMembers = allMembers.filter((m) => {
     if (m.is_deleted) return false
@@ -219,7 +222,7 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
                         >
                           {name}
                         </button>
-                        {!isSystem && (
+                        {!isSystem && manualIds.has(m.id) && (
                           <button
                             type="button"
                             onClick={() =>
@@ -245,9 +248,14 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
                           </button>
                         )}
                       </div>
-                      <Badge variant="outline" className="text-xs capitalize shrink-0">
-                        {m.member_type}
-                      </Badge>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {!manualIds.has(m.id) && (
+                          <span className="text-xs text-muted-foreground italic">via rules</span>
+                        )}
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {m.member_type}
+                        </Badge>
+                      </div>
                     </li>
                   )
                 })}

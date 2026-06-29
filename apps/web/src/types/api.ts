@@ -183,6 +183,18 @@ export interface GroupRule {
   values: string[] | null
 }
 
+// An explicit (manual) group membership row — distinct from rule-derived members.
+export interface GroupMemberRow {
+  id: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  group_id: string
+  member_id: string
+  added_by_id: string | null
+}
+
 // ── Events ───────────────────────────────────────────────────────────────────
 
 export interface EventType {
