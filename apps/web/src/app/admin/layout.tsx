@@ -63,17 +63,21 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
           </div>
         </header>
 
-        <main className="flex-1">
+        <main className="flex-1 relative">
+          {/* We always render children so their React Query hooks fire in parallel with useMe, avoiding a waterfall.
+              The skeleton or NotAuthorized screen overlays it until the auth check resolves. */}
+          {children}
+
           {isLoading ? (
-            <div className="space-y-3 p-6">
+            <div className="absolute inset-0 z-50 bg-background space-y-3 p-6">
               <Skeleton className="h-8 w-48" />
               <Skeleton className="h-40 w-full" />
             </div>
           ) : !authorized || isError ? (
-            <NotAuthorized />
-          ) : (
-            children
-          )}
+            <div className="absolute inset-0 z-50 bg-background flex flex-col">
+              <NotAuthorized />
+            </div>
+          ) : null}
         </main>
       </SidebarInset>
     </SidebarProvider>
