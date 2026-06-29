@@ -7,7 +7,7 @@ resource "terraform_data" "clerk_jwt_template" {
   }
 
   provisioner "local-exec" {
-    command = "bash ${path.module}/scripts/configure-clerk-jwt-template.sh"
+    command = "if [ -f ./scripts/configure-clerk-jwt-template.sh ]; then bash ./scripts/configure-clerk-jwt-template.sh; else bash terraform/scripts/configure-clerk-jwt-template.sh; fi"
 
     environment = {
       CLERK_JWT_CLAIMS_JSON   = jsonencode(var.clerk_jwt_claims)
