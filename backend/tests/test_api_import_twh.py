@@ -97,3 +97,69 @@ def test_import_requires_auth(client: TestClient) -> None:
         from tests.conftest import _test_current_user
 
         app.dependency_overrides[get_current_user] = _test_current_user
+
+
+def test_import_with_gzipped_file(client: TestClient) -> None:
+    import gzip
+
+    with open(_FIXTURE, "rb") as f:
+        xml_data = f.read()
+
+    gz_data = gzip.compress(xml_data)
+
+    r = client.post(
+        "/import/twh",
+        files={"file": ("export.xml.gz", gz_data, "application/gzip")},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["patrols"] == 2
+    assert body["members"] == 5
+
+
+def test_import_with_zipped_file(client: TestClient) -> None:
+    import io
+    import zipfile
+
+    with open(_FIXTURE, "rb") as f:
+        xml_data = f.read()
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("export.xml", xml_data)
+    zip_data = zip_buffer.getvalue()
+
+    r = client.post(
+        "/import/twh",
+        files={"file": ("export.zip", zip_data, "application/zip")},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["patrols"] == 2
+    assert body["members"] == 5
+
+
+def test_import_invalid_gzip_returns_422(client: TestClient) -> None:
+    r = client.post(
+        "/import/twh",
+        files={"file": ("bad.xml.gz", b"not valid gzip data", "application/gzip")},
+    )
+    assert r.status_code == 422
+    assert "Invalid GZIP compression" in r.json()["detail"]
+
+
+def test_import_zip_without_xml_returns_422(client: TestClient) -> None:
+    import io
+    import zipfile
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("readme.txt", b"this is not an xml file")
+    zip_data = zip_buffer.getvalue()
+
+    r = client.post(
+        "/import/twh",
+        files={"file": ("no_xml.zip", zip_data, "application/zip")},
+    )
+    assert r.status_code == 422
+    assert "No XML file found inside ZIP archive" in r.json()["detail"]

@@ -55,6 +55,29 @@ def import_twh(
 
     try:
         content = file.file.read()
+        filename = file.filename.lower() if file.filename else ""
+        if filename.endswith(".zip"):
+            import io
+            import zipfile
+
+            with zipfile.ZipFile(io.BytesIO(content)) as z:
+                xml_files = [name for name in z.namelist() if name.lower().endswith(".xml")]
+                if not xml_files:
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail="No XML file found inside ZIP archive.",
+                    )
+                content = z.read(xml_files[0])
+        elif filename.endswith(".gz") or content.startswith(b"\x1f\x8b"):
+            import gzip
+
+            try:
+                content = gzip.decompress(content)
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Invalid GZIP compression: {exc}",
+                ) from exc
         root = ET.fromstring(content)  # noqa: S314 — admin-supplied file upload
     except ET.ParseError as exc:
         raise HTTPException(

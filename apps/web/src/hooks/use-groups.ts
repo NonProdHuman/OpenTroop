@@ -4,7 +4,7 @@ import { useMemo } from "react"
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
-import type { Group, GroupRule, Member } from "@/types/api"
+import type { Group, GroupMemberRow, GroupRule, Member } from "@/types/api"
 
 export function useGroups() {
   const { request } = useApi()
@@ -33,6 +33,17 @@ export function useGroupMembers(groupId: string | null) {
   return useQuery({
     queryKey: [activeTenantId, "group-members", groupId],
     queryFn: () => request<Member[]>(`/groups/${groupId}/members`),
+    enabled: groupId !== null && Boolean(activeTenantId),
+  })
+}
+
+/** Explicit (manual) membership rows for a group — excludes rule-derived members. */
+export function useGroupManualMembers(groupId: string | null) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  return useQuery({
+    queryKey: [activeTenantId, "group-manual-members", groupId],
+    queryFn: () => request<GroupMemberRow[]>(`/groups/${groupId}/manual-members`),
     enabled: groupId !== null && Boolean(activeTenantId),
   })
 }
@@ -141,7 +152,7 @@ export function useCreateGroup() {
   const { activeTenantId } = useActiveTenant()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (body: { name: string; group_type: string; color: string | null; description: string | null; rule_logic?: string }) =>
+    mutationFn: (body: { name: string; group_type: string; color: string | null; description: string | null; rule_logic?: string; include_parents?: boolean; cc_parents_on_messages?: boolean }) =>
       request<Group>("/groups/", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups"] })
@@ -154,11 +165,14 @@ export function useUpdateGroup() {
   const { activeTenantId } = useActiveTenant()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Pick<Group, "name" | "description" | "group_type" | "color" | "rule_logic">> }) =>
+    mutationFn: ({ id, data }: { id: string; data: Partial<Pick<Group, "name" | "description" | "group_type" | "color" | "rule_logic" | "include_parents" | "cc_parents_on_messages">> }) =>
       request<Group>(`/groups/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups"] })
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups", id] })
+      // rule_logic and include_parents change resolved membership — refresh all
+      // group-member caches (and everything derived from them: counts, rosters).
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
     },
   })
 }
@@ -189,6 +203,7 @@ export function useAddGroupMember() {
       // Invalidate ALL group-member caches: the backend may silently remove
       // the member from a previous patrol, so every cached list could be stale.
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-manual-members"] })
     },
   })
 }
@@ -203,6 +218,7 @@ export function useRemoveGroupMember() {
     onSuccess: () => {
       // Invalidate ALL group-member caches for consistency.
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-manual-members"] })
     },
   })
 }
@@ -231,7 +247,8 @@ export function useUpsertGroupRule() {
       }),
     onSuccess: (_data, { groupId }) => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-rules", groupId] })
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members", groupId] })
+      // Broad: other groups can depend on this one via group_member / parents-of rules.
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
     },
   })
 }
@@ -245,7 +262,8 @@ export function useDeleteGroupRule() {
       request(`/groups/${groupId}/rules/${dimension}`, { method: "DELETE" }),
     onSuccess: (_data, { groupId }) => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-rules", groupId] })
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members", groupId] })
+      // Broad: other groups can depend on this one via group_member / parents-of rules.
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
     },
   })
 }

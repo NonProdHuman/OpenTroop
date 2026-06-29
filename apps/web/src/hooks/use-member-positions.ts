@@ -28,6 +28,8 @@ export function useAssignMemberPosition() {
     onSuccess: (_data, { memberId }) => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "member-positions", memberId] })
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "session"] })
+      // Position rules drive dynamic group membership (e.g. PLC) — refresh group caches.
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
     },
   })
 }
@@ -42,6 +44,8 @@ export function useRemoveMemberPosition() {
     onSuccess: (_data, { memberId }) => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "member-positions", memberId] })
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "session"] })
+      // Position rules drive dynamic group membership (e.g. PLC) — refresh group caches.
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
     },
   })
 }

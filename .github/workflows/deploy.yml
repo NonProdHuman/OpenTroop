@@ -69,17 +69,6 @@ jobs:
           flags: >-
             --allow-unauthenticated
             --port=8000
-          env_vars: |
-            ENVIRONMENT=${{ env.DEPLOY_ENVIRONMENT }}
-            AUTH_ISSUER=${{ secrets.AUTH_ISSUER }}
-            AUTH_JWKS_URI=${{ secrets.AUTH_JWKS_URI }}
-            AUTH_AUDIENCE=${{ secrets.AUTH_AUDIENCE }}
-            APP_SECRET=${{ secrets.APP_SECRET }}
-            APP_DOMAIN=${{ secrets.APP_DOMAIN }}
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
-            DATABASE_URL_ADMIN=${{ secrets.DATABASE_URL_ADMIN || secrets.DATABASE_URL }}
-            DATABASE_URL_MIGRATE=${{ secrets.DATABASE_URL_MIGRATE || secrets.DATABASE_URL }}
-            CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
 
       # --- FRONTEND ---
       - name: Build Frontend Image
@@ -102,13 +91,6 @@ jobs:
           flags: >-
             --allow-unauthenticated
             --port=3000
-          # Set API URL for the frontend to point to the backend we just deployed
-          env_vars: |
-            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL || vars.API_PUBLIC_URL || steps.deploy-backend.outputs.url }}
-            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-            NEXT_PUBLIC_CLERK_JWT_TEMPLATE=${{ vars.NEXT_PUBLIC_CLERK_JWT_TEMPLATE || secrets.NEXT_PUBLIC_CLERK_JWT_TEMPLATE }}
-            NEXT_PUBLIC_TENANT_ID=${{ secrets.NEXT_PUBLIC_TENANT_ID }}
-            CLERK_SECRET_KEY=${{ secrets.CLERK_SECRET_KEY }}
 
       - name: Deployment Summary
         run: |

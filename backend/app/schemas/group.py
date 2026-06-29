@@ -9,9 +9,11 @@ from app.schemas.base import TrackedRead
 class GroupBase(BaseModel):
     name: str
     description: str | None = None
-    group_type: GroupType = GroupType.MANUAL
+    group_type: GroupType = GroupType.CUSTOM
     color: str | None = None
     rule_logic: RuleLogic = RuleLogic.AND
+    include_parents: bool = False
+    cc_parents_on_messages: bool = False
 
 
 class GroupCreate(GroupBase):
@@ -24,6 +26,8 @@ class GroupUpdate(BaseModel):
     group_type: GroupType | None = None
     color: str | None = None
     rule_logic: RuleLogic | None = None
+    include_parents: bool | None = None
+    cc_parents_on_messages: bool | None = None
 
 
 class GroupRead(GroupBase, TrackedRead):

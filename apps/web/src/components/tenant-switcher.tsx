@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { Building2, ChevronsUpDown, Check } from "lucide-react"
 import { useMemberships } from "@/hooks/use-memberships"
 import { useActiveTenant } from "@/lib/tenant-context"
+import { getTenantRedirectUrl } from "@/lib/subdomain"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,7 +78,14 @@ export function TenantSwitcher() {
             {memberships.map((m) => (
               <DropdownMenuItem
                 key={m.tenant_id}
-                onClick={() => setActiveTenantId(m.tenant_id)}
+                onClick={() => {
+                  const redirectUrl = getTenantRedirectUrl(m.tenant_slug, "/members")
+                  if (redirectUrl) {
+                    window.location.href = redirectUrl
+                  } else {
+                    setActiveTenantId(m.tenant_id)
+                  }
+                }}
                 className="gap-2"
               >
                 <Building2 className="h-4 w-4 shrink-0 opacity-50" />

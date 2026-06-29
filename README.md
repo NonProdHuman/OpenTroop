@@ -106,7 +106,7 @@ Cross-tenant identity and platform work opts out explicitly through the greppabl
 `unscoped()` escape hatch, paired with the `BYPASSRLS` `opentroop_admin` role.
 
 ```
-apps/web/      Next.js 16 · Tailwind 4 · shadcn/ui · Clerk auth
+apps/web/      Next.js 16 · Tailwind 4 · shadcn/ui · Clerk auth. Uses middleware for logical domain routing (landing vs admin vs tenant)
 apps/mobile/   Expo (React Native) — stub, to be scaffolded
 backend/       FastAPI app, ORM models, Pydantic schemas, Alembic, tests
 packages/      Shared TypeScript packages (api-client)
