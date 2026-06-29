@@ -69,8 +69,9 @@ export default function ImportPage() {
   }
 
   const validateAndSetFile = (selectedFile: File) => {
-    if (!selectedFile.name.endsWith(".xml")) {
-      toast.error("Invalid file format. Please upload a TroopWebHost XML export file.")
+    const validExtensions = [".xml", ".zip", ".gz"]
+    if (!validExtensions.some((ext) => selectedFile.name.toLowerCase().endsWith(ext))) {
+      toast.error("Invalid file format. Please upload an XML, ZIP, or GZ file.")
       return
     }
     setFile(selectedFile)
@@ -120,10 +121,21 @@ export default function ImportPage() {
             <CardHeader>
               <CardTitle>TroopWebHost XML Import</CardTitle>
               <CardDescription>
-                Upload your full-data XML export from TroopWebHost to populate your roster, patrols, locations, events, and attendance records.
+                Upload your full-data XML export from TroopWebHost to populate your roster, patrols, locations, events, and attendance records. Large files can be compressed to .zip or .gz to upload faster and bypass size limits.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* File Size Callout */}
+              <div className="rounded-lg border border-amber-500/25 bg-amber-500/[0.03] p-4 text-sm text-amber-800 dark:text-amber-300 flex gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-medium">File Size Limit Warning (30 MB)</p>
+                  <p className="text-xs text-muted-foreground">
+                    {"Due to platform hosting limits, files larger than 30 MB must be compressed into a .zip or .gz archive (not .tar.gz) before uploading. Compression reduces file sizes by up to 95% and ensures your upload completes successfully."}
+                  </p>
+                </div>
+              </div>
+
               {/* Timezone Selection */}
               <div className="space-y-2">
                 <Label htmlFor="timezone">Source Timezone</Label>
@@ -146,12 +158,12 @@ export default function ImportPage() {
 
               {/* Upload Dropzone */}
               <div className="space-y-2">
-                <Label>Export File (.xml)</Label>
+                <Label>Export File (.xml, .zip, .gz)</Label>
                 <input
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileChange}
-                  accept=".xml"
+                  accept=".xml,.zip,.gz"
                   className="hidden"
                   disabled={isLoading}
                 />
@@ -170,7 +182,7 @@ export default function ImportPage() {
                   >
                     <Upload className="h-10 w-10 text-muted-foreground/70 mb-4" />
                     <p className="text-sm font-medium">Click to select or drag & drop</p>
-                    <p className="text-xs text-muted-foreground mt-1">TroopWebHost full-data XML file</p>
+                    <p className="text-xs text-muted-foreground mt-1">TroopWebHost XML, ZIP, or GZ file</p>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between border border-border rounded-lg p-4 bg-muted/20">
