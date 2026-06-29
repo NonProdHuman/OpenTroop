@@ -112,9 +112,10 @@ resource "google_secret_manager_secret_iam_member" "web_secret_access" {
 }
 
 resource "google_cloud_run_v2_service" "api" {
-  name     = local.api_service_name
-  location = var.gcp_region
-  ingress  = var.api_ingress
+  name                = local.api_service_name
+  location            = var.gcp_region
+  ingress             = var.api_ingress
+  deletion_protection = var.deletion_protection
 
   template {
     service_account = google_service_account.api.email
@@ -179,9 +180,10 @@ resource "google_cloud_run_v2_service" "api" {
 }
 
 resource "google_cloud_run_v2_service" "web" {
-  name     = local.web_service_name
-  location = var.gcp_region
-  ingress  = var.web_ingress
+  name                = local.web_service_name
+  location            = var.gcp_region
+  ingress             = var.web_ingress
+  deletion_protection = var.deletion_protection
 
   template {
     service_account = google_service_account.web.email
