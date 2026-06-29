@@ -99,7 +99,7 @@ export default function NewGroupPage() {
     }
     setNameError(null)
     createGroup.mutate(
-      { name: name.trim(), group_type: type, color, description: description.trim() || null },
+      { name: name.trim(), group_type: type, color, description: description.trim() || null, rule_logic: "or" },
       {
         onSuccess: () => router.push("/groups"),
         onError: (err) => {
