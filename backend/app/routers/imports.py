@@ -34,8 +34,9 @@ def import_twh(
 ) -> TwhImportRead:
     """Upload a TroopWebHost XML export and import its roster and events.
 
-    Creates Patrol, Member, MemberRelationship, Location, EventType, Event,
-    and EventParticipant records for the current tenant.  The import is additive;
+    Creates Patrol, Member, MemberRelationship, Position (with dated
+    MemberPositionAssignment terms for leadership history), Location, EventType,
+    Event, and EventParticipant records for the current tenant.  The import is additive;
     running it twice will attempt to create duplicate records (BSA ID uniqueness
     will raise a 409 on the second run if the same persons are re-imported).
 
@@ -92,6 +93,8 @@ def import_twh(
         patrols=result.patrols,
         members=result.members,
         relationships=result.relationships,
+        positions=result.positions,
+        position_assignments=result.position_assignments,
         locations=result.locations,
         event_types=result.event_types,
         events=result.events,

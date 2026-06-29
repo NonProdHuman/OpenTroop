@@ -39,8 +39,10 @@ export function useRemoveMemberPosition() {
   const { activeTenantId } = useActiveTenant()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ memberId, positionId }: { memberId: string; positionId: string }) =>
-      request(`/members/${memberId}/positions/${positionId}`, { method: "DELETE" }),
+    // Terms are addressed by their own assignment id (a member can hold the same
+    // position across multiple historical terms).
+    mutationFn: ({ memberId, assignmentId }: { memberId: string; assignmentId: string }) =>
+      request(`/members/${memberId}/positions/${assignmentId}`, { method: "DELETE" }),
     onSuccess: (_data, { memberId }) => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "member-positions", memberId] })
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "session"] })

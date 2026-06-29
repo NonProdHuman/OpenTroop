@@ -134,6 +134,7 @@ export into the target tenant. Supported record types (in import order):
 | `Patrol` | `Group` (group_type=patrol) | `Patrol_Name` → `name`; scout patrol → `GroupMember` |
 | `Person` | `Member` | `Adult_Flag`, `Alumni_Flag`, `Swim_Level`, `Patrol`, OA fields |
 | `Relationship` | `MemberRelationship` | Only `Parent` seen in practice; `guardian`, `sibling` also mapped |
+| `Leadership_Position` + `*_Leadership_History` | `Position` + `MemberPositionAssignment` | All terms imported with dates (`End_Date` empty ⇒ current); positions matched by slug → BSA `Position_Code` crosswalk → created |
 | `Location` | `Location` | `Disabled_Flag=Y` skipped |
 | `Event_Type` | `EventType` | Capability flags translated 1-to-1; `is_system=False` |
 | `Event` | `Event` | `linked_event_id` resolved in a second pass |

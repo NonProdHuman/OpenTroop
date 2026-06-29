@@ -10,8 +10,9 @@ no caller or signature changes. v1 ships only the functional-role source.
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.enums import Permission
@@ -22,6 +23,46 @@ from app.models.rbac import (
     Position,
     PositionFunctionalRole,
 )
+
+
+def _utc_today() -> date:
+    """Today's date in UTC — the platform stores everything UTC, so term boundaries are too."""
+    return datetime.now(UTC).date()
+
+
+def is_assignment_current(
+    is_deleted: bool, end_date: date | None, today: date | None = None
+) -> bool:
+    """Python form of the assignment currency rule (single source of truth).
+
+    A term is current iff it is not tombstoned and has not ended:
+    ``not is_deleted AND (end_date is None OR end_date >= today)``. A *future*
+    end_date still counts as current (scheduled turnover). ``start_date`` is not
+    gated — a future-dated term is shown as current. Used by the read schema's
+    ``is_current``; the SQL twin is :func:`current_assignment_clause`.
+    """
+    if is_deleted:
+        return False
+    if end_date is None:
+        return True
+    return end_date >= (today or _utc_today())
+
+
+def current_assignment_clause(today: date | None = None) -> ColumnElement[bool]:
+    """SQL form of the assignment currency rule, for use in ``.where(...)``.
+
+    Mirrors :func:`is_assignment_current`. Every query that asks "does this member
+    *currently* hold a position" — the permission resolver, group position rules —
+    filters on this so the rule lives in exactly one place.
+    """
+    cutoff = today or _utc_today()
+    return and_(
+        MemberPositionAssignment.is_deleted.is_(False),
+        or_(
+            MemberPositionAssignment.end_date.is_(None),
+            MemberPositionAssignment.end_date >= cutoff,
+        ),
+    )
 
 
 def resolve_permissions(member_id: uuid.UUID, session: Session) -> frozenset[Permission]:
@@ -62,7 +103,7 @@ def _member_functional_role_ids(member_id: uuid.UUID, session: Session) -> set[u
             )
             .where(
                 MemberPositionAssignment.member_id == member_id,
-                MemberPositionAssignment.is_deleted.is_(False),
+                current_assignment_clause(),
                 PositionFunctionalRole.is_deleted.is_(False),
                 Position.is_deleted.is_(False),
                 FunctionalRole.is_deleted.is_(False),

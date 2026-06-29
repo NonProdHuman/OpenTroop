@@ -1,6 +1,6 @@
 # Position History Spec
 
-**Status:** Draft
+**Status:** Implemented (backend + importer; full show/edit history UI is a follow-up)
 **Pillar:** Roster & Relationships (Pillar 1) — RBAC extension
 **Related:** [`roles-rbac.md`](roles-rbac.md) · [`members-screen.md`](members-screen.md) · [`session-permissions.md`](session-permissions.md)
 **Resolves:** roles-rbac open question #2 ("Position term/history") and #4 ("TWH importer mapping")

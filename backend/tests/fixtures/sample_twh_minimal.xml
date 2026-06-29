@@ -291,6 +291,82 @@
     <Relationship_Type>Parent</Relationship_Type>
   </Relationship>
 
+  <!-- ===== Leadership position catalog ===== -->
+  <!-- "Scoutmaster" matches the seeded slug; "Committee Chairman" matches the seeded
+       "Committee Chair" only via the CC code crosswalk; "Patrol Leader" matches the
+       seeded slug. Against a bare tenant (no seeding) all three are created. -->
+  <Leadership_Position>
+    <i>4</i>
+    <Adult_Flag>Y</Adult_Flag>
+    <Position>Scoutmaster</Position>
+    <Position_Code>SM</Position_Code>
+    <Display_Sequence>100</Display_Sequence>
+  </Leadership_Position>
+  <Leadership_Position>
+    <i>2</i>
+    <Adult_Flag>Y</Adult_Flag>
+    <Position>Committee Chairman</Position>
+    <Position_Code>CC</Position_Code>
+    <Display_Sequence>120</Display_Sequence>
+  </Leadership_Position>
+  <Leadership_Position>
+    <i>13</i>
+    <Adult_Flag>N</Adult_Flag>
+    <Position>Patrol Leader</Position>
+    <Position_Code>PL</Position_Code>
+    <Display_Sequence>220</Display_Sequence>
+  </Leadership_Position>
+
+  <!-- ===== Leadership history (current = empty End_Date; ended terms kept) ===== -->
+  <!-- Bob (person 3): current Scoutmaster -->
+  <Adult_Leadership_History>
+    <i>1</i>
+    <Person_ID>3</Person_ID>
+    <BSA_Leadership_Position_ID>4</BSA_Leadership_Position_ID>
+    <Start_Date>9/1/2020 12:00:00 AM</Start_Date>
+    <End_Date />
+  </Adult_Leadership_History>
+  <!-- Eve (person 4): current Committee Chairman -->
+  <Adult_Leadership_History>
+    <i>2</i>
+    <Person_ID>4</Person_ID>
+    <BSA_Leadership_Position_ID>2</BSA_Leadership_Position_ID>
+    <Start_Date>9/1/2021 12:00:00 AM</Start_Date>
+    <End_Date />
+  </Adult_Leadership_History>
+  <!-- Bob (person 3): a past, ended Committee Chairman term — kept as history -->
+  <Adult_Leadership_History>
+    <i>3</i>
+    <Person_ID>3</Person_ID>
+    <BSA_Leadership_Position_ID>2</BSA_Leadership_Position_ID>
+    <Start_Date>9/1/2015 12:00:00 AM</Start_Date>
+    <End_Date>8/31/2020 12:00:00 AM</End_Date>
+  </Adult_Leadership_History>
+  <!-- Alice (person 1): current Patrol Leader -->
+  <Scout_Leadership_History>
+    <i>1</i>
+    <BSA_Leadership_Position_ID>13</BSA_Leadership_Position_ID>
+    <Start_Date>7/1/2025 12:00:00 AM</Start_Date>
+    <End_Date />
+    <Person_ID>1</Person_ID>
+  </Scout_Leadership_History>
+  <!-- Dave (person 2): a past, ended Patrol Leader term — kept as history -->
+  <Scout_Leadership_History>
+    <i>2</i>
+    <BSA_Leadership_Position_ID>13</BSA_Leadership_Position_ID>
+    <Start_Date>7/1/2023 12:00:00 AM</Start_Date>
+    <End_Date>6/30/2024 12:00:00 AM</End_Date>
+    <Person_ID>2</Person_ID>
+  </Scout_Leadership_History>
+  <!-- Row referencing an unknown position id — should warn and skip -->
+  <Scout_Leadership_History>
+    <i>3</i>
+    <BSA_Leadership_Position_ID>999</BSA_Leadership_Position_ID>
+    <Start_Date>7/1/2025 12:00:00 AM</Start_Date>
+    <End_Date />
+    <Person_ID>1</Person_ID>
+  </Scout_Leadership_History>
+
   <!-- ===== Locations ===== -->
   <Location>
     <i>1</i>

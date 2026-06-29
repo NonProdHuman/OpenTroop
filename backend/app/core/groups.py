@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app.core.permissions import current_assignment_clause
 from app.models.enums import MemberStatus, MemberType, RuleDimension, RuleLogic
 from app.models.group import Group, GroupMember, GroupRule
 from app.models.member import Member
@@ -74,13 +75,17 @@ def _members_by_bool_field(field_name: str, session: Session) -> set[uuid.UUID]:
 
 
 def _members_by_position(values: list[str], session: Session) -> set[uuid.UUID]:
-    """Members holding any of the named positions."""
+    """Members *currently* holding any of the named positions.
+
+    Filters to live terms (``current_assignment_clause``) so a member who termed out
+    of a position no longer matches a position rule (e.g. an ex-SPL drops out of PLC).
+    """
     position_ids = [uuid.UUID(v) for v in values]
     return set(
         session.scalars(
             select(MemberPositionAssignment.member_id).where(
                 MemberPositionAssignment.position_id.in_(position_ids),
-                MemberPositionAssignment.is_deleted.is_(False),
+                current_assignment_clause(),
             )
         ).all()
     )

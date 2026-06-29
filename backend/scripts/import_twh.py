@@ -12,8 +12,9 @@ additive — running it twice on the same tenant will create duplicate records
 persons are re-imported).
 
 Records created for the given tenant:
-  Patrol, Member (scouts + adults), MemberRelationship, Location,
-  EventType, Event, EventParticipant
+  Patrol, Member (scouts + adults), MemberRelationship, Position +
+  MemberPositionAssignment (dated leadership terms), Location, EventType,
+  Event, EventParticipant
 """
 
 from __future__ import annotations
@@ -81,6 +82,8 @@ def main() -> None:
     print(f"  Patrols       {result.patrols:>6}")
     print(f"  Members       {result.members:>6}")
     print(f"  Relationships {result.relationships:>6}")
+    print(f"  Positions     {result.positions:>6}")
+    print(f"  Position terms{result.position_assignments:>6}")
     print(f"  Locations     {result.locations:>6}")
     print(f"  Event types   {result.event_types:>6}")
     print(f"  Events        {result.events:>6}")

@@ -9,10 +9,25 @@ Supported record types
     Patrol          → Group  (group_type=PATROL); each scout's Patrol → GroupMember
     Person          → Member  (Adult_Flag, Alumni_Flag, Swim_Level, Patrol, OA fields)
     Relationship    → MemberRelationship  (only "Parent" seen in practice; extended types mapped)
+    Leadership      → Position + MemberPositionAssignment  (see below)
     Location        → Location
     Event_Type      → EventType  (capability flags translated 1-to-1)
     Event           → Event  (linked_event_id resolved in a second pass)
     Event_Participant → EventParticipant
+
+Leadership / positions
+    TWH stores leadership in a position *catalog* (``Leadership_Position`` /
+    legacy ``BSA_Leadership_Position``: id → ``Position`` name, ``Position_Code``,
+    ``Adult_Flag``) and two *history* tables linking a person to a position over
+    time (``Adult_Leadership_History`` / ``Scout_Leadership_History``, each with
+    ``Person_ID``, ``BSA_Leadership_Position_ID``, ``Start_Date``, ``End_Date``).
+
+    Every term — current (empty ``End_Date``) and historical — is imported as a
+    dated ``MemberPositionAssignment``; the permission resolver only grants from
+    *current* terms (see ``docs/spec/position-history.md``). Each referenced
+    position is matched to an OpenTroop ``Position`` deterministically (exact slug →
+    BSA ``Position_Code`` crosswalk → create a non-system position); fuzzy matching
+    is avoided because near-miss names carry different permissions.
 
 TWH exports store naive *local* wall-clock times. Pass the troop's source
 timezone so they are converted to UTC on import (the platform stores everything
@@ -30,6 +45,7 @@ Usage:
 from __future__ import annotations
 
 import contextlib
+import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, tzinfo
@@ -37,13 +53,14 @@ from decimal import Decimal, InvalidOperation
 from xml.etree import ElementTree as ET
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.models.enums import (
     GroupType,
     MemberStatus,
     MemberType,
+    PositionScope,
     RelationshipType,
     RsvpStatus,
     SwimClassification,
@@ -53,7 +70,21 @@ from app.models.event_type import EventType
 from app.models.group import Group, GroupMember
 from app.models.location import Location
 from app.models.member import Member
+from app.models.rbac import MemberPositionAssignment, Position
 from app.models.relationship import MemberRelationship
+
+# Crosswalk from canonical BSA leadership-position codes to the slugs of OpenTroop's
+# seeded positions, for the cases where TWH's name differs from the seeded name (e.g.
+# "Committee Chairman" vs the seeded "Committee Chair"). Codes are a stable, controlled
+# vocabulary — unlike fuzzy name matching, there's no collision risk. Extended as more
+# codes are observed in real exports; an unlisted code just falls through to create.
+TWH_POSITION_CODE_TO_SLUG: dict[str, str] = {
+    "SM": "scoutmaster",
+    "SA": "assistant-scoutmaster",
+    "CC": "committee-chair",
+    "CR": "chartered-org-rep",
+    "MC": "committee-member",
+}
 
 
 @dataclass
@@ -61,6 +92,8 @@ class TwhImportResult:
     patrols: int = 0
     members: int = 0
     relationships: int = 0
+    positions: int = 0
+    position_assignments: int = 0
     locations: int = 0
     event_types: int = 0
     events: int = 0
@@ -156,6 +189,18 @@ def _parse_int(elem: ET.Element, tag: str) -> int | None:
         return None
 
 
+def _slugify_position(name: str) -> str:
+    """Slugify a TWH position name to OpenTroop's ``Position.slug`` form.
+
+    Lower-cased, non-alphanumerics collapsed to single hyphens, trimmed, capped at the
+    column's 80-char limit. Mirrors the seeded slugs (``"Assistant Scoutmaster"`` →
+    ``"assistant-scoutmaster"``) so an imported position reuses the seeded one when
+    their names align.
+    """
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    return slug[:80] or "position"
+
+
 def _valid_email(value: str) -> str | None:
     """Return *value* if it looks like an email address, else None.
 
@@ -193,6 +238,8 @@ class TwhImporter:
         self._location_map: dict[str, uuid.UUID] = {}
         self._event_type_map: dict[str, uuid.UUID] = {}
         self._event_map: dict[str, uuid.UUID] = {}
+        # TWH leadership-position id → OpenTroop Position UUID (resolved/created lazily)
+        self._position_map: dict[str, uuid.UUID] = {}
         # Guard against duplicate (event_id, member_id) participant rows in the XML
         self._participant_seen: set[tuple[uuid.UUID, uuid.UUID]] = set()
 
@@ -201,6 +248,7 @@ class TwhImporter:
         self._import_patrols(root)
         self._import_members(root)
         self._import_relationships(root)
+        self._import_positions(root)
         self._import_locations(root)
         self._import_event_types(root)
         self._import_events(root)
@@ -390,6 +438,149 @@ class TwhImporter:
                 )
             )
             self.result.relationships += 1
+
+    # ------------------------------------------------------------------
+    # Leadership positions
+    # ------------------------------------------------------------------
+
+    def _build_position_catalog(self, root: ET.Element) -> dict[str, tuple[str, str, bool, int]]:
+        """Map TWH position id → (name, code, is_adult, display_sequence).
+
+        Reads both catalog tables (``Leadership_Position`` and the legacy parallel
+        ``BSA_Leadership_Position``), which share ids; identical ids carry identical
+        names, so a later entry harmlessly overwrites an earlier one.
+        """
+        catalog: dict[str, tuple[str, str, bool, int]] = {}
+        for tag in ("Leadership_Position", "BSA_Leadership_Position"):
+            for elem in root.findall(tag):
+                twh_id = _text(elem, "i")
+                name = _text(elem, "Position")
+                if not twh_id or not name:
+                    continue
+                code = _text(elem, "Position_Code").upper()
+                is_adult = _text(elem, "Adult_Flag").upper() == "Y"
+                seq = _parse_int(elem, "Display_Sequence") or 0
+                catalog[twh_id] = (name, code, is_adult, seq)
+        return catalog
+
+    def _ensure_position(
+        self,
+        twh_pos_id: str,
+        catalog: dict[str, tuple[str, str, bool, int]],
+        existing: dict[str, Position],
+        created: list[str],
+    ) -> uuid.UUID | None:
+        """Resolve a TWH position id to an OpenTroop ``Position`` id, creating it once.
+
+        Deterministic three-tier match (no fuzzy matching — near-miss names carry
+        different permissions): exact slug → BSA ``Position_Code`` crosswalk → create a
+        non-system position. Caches by TWH id so each position is created at most once.
+        Returns None for an unknown id.
+        """
+        cached = self._position_map.get(twh_pos_id)
+        if cached is not None:
+            return cached
+
+        meta = catalog.get(twh_pos_id)
+        if meta is None:
+            return None
+        name, code, is_adult, seq = meta
+        slug = _slugify_position(name)
+
+        # Tier 1: exact slug match against an existing (seeded or prior-import) position.
+        position = existing.get(slug)
+        # Tier 2: BSA code crosswalk to a seeded slug when the name didn't line up.
+        if position is None and code in TWH_POSITION_CODE_TO_SLUG:
+            position = existing.get(TWH_POSITION_CODE_TO_SLUG[code])
+        # Tier 3: create a fresh, permission-less position.
+        if position is None:
+            position = Position(
+                tenant_id=self.tenant_id,
+                name=name,
+                slug=slug,
+                applies_to=PositionScope.ADULT if is_adult else PositionScope.SCOUT,
+                is_system=False,
+                sort_order=seq,
+            )
+            self.session.add(position)
+            self.session.flush()
+            existing[slug] = position
+            created.append(name)
+            self.result.positions += 1
+
+        self._position_map[twh_pos_id] = position.id
+        return position.id
+
+    def _import_positions(self, root: ET.Element) -> None:
+        """Import leadership terms (current + historical) and the positions they use.
+
+        Walks both leadership-history tables. Every term whose person was imported is
+        loaded as a dated ``MemberPositionAssignment`` (``end_date`` empty ⇒ current);
+        the resolver grants permissions only from current terms. Positions are created
+        on demand via the deterministic match in :meth:`_ensure_position`.
+        """
+        catalog = self._build_position_catalog(root)
+
+        # Existing positions in this tenant (seeded defaults + any prior import), keyed
+        # by slug so imported positions reuse a matching seeded one.
+        existing: dict[str, Position] = {
+            position.slug: position
+            for position in self.session.scalars(
+                select(Position).where(
+                    Position.tenant_id == self.tenant_id,
+                    Position.is_deleted.is_(False),
+                )
+            )
+        }
+        created: list[str] = []
+        # Dedup repeat XML rows for the same member/position/start.
+        seen: set[tuple[uuid.UUID, uuid.UUID, date | None]] = set()
+
+        for tag in ("Adult_Leadership_History", "Scout_Leadership_History"):
+            for elem in root.findall(tag):
+                person_twh = _text(elem, "Person_ID")
+                pos_twh = _text(elem, "BSA_Leadership_Position_ID")
+                if not person_twh or not pos_twh:
+                    continue
+
+                member_id = self._person_map.get(person_twh)
+                if member_id is None:
+                    # Person wasn't imported (e.g. skipped/blank record) — nothing to assign.
+                    continue
+
+                position_id = self._ensure_position(pos_twh, catalog, existing, created)
+                if position_id is None:
+                    self.result.warnings.append(
+                        f"Leadership row for person {person_twh!r}: "
+                        f"unknown position id {pos_twh!r} — skipped"
+                    )
+                    self.result.skipped += 1
+                    continue
+
+                start = _parse_date(_text(elem, "Start_Date"))
+                end = _parse_date(_text(elem, "End_Date"))
+
+                key = (member_id, position_id, start)
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                self.session.add(
+                    MemberPositionAssignment(
+                        tenant_id=self.tenant_id,
+                        member_id=member_id,
+                        position_id=position_id,
+                        start_date=start,
+                        end_date=end,
+                    )
+                )
+                self.result.position_assignments += 1
+
+        if created:
+            self.result.warnings.append(
+                f"Created {len(created)} new position(s) not matched to seeded defaults: "
+                f"{', '.join(sorted(set(created)))}. Review and assign functional roles if needed."
+            )
 
     # ------------------------------------------------------------------
     # Locations

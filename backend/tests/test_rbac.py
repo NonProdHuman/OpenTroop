@@ -248,3 +248,37 @@ def test_resolve_permissions_excludes_soft_deleted(db_session):
     assignment.is_deleted = True
     db_session.commit()
     assert resolve_permissions(member.id, db_session) == frozenset()
+
+
+def test_resolve_permissions_excludes_ended_term(db_session):
+    """A term with a past end_date no longer grants permissions; a future end stays current."""
+    from datetime import UTC, datetime, timedelta
+
+    tenant_id = uuid.uuid4()
+    member = _make_member(db_session, tenant_id)
+    event_admins = _make_functional_role(db_session, tenant_id, "event-admins")
+    scoutmaster = _make_position(db_session, tenant_id, "scoutmaster")
+    _grant(db_session, tenant_id, event_admins, Permission.EVENT_CREATE)
+    _map(db_session, tenant_id, scoutmaster, event_admins)
+
+    today = datetime.now(UTC).date()
+    assignment = MemberPositionAssignment(
+        tenant_id=tenant_id,
+        member_id=member.id,
+        position_id=scoutmaster.id,
+        start_date=today - timedelta(days=365),
+        end_date=today - timedelta(days=1),  # ended yesterday
+    )
+    db_session.add(assignment)
+    db_session.commit()
+    assert resolve_permissions(member.id, db_session) == frozenset()
+
+    # A future end_date is still current → permissions return.
+    assignment.end_date = today + timedelta(days=30)
+    db_session.commit()
+    assert Permission.EVENT_CREATE in resolve_permissions(member.id, db_session)
+
+    # Open-ended (no end_date) is current.
+    assignment.end_date = None
+    db_session.commit()
+    assert Permission.EVENT_CREATE in resolve_permissions(member.id, db_session)
