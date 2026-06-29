@@ -11,7 +11,8 @@ This guide steps through the manual configuration required in the Clerk Dashboar
 3. Name the application (e.g. `OpenTroop Dev`).
 4. Select the authentication identifiers:
    * **Email Address** (Required — this must match your application's setup to resolve users and link them to pre-provisioned roster members).
-   * **Password** (or any other passwordless social providers you wish to enable like Google or GitHub).
+   * **Password**
+   * **Social Connections:** Enable **Google**, **Apple**, and **Microsoft**.
 5. Click **Create Application**.
 
 ---
@@ -69,3 +70,12 @@ Add the keys as Terraform variables in your `opentroop-dev` workspace:
 Add the keys to your `development` environment secrets:
 * `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` = `pk_live_...`
 * `CLERK_SECRET_KEY` = `sk_live_...`
+
+---
+
+## Step 6 — Configure OAuth Credentials for Production Instance
+
+Since your Dev environment runs on a Clerk Production Instance, Clerk's shared developer credentials for social logins are disabled. You must configure custom credentials for your enabled providers in the Clerk Dashboard under **Configure > Social Connections**:
+* **Google:** Set up a Google Cloud Console project, configure the OAuth consent screen, and supply your custom Client ID and Client Secret.
+* **Microsoft:** Configure an application in the Microsoft Entra ID portal, enable multi-tenant authentication, and supply the Client ID and Secret.
+* **Apple:** Register a Service ID, create a private key (`.p8`), and configure the domain association.
