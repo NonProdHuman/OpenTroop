@@ -13,9 +13,9 @@ import { Button } from "@/components/ui/button"
 export function InviteTokenDisplay({ token, expiresAt }: { token: string; expiresAt?: string }) {
   const [copied, setCopied] = useState(false)
 
-  // Use the origin if available, otherwise fallback to a generic placeholder.
-  // In a real app we might pass NEXT_PUBLIC_APP_URL, but window.location is fine for a client component.
-  const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://app.opentroop.app"
+  const baseUrl = typeof window !== "undefined"
+    ? `${window.location.protocol}//${window.location.hostname.includes("localhost") ? "localhost:3000" : "opentroop.dev"}`
+    : "https://opentroop.dev"
   const claimUrl = `${baseUrl}/claim?token=${token}`
 
   async function copy() {

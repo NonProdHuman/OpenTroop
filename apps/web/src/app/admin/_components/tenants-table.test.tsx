@@ -29,7 +29,7 @@ describe("TenantsTable", () => {
   it("renders a row per tenant linking to its detail page", () => {
     render(<TenantsTable tenants={[tenant()]} />)
     const link = screen.getByText("Troop 42").closest("a")
-    expect(link).toHaveAttribute("href", "/platform/tenants/t1")
+    expect(link).toHaveAttribute("href", "/tenants/t1")
     expect(screen.getByText("troop42")).toBeInTheDocument()
     expect(screen.getByText("Active")).toBeInTheDocument()
   })

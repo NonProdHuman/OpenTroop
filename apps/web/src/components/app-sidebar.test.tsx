@@ -152,8 +152,8 @@ describe("AppSidebar", () => {
     renderSidebar()
     expect(screen.getByText("Platform")).toBeInTheDocument()
     await userEvent.click(screen.getByText("Platform"))
-    expect(screen.getByText("Tenants").closest("a")).toHaveAttribute("href", "/platform/tenants")
-    expect(screen.getByText("Admins").closest("a")).toHaveAttribute("href", "/platform/admins")
+    expect(screen.getByText("Tenants").closest("a")).toHaveAttribute("href", "http://admin.opentroop.localhost:3000/tenants")
+    expect(screen.getByText("Admins").closest("a")).toHaveAttribute("href", "http://admin.opentroop.localhost:3000/admins")
   })
 
   it("hides nav items whose required permission is absent", async () => {

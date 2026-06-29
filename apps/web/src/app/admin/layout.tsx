@@ -11,9 +11,11 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 
+import { getLandingUrl } from "@/lib/domains"
+
 const CONSOLE_NAV = [
-  { href: "/platform/tenants", label: "Tenants" },
-  { href: "/platform/admins", label: "Admins" },
+  { href: "/tenants", label: "Tenants" },
+  { href: "/admins", label: "Admins" },
 ]
 
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {
@@ -54,7 +56,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
           )}
 
           <div className="ml-auto">
-            <Button variant="ghost" size="sm" render={<Link href="/members" />} nativeButton={false}>
+            <Button variant="ghost" size="sm" render={<Link href={getLandingUrl("/")} />} nativeButton={false}>
               <ArrowLeft className="h-4 w-4" />
               Back to app
             </Button>
@@ -91,7 +93,7 @@ function NotAuthorized() {
           existing platform admin to grant your account a platform role.
         </p>
       </div>
-      <Button variant="outline" size="sm" render={<Link href="/members" />} nativeButton={false}>
+      <Button variant="outline" size="sm" render={<Link href={getLandingUrl("/")} />} nativeButton={false}>
         <ArrowLeft className="h-4 w-4" />
         Back to the app
       </Button>

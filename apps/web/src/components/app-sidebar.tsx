@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils"
 import { useMe } from "@/hooks/use-me"
 import { usePermissions } from "@/hooks/use-session"
 import { TenantSwitcher } from "@/components/tenant-switcher"
+import { getAdminUrl } from "@/lib/domains"
 import type { Permission } from "@/types/api"
 
 /**
@@ -80,8 +81,8 @@ const navItems: NavItem[] = [
     icon: Globe,
     platformAdminOnly: true,
     children: [
-      { title: "Tenants", url: "/platform/tenants" },
-      { title: "Admins", url: "/platform/admins" },
+      { title: "Tenants", url: getAdminUrl("/tenants") },
+      { title: "Admins", url: getAdminUrl("/admins") },
     ],
   },
 ]

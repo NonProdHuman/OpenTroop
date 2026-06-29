@@ -3,7 +3,6 @@
 import { Suspense, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
-import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useClaimMembership } from "@/hooks/use-auth"
@@ -32,6 +31,22 @@ function ClaimForm() {
     try {
       const member = await claim.mutateAsync(tokenToClaim)
       setActiveTenantId(member.tenant_id)
+
+      // Fetch memberships to get the slug
+      const res = await fetch("/api/auth/memberships")
+      if (res.ok) {
+        const memberships = await res.json()
+        const membership = memberships.find((m: { tenant_id: string; tenant_slug: string }) => m.tenant_id === member.tenant_id)
+        if (membership && membership.tenant_slug) {
+          toast.success("Account claimed successfully")
+
+          const isLocal = window.location.hostname.includes("localhost")
+          const rootDomain = isLocal ? "opentroop.localhost:3000" : "opentroop.dev"
+          window.location.href = `${window.location.protocol}//${membership.tenant_slug}.${rootDomain}/`
+          return
+        }
+      }
+
       toast.success("Account claimed successfully")
       router.push("/")
     } catch (err) {
@@ -71,7 +86,9 @@ function ClaimForm() {
 export default function ClaimPage() {
   return (
     <>
-      <PageHeader title="Claim Account" />
+      <header className="flex h-14 shrink-0 items-center border-b px-4 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+        <h1 className="text-base font-semibold tracking-tight">Claim Account</h1>
+      </header>
       <div className="flex-1 p-4 md:p-6">
         <Suspense fallback={<div className="pt-12 text-center text-sm text-muted-foreground">Loading...</div>}>
           <ClaimForm />
