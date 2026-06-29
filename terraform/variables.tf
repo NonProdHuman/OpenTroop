@@ -230,22 +230,28 @@ variable "neon_app_role" {
   default     = "opentroop_app"
 }
 
-variable "neon_min_cu" {
-  description = "Minimum Neon compute units."
-  type        = number
-  default     = 0.25
-}
+# variable "neon_min_cu" {
+#   description = "Minimum Neon compute units."
+#   type        = number
+#   default     = 0.25
+# }
 
-variable "neon_max_cu" {
-  description = "Maximum Neon compute units."
-  type        = number
-  default     = 1
-}
+# variable "neon_max_cu" {
+#   description = "Maximum Neon compute units."
+#   type        = number
+#   default     = 1
+# }
 
-variable "neon_suspend_timeout_seconds" {
-  description = "Seconds before inactive Neon compute suspends."
+# variable "neon_suspend_timeout_seconds" {
+#   description = "Seconds before inactive Neon compute suspends."
+#   type        = number
+#   default     = 300
+# }
+
+variable "neon_history_retention_seconds" {
+  description = "History retention in seconds for the Neon project (maximum of 21600 / 6 hours for Free tier, default 86400 / 24 hours for paid plans)."
   type        = number
-  default     = 300
+  default     = 21600
 }
 
 variable "database_url" {
