@@ -1,14 +1,5 @@
 terraform {
 
-  cloud {
-    hostname     = "couvrette.scalr.io"
-    organization = "env-v0palb6a7sk6803nh"
-
-    workspaces {
-      name = "opentroop-dev"
-    }
-  }
-
   required_version = "~> 1.8"
 
   required_providers {
