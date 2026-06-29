@@ -214,9 +214,7 @@ def test_include_parents_expands_after_resolution(db_session) -> None:
     session.add(GroupMember(tenant_id=_TENANT, group_id=group.id, member_id=scout.id))
     session.flush()
 
-    assert resolve_group_members(group.id, session) == frozenset(
-        {scout.id, parent.id, guardian.id}
-    )
+    assert resolve_group_members(group.id, session) == frozenset({scout.id, parent.id, guardian.id})
     assert unrelated.id not in resolve_group_members(group.id, session)
 
 

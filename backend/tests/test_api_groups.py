@@ -240,7 +240,9 @@ def test_manual_members_endpoint_excludes_rule_derived(client: TestClient) -> No
     client.put(f"/groups/{group['id']}/rules/member_type", json={"values": ["scout"]})
 
     resolved = {m["id"] for m in client.get(f"/groups/{group['id']}/members").json()}
-    manual_ids = {gm["member_id"] for gm in client.get(f"/groups/{group['id']}/manual-members").json()}
+    manual_ids = {
+        gm["member_id"] for gm in client.get(f"/groups/{group['id']}/manual-members").json()
+    }
 
     assert manual["id"] in resolved and manual["id"] in manual_ids
     # The rule-only scout is resolved but is NOT a manual member.
@@ -261,7 +263,9 @@ def test_pin_rule_matched_member_creates_manual_row(client: TestClient) -> None:
     # Pin them.
     r = client.post(f"/groups/{group['id']}/members", json={"member_id": scout["id"]})
     assert r.status_code == 201
-    manual_ids = {gm["member_id"] for gm in client.get(f"/groups/{group['id']}/manual-members").json()}
+    manual_ids = {
+        gm["member_id"] for gm in client.get(f"/groups/{group['id']}/manual-members").json()
+    }
     assert manual_ids == {scout["id"]}
 
 
