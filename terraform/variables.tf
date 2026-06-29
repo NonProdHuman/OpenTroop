@@ -26,11 +26,6 @@ variable "app_domain" {
   type        = string
 }
 
-variable "github_repository" {
-  description = "GitHub repository allowed to deploy through Workload Identity Federation, in owner/name form."
-  type        = string
-}
-
 variable "artifact_repository_name" {
   description = "Artifact Registry Docker repository name. Defaults to <project>-<environment>-containers."
   type        = string

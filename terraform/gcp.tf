@@ -43,39 +43,6 @@ resource "google_service_account" "web" {
   depends_on = [google_project_service.required]
 }
 
-resource "google_service_account" "github_deploy" {
-  account_id   = local.github_service_account_id
-  display_name = "OpenTroop ${var.environment} GitHub deploy"
-
-  depends_on = [google_project_service.required]
-}
-
-resource "google_project_iam_member" "github_deploy" {
-  for_each = toset([
-    "roles/artifactregistry.writer",
-    "roles/run.developer",
-    "roles/secretmanager.viewer",
-  ])
-
-  project = var.gcp_project_id
-  role    = each.value
-  member  = "serviceAccount:${google_service_account.github_deploy.email}"
-}
-
-# Scoped to just the API Cloud Run SA — avoids project-wide serviceAccountUser privilege.
-resource "google_service_account_iam_member" "github_deploy_act_as_api" {
-  service_account_id = google_service_account.api.name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${google_service_account.github_deploy.email}"
-}
-
-# Scoped to just the Web Cloud Run SA — avoids project-wide serviceAccountUser privilege.
-resource "google_service_account_iam_member" "github_deploy_act_as_web" {
-  service_account_id = google_service_account.web.name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${google_service_account.github_deploy.email}"
-}
-
 resource "google_secret_manager_secret" "runtime" {
   for_each = local.runtime_secret_names
 
@@ -259,40 +226,4 @@ resource "google_cloud_run_v2_service_iam_member" "web_public" {
   name     = google_cloud_run_v2_service.web.name
   role     = "roles/run.invoker"
   member   = "allUsers"
-}
-
-resource "google_iam_workload_identity_pool" "github" {
-  workload_identity_pool_id = local.workload_identity_pool_id
-  display_name              = "OpenTroop ${var.environment} GitHub Actions"
-  description               = "OIDC pool for ${var.github_repository}"
-
-  depends_on = [google_project_service.required]
-}
-
-resource "google_iam_workload_identity_pool_provider" "github" {
-  workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
-  workload_identity_pool_provider_id = "github-actions"
-  display_name                       = "GitHub Actions"
-  description                        = "Trust GitHub Actions tokens from ${var.github_repository}"
-
-  attribute_mapping = {
-    "google.subject"       = "assertion.sub"
-    "attribute.actor"      = "assertion.actor"
-    "attribute.repository" = "assertion.repository"
-    "attribute.ref"        = "assertion.ref"
-  }
-
-  attribute_condition = "assertion.repository == '${var.github_repository}'"
-
-  oidc {
-    issuer_uri = "https://token.actions.githubusercontent.com"
-  }
-
-  # checkov:skip=CKV_GCP_125: False Positive
-}
-
-resource "google_service_account_iam_member" "github_workload_identity" {
-  service_account_id = google_service_account.github_deploy.name
-  role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repository}"
 }
