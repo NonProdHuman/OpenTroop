@@ -220,6 +220,44 @@ No change. `resolve_group_members` already unions manual + rules for every type.
 
 ---
 
+## UI cache invalidation (staleness fixes)
+
+Group membership changes sometimes don't reflect immediately in the UI. Root cause:
+React Query cache invalidation in `use-groups.ts` (and sibling hooks) is **too narrow**
+for a resolution graph that is transitive. A group's resolved membership can depend on:
+other groups (`group_member` rules), members' attributes (`member_type`, `oa_*`, status),
+position assignments (`position` rule), the group's own `rule_logic` / `include_parents`,
+and parent/guardian relationships. So a change in one place can change *any* group's
+membership — yet several mutations invalidate only one group, or nothing group-related.
+
+The fix is to make every mutation that can affect resolution invalidate the **whole**
+`[tenantId, "group-members"]` key (the pattern `useAddGroupMember` / `useUpdateMember`
+already use). The derived hooks (`useGroupMemberCounts`, `useGroupMemberships`,
+`usePatrolMemberships`, `useMemberGroups`) all read from that key, so one broad
+invalidation refreshes counts, badges, and rosters together.
+
+### Confirmed gaps to fix
+
+| Hook | Today | Fix |
+|------|-------|-----|
+| `useUpdateGroup` | invalidates `["groups"]`, `["groups", id]` only | **Also invalidate `["group-members"]`** — `rule_logic` (AND↔OR) and `include_parents` change resolved membership. *(Primary suspect for the reported symptom.)* |
+| `useUpsertGroupRule` / `useDeleteGroupRule` | invalidate `["group-members", groupId]` (single group) | **Broaden to `["group-members"]`** — groups referencing this one via `group_member` / parents-of are otherwise stale. Keep `["group-rules", groupId]`. |
+| `useAssignMemberPosition` / `useRemoveMemberPosition` (`use-member-positions.ts`) | invalidate `member-positions`, `session` | **Add `["group-members"]`** — position rules depend on assignments (e.g. PLC). |
+| Relationship edits (when a mutation hook exists) | n/a — no hook today | Once relationship editing ships, it must invalidate `["group-members"]` because `include_parents` resolution depends on `parent_of` / `guardian_of` links. *(Forward-looking note.)* |
+
+`cc_parents_on_messages` does **not** change membership, so it needs no `group-members`
+invalidation (only `["groups"]` / `["groups", id]`).
+
+### Tests
+
+- These are bug fixes → **each gets a test** (repo convention). For the hooks above, assert
+  the mutation's `onSuccess` invalidates `["group-members"]` (e.g. spy on
+  `queryClient.invalidateQueries`, or drive it through Testing Library and assert the
+  refetch). Cover at minimum: AND↔OR toggle, `include_parents` toggle, a rule upsert seen
+  by a dependent group-of-groups, and a position assignment seen by a position-rule group.
+
+---
+
 ## Deferred: per-filter AND/OR
 
 Not built now. Arbitrary per-filter operators are ambiguous without explicit grouping
@@ -254,7 +292,8 @@ boolean tree. Tracked here so the decision is explicit.
 | `src/app/(dashboard)/groups/new/page.tsx` | Two-value type selector; same builder; pass both parent flags. |
 | `src/components/group-membership-editor.tsx` | Replace `group_type !== "dynamic"` logic with custom/patrol; new icon/label. |
 | `src/app/(dashboard)/groups/page.tsx`, `members/columns.tsx`, `groups/group-detail-sheet.tsx` | Two-value labels/badges/icons; drop relationship-dimension display. |
-| `src/hooks/use-groups.ts` | Thread `include_parents` through create/update. |
+| `src/hooks/use-groups.ts` | Thread both parent flags through create/update; broaden cache invalidation (see [UI cache invalidation](#ui-cache-invalidation-staleness-fixes)) — `useUpdateGroup`, `useUpsertGroupRule`, `useDeleteGroupRule`. |
+| `src/hooks/use-member-positions.ts` | `useAssignMemberPosition` / `useRemoveMemberPosition` also invalidate `["group-members"]`. |
 | New: `src/components/multi-select-chips.tsx` | Reusable keep-open, searchable, chip-based multi-select. |
 
 ### Tests
