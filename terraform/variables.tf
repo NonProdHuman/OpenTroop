@@ -63,7 +63,7 @@ variable "api_cpu" {
 variable "api_memory" {
   description = "Memory limit for the backend Cloud Run container."
   type        = string
-  default     = "512Mi"
+  default     = "2Gi"
 }
 
 variable "web_cpu" {

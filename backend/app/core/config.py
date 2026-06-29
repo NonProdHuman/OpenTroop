@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     app_name: str = "OpenTroop"
     database_url: str = "postgresql+psycopg://opentroop:opentroop@localhost:5432/opentroop"
 
-    @field_validator("database_url", mode="before")
+    @field_validator("database_url", "database_url_admin", "database_url_migrate", mode="before")
     @classmethod
     def fix_database_url(cls, v: str) -> str:
         if v and v.startswith("postgres://"):

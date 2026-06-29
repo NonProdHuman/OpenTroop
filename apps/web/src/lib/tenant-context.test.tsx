@@ -2,6 +2,14 @@ import { act, render, renderHook, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { TenantProvider, useActiveTenant } from "./tenant-context"
 
+vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => ({
+    getToken: vi.fn(),
+    isLoaded: true,
+    isSignedIn: false,
+  }),
+}))
+
 const localStorageMock = (() => {
   let store: Record<string, string> = {}
   return {

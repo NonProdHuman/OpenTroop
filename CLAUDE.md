@@ -89,6 +89,10 @@ pre-commit environment.
 - **Frontend** (`apps/web/`): Next.js 16 (App Router) + Tailwind 4 + shadcn/ui
   (`base-nova` style) + Clerk auth. Managed via Turborepo + pnpm workspaces.
   Run with `pnpm dev` from repo root (or `pnpm --filter web dev`).
+  *Note:* The web app uses Next.js Middleware (`proxy.ts`) to provide logical domain
+  routing from a single deployment: the root domain (e.g. `opentroop.dev`) serves the
+  landing page, the `admin` subdomain serves the platform control plane, and any other
+  subdomain (e.g. `troop123.opentroop.dev`) serves that tenant's dashboard.
 - **Mobile** (`apps/mobile/`): Expo (React Native) — stub, to be scaffolded once
   the web API contract stabilizes. Will share `@opentroop/api-client`.
 - **API client** (`packages/api-client/`): shared TypeScript package. Types are

@@ -10,6 +10,8 @@ updates:
     groups:
       dev-dependencies:
         patterns: ["pytest*", "ruff*", "mypy*", "pip-audit*"]
+    cooldown:
+      default-days: 2
 
   # Frontend dependencies (pnpm workspace)
   - package-ecosystem: npm
@@ -21,6 +23,8 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: development
+    cooldown:
+      default-days: 2
 
   # GitHub Actions
   - package-ecosystem: github-actions

@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils"
 import { useMe } from "@/hooks/use-me"
 import { usePermissions } from "@/hooks/use-session"
 import { TenantSwitcher } from "@/components/tenant-switcher"
+import { getAdminUrl } from "@/lib/domains"
 import type { Permission } from "@/types/api"
 
 /**
@@ -52,7 +53,7 @@ type NavItem = {
   children?: NavChild[]
 }
 
-const navItems: NavItem[] = [
+const tenantNavItems: NavItem[] = [
   {
     title: "Membership",
     icon: UserRound,
@@ -75,23 +76,20 @@ const navItems: NavItem[] = [
       { title: "Import", url: "/import", requires: "member:write" },
     ],
   },
-  {
-    title: "Platform",
-    icon: Globe,
-    platformAdminOnly: true,
-    children: [
-      { title: "Tenants", url: "/platform/tenants" },
-      { title: "Admins", url: "/platform/admins" },
-    ],
-  },
 ]
 
-export function AppSidebar() {
+const adminNavItems: NavItem[] = [
+  { title: "Tenants", url: "/tenants", icon: Globe },
+  { title: "Admins", url: "/admins", icon: UserRound },
+]
+
+export function AppSidebar({ isAdminView = false }: { isAdminView?: boolean }) {
   const pathname = usePathname()
   const { data: me } = useMe()
   const isPlatformAdmin = Boolean(me?.platform_role)
   const { has } = usePermissions()
   const { state, setOpen } = useSidebar()
+  const currentNavItems = isAdminView ? adminNavItems : tenantNavItems
 
   const isActive = (url: string) => pathname === url || pathname.startsWith(url + "/")
   const groupActive = (item: NavItem) => {
@@ -103,7 +101,7 @@ export function AppSidebar() {
   const [openGroup, setOpenGroup] = useState<string | null>(null)
   const [lastPathname, setLastPathname] = useState<string | null>(null)
 
-  const activeGroupItem = navItems.find((item) => groupActive(item))
+  const activeGroupItem = currentNavItems.find((item) => groupActive(item))
   const activeGroupTitle = activeGroupItem ? activeGroupItem.title : null
 
   // If the pathname has changed, reset the openGroup to the active group.
@@ -162,7 +160,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarMenu>
-          {navItems.map((item) => {
+          {currentNavItems.map((item) => {
             if (item.platformAdminOnly && !isPlatformAdmin) return null
 
             const hasAccess = !item.requires || has(item.requires)
@@ -234,6 +232,16 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
+        {!isAdminView && isPlatformAdmin && (
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton render={<Link href={getAdminUrl("/tenants")} />}>
+                <Globe />
+                <span>Platform Admin</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        )}
         <TenantSwitcher />
         <SidebarMenu>
           <SidebarMenuItem>

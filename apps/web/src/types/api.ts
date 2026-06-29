@@ -396,3 +396,15 @@ export interface Membership {
   member_id: string
   is_admin: boolean
 }
+
+export interface TwhImportRead {
+  patrols: number
+  members: number
+  relationships: number
+  locations: number
+  event_types: number
+  events: number
+  participants: number
+  skipped: number
+  warnings: string[]
+}

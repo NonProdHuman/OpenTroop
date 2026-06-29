@@ -11,9 +11,11 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 
+import { getLandingUrl } from "@/lib/domains"
+
 const CONSOLE_NAV = [
-  { href: "/platform/tenants", label: "Tenants" },
-  { href: "/platform/admins", label: "Admins" },
+  { href: "/tenants", label: "Tenants" },
+  { href: "/admins", label: "Admins" },
 ]
 
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {
@@ -23,7 +25,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
 
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar isAdminView={true} />
       <SidebarInset>
         {/* Platform sub-header: sidebar trigger + breadcrumb + Tenants/Admins tabs + back link */}
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
@@ -54,24 +56,28 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
           )}
 
           <div className="ml-auto">
-            <Button variant="ghost" size="sm" render={<Link href="/members" />} nativeButton={false}>
+            <Button variant="ghost" size="sm" render={<Link href={getLandingUrl("/")} />} nativeButton={false}>
               <ArrowLeft className="h-4 w-4" />
               Back to app
             </Button>
           </div>
         </header>
 
-        <main className="flex-1">
+        <main className="flex-1 relative">
+          {/* We always render children so their React Query hooks fire in parallel with useMe, avoiding a waterfall.
+              The skeleton or NotAuthorized screen overlays it until the auth check resolves. */}
+          {children}
+
           {isLoading ? (
-            <div className="space-y-3 p-6">
+            <div className="absolute inset-0 z-50 bg-background space-y-3 p-6">
               <Skeleton className="h-8 w-48" />
               <Skeleton className="h-40 w-full" />
             </div>
           ) : !authorized || isError ? (
-            <NotAuthorized />
-          ) : (
-            children
-          )}
+            <div className="absolute inset-0 z-50 bg-background flex flex-col">
+              <NotAuthorized />
+            </div>
+          ) : null}
         </main>
       </SidebarInset>
     </SidebarProvider>
@@ -91,7 +97,7 @@ function NotAuthorized() {
           existing platform admin to grant your account a platform role.
         </p>
       </div>
-      <Button variant="outline" size="sm" render={<Link href="/members" />} nativeButton={false}>
+      <Button variant="outline" size="sm" render={<Link href={getLandingUrl("/")} />} nativeButton={false}>
         <ArrowLeft className="h-4 w-4" />
         Back to the app
       </Button>
