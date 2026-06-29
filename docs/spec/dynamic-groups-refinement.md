@@ -16,8 +16,8 @@ checkbox-row editor on the group edit page. Real use has surfaced four refinemen
 
 1. **"Parents/Guardians of group" is the wrong shape as a rule.** It currently lives in
    the AND/OR rule pool, where it produces nonsense (intersecting "parents" with "scouts"
-   empties the group). It becomes a **post-resolution expansion toggle** — resolve the
-   group normally, then optionally add the parents/guardians of whoever resolved.
+   empties the group). It is replaced by **two distinct, post-resolution parent options**
+   (membership vs. communications — see [§1](#1-parentsguardians-two-distinct-options)).
 2. **The rule editor UI feels dated.** Move to a modern "filter → bubble" builder with
    type-ahead, keep-open multi-select pickers, and removable chips.
 3. **Per-filter AND/OR mixing — deferred.** Once #1 removes the relationship wart, the
@@ -27,14 +27,14 @@ checkbox-row editor on the group edit page. Real use has surfaced four refinemen
 4. **Collapse `manual` + `dynamic` group types into one `custom` type.** The resolver
    already unions manual members with rules regardless of type; the manual/dynamic split
    is a UI gate only. A `custom` group supports **both** manual adds and dynamic rules.
-   `patrol` stays distinct (one-per-member, adults excluded).
+   `patrol` stays distinct (one-per-member, adults excluded) and gets **no rules**.
 
 Items #1, #2, and #4 ship together; they reinforce each other (a `custom` group's
-"include parents" toggle naturally applies to its full manual + dynamic membership).
+parent options naturally apply to its full manual + dynamic membership).
 
 ---
 
-## 1. Parents/Guardians as a post-resolution expansion
+## 1. Parents/Guardians: two distinct options
 
 ### Problem
 
@@ -46,17 +46,25 @@ Items #1, #2, and #4 ship together; they reinforce each other (a `custom` group'
 - Under **OR**, it dumps unrelated parents into the result.
 
 It also points at *other* groups, which is rarely what a leader means. The real intent is
-almost always: "this group's members **and their parents**."
+"this group's members **and their parents**" — but there are actually **two different
+intents** hiding in that phrase:
 
-### Design
+1. **Parents as members** — parents *belong to* the group. They show up in membership,
+   see the group's events, get it on their iCal, and are scoped into future reports.
+2. **Parents on communications** — parents are *not* members, but messages sent to the
+   group also reach them. This is a messaging-recipient concern, not a membership one.
+   (Canonical case: a **patrol** — its roster is scouts, but patrol announcements should
+   also reach parents. Parents must **not** become patrol members.)
 
-Replace the `relationship` **dimension** with a boolean on the group:
+### Design — two independent booleans
 
 ```
-Group.include_parents    Boolean   NOT NULL   DEFAULT False   server_default 'false'
+Group.include_parents          Boolean  NOT NULL  DEFAULT False  server_default 'false'
+Group.cc_parents_on_messages   Boolean  NOT NULL  DEFAULT False  server_default 'false'
 ```
 
-Resolution becomes a two-phase pipeline:
+**`include_parents` (membership).** Available on **custom** groups only. Resolution gains a
+post-resolution phase:
 
 ```
 resolved = live( manual ∪ combine_rules(rule_logic) )     # phase 1 — unchanged
@@ -67,9 +75,27 @@ return frozenset(resolved)
 
 `parents_of(set)` is the existing `_parents_of` helper (members with a `parent_of` /
 `guardian_of` relationship *to* anyone in the set). It moves from a rule evaluator to a
-post-resolution step. Parents are added to the **final** resolved set — after manual ∪
-dynamic — so the toggle reads as "...and their parents/guardians" regardless of how the
-core membership was built.
+post-resolution step, added to the **final** set — after manual ∪ dynamic — so it reads as
+"...and their parents/guardians" regardless of how the core membership was built.
+
+**`cc_parents_on_messages` (communications).** Available on **both custom and patrol**
+groups. It does **not** affect `resolve_group_members`, visibility, or iCal — membership is
+unchanged. The future Messaging layer (Pillar 2) expands recipients:
+
+```
+recipients = resolve_group_members(group)
+if group.cc_parents_on_messages:
+    recipients |= parents_of(resolve_group_members(group))
+```
+
+This composes idempotently with `include_parents` (members already include parents, so the
+union is a no-op there).
+
+> [!NOTE]
+> **No consumer yet.** Messaging is unbuilt (Pillar 2, draft). `cc_parents_on_messages` is
+> stored now and surfaced in the UI with a "used when you message this group (coming soon)"
+> hint — the same pattern as the Rank "coming soon" rule. If `include_parents` is on, the
+> comms checkbox is implied and shown disabled/checked so the two are never contradictory.
 
 ### Removed: `RuleDimension.RELATIONSHIP`
 
@@ -84,7 +110,7 @@ core membership was built.
   must account for this so **event visibility** and the **iCal feed** treat parents as
   group members. Concretely: after computing a member's manual + rule-matched groups, also
   add any `include_parents` group whose phase-1 resolution contains a child the member is a
-  parent/guardian of.
+  parent/guardian of. `cc_parents_on_messages` is **not** consulted here — it is messaging-only.
 - **No new cycle risk.** Parents-of is a single non-recursive hop over the *already
   resolved* set; the existing `group_member` cycle guard still covers rule recursion.
 - **Self-reference is now natural.** "This group's members plus their parents" needs no
@@ -93,16 +119,14 @@ core membership was built.
 
 ### Migration
 
-Pre-production data only, and the old `relationship` semantic ("parents of a *different*
-target group") does not map cleanly to the new one ("parents of *this* group"). Migration:
+Pre-production — **no real data exists**, so the old `relationship` rules are dropped
+silently (their "parents of a *different* group" semantic does not map to the new options
+and isn't worth preserving):
 
-1. Add `include_parents` (default false).
-2. For any group that has a non-deleted `relationship` rule, set `include_parents = True`.
-   *(Caveat: where the rule targeted a different group, this approximates rather than
-   preserves intent. Acceptable given no production data; called out so it isn't a silent
-   behavior change.)*
-3. Soft-delete / drop all `relationship` `GroupRule` rows.
-4. Remove `RELATIONSHIP` from the enum (DB stores the string, so no type migration beyond
+1. Add `include_parents` and `cc_parents_on_messages` (both default false).
+2. Soft-delete / drop all `relationship` `GroupRule` rows. **Do not** set either new flag
+   from them.
+3. Remove `RELATIONSHIP` from the enum (DB stores the string, so no type migration beyond
    deleting the rows; confirm no CHECK constraint pins the enum values).
 
 ---
@@ -135,10 +159,15 @@ new dependencies.
 - Boolean dimensions (OA member, OA active) and the new **Include parents/guardians**
   toggle are simple switches/checkboxes.
 - The top-level **AND/OR ("Match ALL / Match ANY")** control stays where it is.
-- The **Include parents/guardians of these members** toggle sits *below* the rules, visually
-  separated, to reinforce that it applies *after* the rules resolve. Label copy e.g.:
-  *"Also include the parents/guardians of everyone above."*
-- Keep the live **"Resolved members: N"** count; it now reflects the parent expansion.
+- The two **parent options** sit *below* the rules, visually separated, to reinforce that
+  they apply *after* the rules resolve:
+  - **Include parents/guardians as members** (custom only) — *"Also add the
+    parents/guardians of everyone above to this group."*
+  - **Send messages to parents/guardians** (custom + patrol) — *"When you message this
+    group, also include parents/guardians (coming soon)."* Shown disabled-and-checked when
+    membership-parents is on (implied).
+- Keep the live **"Resolved members: N"** count; it now reflects the `include_parents`
+  expansion (but **not** `cc_parents_on_messages`, which doesn't change membership).
 
 This is the largest chunk of work but is purely frontend and uses in-repo components.
 
@@ -156,10 +185,14 @@ class GroupType(enum.StrEnum):
 
 - `GroupType` default becomes `CUSTOM` (was `MANUAL`) in the model and `GroupBase`.
 - A **`custom`** group supports both manual member adds **and** dynamic rules — the
-  resolver already does this; we simply stop gating it in the UI.
-- **`patrol`** keeps its rules: at most one patrol per member (enforced via
-  `_clear_patrol_membership`), adults excluded. Patrols may still carry rules (unchanged
-  from the prior spec's "no type restrictions" principle), but the common case is manual.
+  resolver already does this; we simply stop gating it in the UI. It exposes both parent
+  options (`include_parents`, `cc_parents_on_messages`). Icon: a neutral `Users`/`List`
+  glyph (the `Zap` "dynamic" icon retires).
+- **`patrol`** keeps its constraints: at most one patrol per member (enforced via
+  `_clear_patrol_membership`), adults excluded. **Patrols have no rule editor** — membership
+  is manual only. The one parent option a patrol exposes is `cc_parents_on_messages`
+  (comms), never `include_parents` (parents must not become patrol members). This reverses
+  the prior spec's "any type can have rules" principle for patrols specifically.
 
 ### Resolver
 
@@ -205,20 +238,20 @@ boolean tree. Tracked here so the decision is explicit.
 | File | Change |
 |------|--------|
 | `app/models/enums.py` | `GroupType` → `{PATROL, CUSTOM}`; remove `RELATIONSHIP` from `RuleDimension`. |
-| `app/models/group.py` | Add `Group.include_parents` (Boolean, default False, server_default). Default `group_type` → `CUSTOM`. |
-| `app/schemas/group.py` | `GroupBase.group_type` default `CUSTOM`; add `include_parents` to `GroupBase`/`GroupUpdate`/`GroupRead`. |
-| `app/core/groups.py` | Phase-2 parent expansion in `resolve_group_members`; remove `RELATIONSHIP` case from `evaluate_rule` (keep `_parents_of`); update `member_group_ids` to credit parents into `include_parents` groups. |
-| `app/routers/groups.py` | Remove `RELATIONSHIP` from rule validation; patrol/adult checks unchanged. |
+| `app/models/group.py` | Add `Group.include_parents` and `Group.cc_parents_on_messages` (Boolean, default False, server_default). Default `group_type` → `CUSTOM`. |
+| `app/schemas/group.py` | `GroupBase.group_type` default `CUSTOM`; add `include_parents` + `cc_parents_on_messages` to `GroupBase`/`GroupUpdate`/`GroupRead`. |
+| `app/core/groups.py` | Phase-2 `include_parents` expansion in `resolve_group_members`; remove `RELATIONSHIP` case from `evaluate_rule` (keep `_parents_of`); update `member_group_ids` to credit parents into `include_parents` groups. `cc_parents_on_messages` is **not** referenced here. |
+| `app/routers/groups.py` | Remove `RELATIONSHIP` from rule validation; patrol/adult checks unchanged. Optionally reject rule writes on `patrol` groups (patrols have no rules). |
 | `app/importers/twh.py` | Patrols still import as `group_type=patrol`; no manual/dynamic produced — confirm no literal `"manual"`/`"dynamic"`. |
-| `backend/alembic/` | Migration: add `include_parents`; remap `group_type` values; set `include_parents` from relationship rules then drop them. RLS already enabled on `groups`/`group_rules`. |
+| `backend/alembic/` | Migration: add `include_parents` + `cc_parents_on_messages`; remap `group_type` (`manual`/`dynamic` → `custom`); drop all `relationship` rules silently. RLS already enabled on `groups`/`group_rules`. |
 
 ### Frontend (`apps/web/`)
 
 | File | Change |
 |------|--------|
-| `src/types/api.ts` | `GroupType` → `"patrol" \| "custom"`; drop `"relationship"` from `RuleDimension`; add `include_parents` to `Group`. |
-| `src/app/(dashboard)/groups/[id]/edit/page.tsx` | New bubble builder; keep-open multi-select; `include_parents` toggle; drop dynamic/manual gates; remove relationship rule row. |
-| `src/app/(dashboard)/groups/new/page.tsx` | Two-value type selector; same builder; pass `include_parents`. |
+| `src/types/api.ts` | `GroupType` → `"patrol" \| "custom"`; drop `"relationship"` from `RuleDimension`; add `include_parents` + `cc_parents_on_messages` to `Group`. |
+| `src/app/(dashboard)/groups/[id]/edit/page.tsx` | New bubble builder; keep-open multi-select; both parent toggles; rules + manual members shown together for `custom`; **no rule editor for `patrol`** (only `cc_parents_on_messages`); remove relationship rule row. |
+| `src/app/(dashboard)/groups/new/page.tsx` | Two-value type selector; same builder; pass both parent flags. |
 | `src/components/group-membership-editor.tsx` | Replace `group_type !== "dynamic"` logic with custom/patrol; new icon/label. |
 | `src/app/(dashboard)/groups/page.tsx`, `members/columns.tsx`, `groups/group-detail-sheet.tsx` | Two-value labels/badges/icons; drop relationship-dimension display. |
 | `src/hooks/use-groups.ts` | Thread `include_parents` through create/update. |
@@ -226,25 +259,30 @@ boolean tree. Tracked here so the decision is explicit.
 
 ### Tests
 
-- Resolution: parent expansion on/off; parents added after manual ∪ dynamic; `include_parents`
-  with empty group is a no-op.
+- Resolution: `include_parents` on/off; parents added after manual ∪ dynamic; empty group
+  is a no-op; `cc_parents_on_messages` alone does **not** change `resolve_group_members`.
 - `member_group_ids`: a parent is reported in an `include_parents` group; event-visibility
-  and iCal reflect it.
+  and iCal reflect it; `cc_parents_on_messages` does **not** add the parent here.
 - Removal of `relationship`: `PUT /groups/{id}/rules/relationship` now 422s (unknown enum).
 - Group type: create/update with `custom`; `manual`/`dynamic` rejected (or migrated);
-  patrol one-per-member + adult exclusion still enforced.
+  patrol one-per-member + adult exclusion still enforced; patrol cannot hold `include_parents`.
 - Migration test for the value remap if feasible in the SQLite harness.
 - **Per the repo convention, the relationship-shape bug (#1) gets a regression test that
   would have caught the AND-empties-the-group behavior.**
 
 ---
 
+## Resolved Decisions
+
+1. **`custom` icon** — neutral `Users`/`List` glyph; `Zap` retires.
+2. **Patrols have no rules** — manual membership only; the only parent option is
+   `cc_parents_on_messages` (comms). `include_parents` is never offered on a patrol.
+3. **Old `relationship` rules** — dropped silently in migration (no real data exists).
+4. **Two parent options** — `include_parents` (membership; custom only) and
+   `cc_parents_on_messages` (comms; custom + patrol, stored now, consumed by Messaging later).
+
 ## Open Questions
 
-1. **`custom` type label/icon.** "Custom" in copy; which lucide icon replaces `Zap`?
-   (Proposal: a neutral `Users`/`List` glyph.)
-2. **Patrol + rules in the UI.** Keep rules available on patrols (per prior spec) or hide
-   them to keep the patrol editor simple? (Proposal: keep available but de-emphasized.)
-3. **Migration faithfulness for old `relationship` rules** targeting a *different* group —
-   approximate via `include_parents=True` (proposed) vs. drop silently. Pre-prod, so low
-   stakes.
+- **Surface the comms checkbox now or defer the UI?** Proposal: surface now with a
+  "coming soon" hint (data model lands regardless). Hold the visible checkbox only if
+  preferred until Messaging (Pillar 2) ships.
