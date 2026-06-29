@@ -59,6 +59,8 @@ describe("GroupDetailSheet", () => {
     color: "#F59E0B",
     description: "Alpha patrol description",
     rule_logic: "and",
+      include_parents: false,
+      cc_parents_on_messages: false,
   }
 
   const mockGroupMembers: Member[] = [

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { X, Lock, Plus } from "lucide-react"
+import { X, Lock } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+import { MultiSelectChips } from "@/components/multi-select-chips"
 import {
   useGroup,
   useGroupMembers,
@@ -143,12 +144,11 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
   const [color, setColor] = useState(group.color ?? PRESET_COLORS[0].hex)
   const [description, setDescription] = useState(group.description ?? "")
   const [ruleLogic, setRuleLogic] = useState<RuleLogic>(group.rule_logic)
+  const [includeParents, setIncludeParents] = useState(group.include_parents)
+  const [ccParents, setCcParents] = useState(group.cc_parents_on_messages)
   const [nameError, setNameError] = useState<string | null>(null)
 
   const [addMemberOpen, setAddMemberOpen] = useState(false)
-  const [addPosOpen, setAddPosOpen] = useState(false)
-  const [addGroupOpen, setAddGroupOpen] = useState(false)
-  const [addRelOpen, setAddRelOpen] = useState(false)
 
   // Local state to keep track of dimensions that have been checked (expanded) by the user
   // but do not yet have saved filters in the database.
@@ -164,8 +164,6 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
     return true
   })
 
-  const positionById = new Map(allPositions.map((p) => [p.id, p.name]))
-  const groupById = new Map(allGroups.map((g) => [g.id, g.name]))
 
   const activeRulesMap = new Map(rules.filter(r => !r.is_deleted).map(r => [r.dimension, r]))
 
@@ -173,7 +171,7 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
     if (!name.trim()) { setNameError("Name is required."); return }
     setNameError(null)
     updateGroup.mutate(
-      { id, data: { name: name.trim(), group_type: type, color, description: description.trim() || null, rule_logic: ruleLogic } },
+      { id, data: { name: name.trim(), group_type: type, color, description: description.trim() || null, rule_logic: ruleLogic, include_parents: includeParents, cc_parents_on_messages: ccParents } },
       {
         onSuccess: () => router.push("/groups"),
         onError: (err) => {
@@ -265,9 +263,8 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
             <Select value={type} onValueChange={(v) => setType(v as GroupType)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="custom">Custom group</SelectItem>
                 <SelectItem value="patrol">Patrol</SelectItem>
-                <SelectItem value="manual">Manual group</SelectItem>
-                <SelectItem value="dynamic">Dynamic group</SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -298,7 +295,7 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
               {members.map((m) => (
                 <li key={m.id} className="flex items-center justify-between px-3 py-2 text-sm">
                   <span>{displayName(m)}</span>
-                  {type !== "dynamic" && !isSystem && (
+                  {!isSystem && (
                     <button
                       type="button"
                       onClick={() => removeMember.mutate({ groupId: id, memberId: m.id })}
@@ -314,7 +311,7 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
             </ul>
           )}
 
-          {type !== "dynamic" && !isSystem && (
+          {!isSystem && (
             <Popover open={addMemberOpen} onOpenChange={setAddMemberOpen}>
               <PopoverTrigger
                 className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-7 text-xs gap-1")}
@@ -354,15 +351,15 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
             </Popover>
           )}
 
-          {type === "dynamic" && (
+          {type === "custom" && (
             <p className="text-xs text-muted-foreground italic">
-              Members are resolved automatically from dynamic rules below.
+              Members added here are combined with anyone matching the rules below.
             </p>
           )}
         </div>
 
-        {/* ── Rule Logic (dynamic only) ─────────────────── */}
-        {type === "dynamic" && (
+        {/* ── Dynamic Rules (custom only) ─────────────────── */}
+        {type === "custom" && (
           <>
             <Separator />
             <div className="space-y-4">
@@ -469,63 +466,18 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                   enabled={activeRulesMap.has("position") || expandedDimensions.has("position")}
                   onToggle={(checked) => toggleExpandDimension("position", checked)}
                 >
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap gap-1.5">
-                      {(activeRulesMap.get("position")?.values || []).map((id) => (
-                        <Badge key={id} variant="secondary" className="text-xs gap-1 py-0.5">
-                          {positionById.get(id) || id}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = (activeRulesMap.get("position")?.values || []).filter((x) => x !== id)
-                              if (next.length === 0) {
-                                toggleExpandDimension("position", false)
-                              } else {
-                                handleRuleSave("position", next)
-                              }
-                            }}
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-
-                    <Popover open={addPosOpen} onOpenChange={setAddPosOpen}>
-                      <PopoverTrigger
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-6 text-xs gap-1")}
-                        aria-expanded={addPosOpen}
-                      >
-                        <Plus className="h-3 w-3" /> Add position…
-                      </PopoverTrigger>
-                      <PopoverContent className="w-56 p-0" align="start">
-                        <Command>
-                          <CommandInput placeholder="Search positions…" className="h-8" />
-                          <CommandList>
-                            <CommandEmpty>No positions found.</CommandEmpty>
-                            <CommandGroup>
-                              {allPositions
-                                .filter(p => !p.is_deleted && !(activeRulesMap.get("position")?.values || []).includes(p.id))
-                                .map((p) => (
-                                  <CommandItem
-                                    key={p.id}
-                                    value={p.name}
-                                    onSelect={() => {
-                                      const current = activeRulesMap.get("position")?.values || []
-                                      handleRuleSave("position", [...current, p.id])
-                                      setAddPosOpen(false)
-                                    }}
-                                  >
-                                    {p.name}
-                                  </CommandItem>
-                                ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                  <MultiSelectChips
+                    options={allPositions.filter((p) => !p.is_deleted).map((p) => ({ id: p.id, label: p.name }))}
+                    selectedIds={activeRulesMap.get("position")?.values || []}
+                    onChange={(next) =>
+                      next.length === 0
+                        ? toggleExpandDimension("position", false)
+                        : handleRuleSave("position", next)
+                    }
+                    addLabel="Add position…"
+                    searchPlaceholder="Search positions…"
+                    emptyLabel="No positions found."
+                  />
                 </RuleRow>
 
                 {/* 6. Group Member Rule */}
@@ -534,131 +486,23 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                   enabled={activeRulesMap.has("group_member") || expandedDimensions.has("group_member")}
                   onToggle={(checked) => toggleExpandDimension("group_member", checked)}
                 >
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap gap-1.5">
-                      {(activeRulesMap.get("group_member")?.values || []).map((id) => (
-                        <Badge key={id} variant="secondary" className="text-xs gap-1 py-0.5">
-                          {groupById.get(id) || id}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = (activeRulesMap.get("group_member")?.values || []).filter((x) => x !== id)
-                              if (next.length === 0) {
-                                toggleExpandDimension("group_member", false)
-                              } else {
-                                handleRuleSave("group_member", next)
-                              }
-                            }}
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-
-                    <Popover open={addGroupOpen} onOpenChange={setAddGroupOpen}>
-                      <PopoverTrigger
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-6 text-xs gap-1")}
-                        aria-expanded={addGroupOpen}
-                      >
-                        <Plus className="h-3 w-3" /> Add group…
-                      </PopoverTrigger>
-                      <PopoverContent className="w-56 p-0" align="start">
-                        <Command>
-                          <CommandInput placeholder="Search groups…" className="h-8" />
-                          <CommandList>
-                            <CommandEmpty>No groups found.</CommandEmpty>
-                            <CommandGroup>
-                              {allGroups
-                                .filter(g => g.id !== group.id && !g.is_deleted && !(activeRulesMap.get("group_member")?.values || []).includes(g.id))
-                                .map((g) => (
-                                  <CommandItem
-                                    key={g.id}
-                                    value={g.name}
-                                    onSelect={() => {
-                                      const current = activeRulesMap.get("group_member")?.values || []
-                                      handleRuleSave("group_member", [...current, g.id])
-                                      setAddGroupOpen(false)
-                                    }}
-                                  >
-                                    {g.name}
-                                  </CommandItem>
-                                ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                  <MultiSelectChips
+                    options={allGroups
+                      .filter((g) => g.id !== group.id && !g.is_deleted)
+                      .map((g) => ({ id: g.id, label: g.name }))}
+                    selectedIds={activeRulesMap.get("group_member")?.values || []}
+                    onChange={(next) =>
+                      next.length === 0
+                        ? toggleExpandDimension("group_member", false)
+                        : handleRuleSave("group_member", next)
+                    }
+                    addLabel="Add group…"
+                    searchPlaceholder="Search groups…"
+                    emptyLabel="No groups found."
+                  />
                 </RuleRow>
 
-                {/* 7. Relationship Rule */}
-                <RuleRow
-                  label="Filter by Parents/Guardians of Group"
-                  enabled={activeRulesMap.has("relationship") || expandedDimensions.has("relationship")}
-                  onToggle={(checked) => toggleExpandDimension("relationship", checked)}
-                >
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap gap-1.5">
-                      {(activeRulesMap.get("relationship")?.values || []).map((id) => (
-                        <Badge key={id} variant="secondary" className="text-xs gap-1 py-0.5">
-                          Parents of: {groupById.get(id) || id}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = (activeRulesMap.get("relationship")?.values || []).filter((x) => x !== id)
-                              if (next.length === 0) {
-                                toggleExpandDimension("relationship", false)
-                              } else {
-                                handleRuleSave("relationship", next)
-                              }
-                            }}
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-
-                    <Popover open={addRelOpen} onOpenChange={setAddRelOpen}>
-                      <PopoverTrigger
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-6 text-xs gap-1")}
-                        aria-expanded={addRelOpen}
-                      >
-                        <Plus className="h-3 w-3" /> Add target group…
-                      </PopoverTrigger>
-                      <PopoverContent className="w-56 p-0" align="start">
-                        <Command>
-                          <CommandInput placeholder="Search groups…" className="h-8" />
-                          <CommandList>
-                            <CommandEmpty>No groups found.</CommandEmpty>
-                            <CommandGroup>
-                              {allGroups
-                                .filter(g => g.id !== group.id && !g.is_deleted && !(activeRulesMap.get("relationship")?.values || []).includes(g.id))
-                                .map((g) => (
-                                  <CommandItem
-                                    key={g.id}
-                                    value={g.name}
-                                    onSelect={() => {
-                                      const current = activeRulesMap.get("relationship")?.values || []
-                                      handleRuleSave("relationship", [...current, g.id])
-                                      setAddRelOpen(false)
-                                    }}
-                                  >
-                                    Parents of: {g.name}
-                                  </CommandItem>
-                                ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </RuleRow>
-
-                {/* 8. Rank Rule (Phase 2 - Disabled) */}
+                {/* 7. Rank Rule (Phase 2 - Disabled) */}
                 <RuleRow
                   label="Filter by Rank(s)"
                   enabled={false}
@@ -667,6 +511,40 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                   onToggle={() => {}}
                 />
               </div>
+
+              {/* Parent options — applied AFTER the rules resolve. */}
+              <div className="space-y-3 pt-1">
+                <SectionTitle>Parents &amp; Guardians</SectionTitle>
+                <ParentToggle
+                  label="Include parents/guardians as members"
+                  hint="Also add the parents/guardians of everyone resolved above to this group."
+                  checked={includeParents}
+                  onChange={setIncludeParents}
+                />
+                <ParentToggle
+                  label="Send messages to parents/guardians"
+                  hint="When you message this group, also include parents/guardians (coming soon)."
+                  checked={includeParents || ccParents}
+                  disabled={includeParents}
+                  onChange={setCcParents}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── Patrol: communications-only parent option ───── */}
+        {type === "patrol" && !isSystem && (
+          <>
+            <Separator />
+            <div className="space-y-3">
+              <SectionTitle>Parents &amp; Guardians</SectionTitle>
+              <ParentToggle
+                label="Send messages to parents/guardians"
+                hint="When you message this patrol, also include parents/guardians (coming soon). Parents do not become patrol members."
+                checked={ccParents}
+                onChange={setCcParents}
+              />
             </div>
           </>
         )}
@@ -715,5 +593,36 @@ function RuleRow({ label, enabled, onToggle, disabled, comingSoon, children }: R
         </div>
       )}
     </div>
+  )
+}
+
+interface ParentToggleProps {
+  label: string
+  hint: string
+  checked: boolean
+  disabled?: boolean
+  onChange: (checked: boolean) => void
+}
+
+function ParentToggle({ label, hint, checked, disabled, onChange }: ParentToggleProps) {
+  return (
+    <label
+      className={cn(
+        "flex items-start gap-2 p-3 rounded-md border bg-muted/20 cursor-pointer select-none",
+        disabled && "opacity-60 cursor-not-allowed",
+      )}
+    >
+      <input
+        type="checkbox"
+        className="h-4 w-4 mt-0.5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer disabled:cursor-not-allowed"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span className="space-y-0.5">
+        <span className="block text-sm font-medium">{label}</span>
+        <span className="block text-xs text-muted-foreground font-normal">{hint}</span>
+      </span>
+    </label>
   )
 }

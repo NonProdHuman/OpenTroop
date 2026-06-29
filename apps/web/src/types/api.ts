@@ -145,7 +145,7 @@ export interface MemberRelationship {
 // PATROL-type groups; membership is manual and/or rule-driven (see backend
 // app/models/group.py).
 
-export type GroupType = "manual" | "dynamic" | "patrol"
+export type GroupType = "custom" | "patrol"
 export type RuleLogic = "and" | "or"
 export type RuleDimension =
   | "member_type"
@@ -154,7 +154,6 @@ export type RuleDimension =
   | "oa_active"
   | "position"
   | "group_member"
-  | "relationship"
   | "rank"
 
 export interface Group {
@@ -169,6 +168,8 @@ export interface Group {
   color: string | null
   is_system: boolean
   rule_logic: RuleLogic
+  include_parents: boolean
+  cc_parents_on_messages: boolean
 }
 
 export interface GroupRule {

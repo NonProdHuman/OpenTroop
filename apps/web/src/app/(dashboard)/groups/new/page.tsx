@@ -29,9 +29,8 @@ const PRESET_COLORS = [
 ]
 
 const TYPE_DESCRIPTIONS: Record<string, string> = {
-  patrol: "A BSA patrol — scouts belong to at most one patrol.",
-  manual: "A hand-curated group (e.g. PLC, SPL team, trip roster).",
-  dynamic: "A dynamic, rule-based group (e.g. active scouts, OA members, position assignments).",
+  patrol: "A BSA patrol — scouts belong to at most one patrol. Manual membership only.",
+  custom: "A general group — add members by hand and/or with dynamic rules. Configure rules after creating.",
 }
 
 function FormField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
@@ -87,7 +86,7 @@ export default function NewGroupPage() {
   const createGroup = useCreateGroup()
 
   const [name, setName] = useState("")
-  const [type, setType] = useState<GroupType>("patrol")
+  const [type, setType] = useState<GroupType>("custom")
   const [color, setColor] = useState(PRESET_COLORS[0].hex)
   const [description, setDescription] = useState("")
   const [nameError, setNameError] = useState<string | null>(null)
@@ -145,9 +144,8 @@ export default function NewGroupPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="custom">Custom group</SelectItem>
               <SelectItem value="patrol">Patrol</SelectItem>
-              <SelectItem value="manual">Manual group</SelectItem>
-              <SelectItem value="dynamic">Dynamic group</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground mt-1">{TYPE_DESCRIPTIONS[type]}</p>

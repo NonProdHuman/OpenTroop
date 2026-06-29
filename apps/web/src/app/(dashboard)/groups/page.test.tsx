@@ -76,6 +76,8 @@ describe("GroupsPage", () => {
       color: "#F59E0B",
       description: "Alpha patrol description",
       rule_logic: "and",
+      include_parents: false,
+      cc_parents_on_messages: false,
     },
     {
       id: "g2",
@@ -84,11 +86,13 @@ describe("GroupsPage", () => {
       updated_at: "2024-01-01T00:00:00Z",
       is_deleted: false,
       name: "Super Admins",
-      group_type: "manual",
+      group_type: "custom",
       is_system: true,
       color: null,
       description: "System group",
       rule_logic: "and",
+      include_parents: false,
+      cc_parents_on_messages: false,
     }
   ]
 
