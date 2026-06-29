@@ -335,3 +335,9 @@ variable "web_ingress" {
   type        = string
   default     = "INGRESS_TRAFFIC_ALL"
 }
+
+variable "deletion_protection" {
+  description = "Enable or disable deletion protection on Cloud Run services."
+  type        = bool
+  default     = false
+}
