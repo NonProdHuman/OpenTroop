@@ -16,10 +16,11 @@ export function useApi() {
       const token = await getToken(
         CLERK_JWT_TEMPLATE ? { template: CLERK_JWT_TEMPLATE } : undefined,
       )
+      const isFormData = init?.body instanceof FormData
       const res = await fetch(`${BASE}${path}`, {
         ...init,
         headers: {
-          "Content-Type": "application/json",
+          ...(isFormData ? {} : { "Content-Type": "application/json" }),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(activeTenantId ? { "X-Tenant-ID": activeTenantId } : {}),
           ...(init?.headers ?? {}),

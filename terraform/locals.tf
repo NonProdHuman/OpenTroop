@@ -18,7 +18,7 @@ locals {
     local.cloudflare_app_subdomain == null ? "api" : "api.${local.cloudflare_app_subdomain}",
   )
 
-  clerk_issuer = var.clerk_frontend_api == null ? null : "https://${var.clerk_frontend_api}"
+  clerk_issuer = var.clerk_frontend_api == null ? null : "https://${replace(var.clerk_frontend_api, "https://", "")}"
   auth_issuer  = try(coalesce(var.auth_issuer, local.clerk_issuer), null)
   auth_jwks_uri = try(
     coalesce(var.auth_jwks_uri, local.auth_issuer == null ? null : "${local.auth_issuer}/.well-known/jwks.json"),
