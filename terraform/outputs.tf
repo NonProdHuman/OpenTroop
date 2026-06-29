@@ -38,16 +38,6 @@ output "frontend_url" {
   value       = var.cloudflare_enabled ? "https://${var.app_domain}" : google_cloud_run_v2_service.web.uri
 }
 
-output "github_service_account" {
-  description = "Service account GitHub Actions should impersonate."
-  value       = google_service_account.github_deploy.email
-}
-
-output "github_workload_identity_provider" {
-  description = "Workload Identity Provider resource name for google-github-actions/auth."
-  value       = google_iam_workload_identity_pool_provider.github.name
-}
-
 output "neon_project_id" {
   description = "Neon project ID when Terraform manages Neon."
   value       = var.manage_neon ? neon_project.database[0].id : null

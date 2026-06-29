@@ -90,11 +90,9 @@ locals {
     ] : name if lookup(local.runtime_secret_values, name, null) != null
   ])
 
-  api_service_account_id    = "${substr(local.name_prefix, 0, 20)}-api"
-  web_service_account_id    = "${substr(local.name_prefix, 0, 20)}-web"
-  github_service_account_id = "${substr(local.name_prefix, 0, 20)}-github"
-  workload_identity_pool_id = "${substr(local.name_prefix, 0, 24)}-github"
-  worker_name               = "${local.name_prefix}-proxy"
+  api_service_account_id = "${substr(local.name_prefix, 0, 20)}-api"
+  web_service_account_id = "${substr(local.name_prefix, 0, 20)}-web"
+  worker_name            = "${local.name_prefix}-proxy"
 }
 
 check "database_url_configured" {

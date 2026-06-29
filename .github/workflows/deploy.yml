@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - develop
   workflow_dispatch: # Allows manual trigger from the GitHub Actions UI
 
 env:
@@ -23,6 +24,7 @@ jobs:
   build-and-deploy:
     name: Build and Deploy to Cloud Run
     runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
 
     # These permissions are required for Workload Identity Federation
     permissions:
