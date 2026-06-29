@@ -54,7 +54,7 @@ jobs:
 
       - name: Deploy Backend to Cloud Run
         id: deploy-backend
-        uses: google-github-actions/deploy-cloudrun@v2
+        uses: google-github-actions/deploy-cloudrun@v3
         with:
           service: ${{ env.API_SERVICE }}
           region: ${{ env.REGION }}
@@ -84,7 +84,7 @@ jobs:
 
       - name: Deploy Frontend to Cloud Run
         id: deploy-frontend
-        uses: google-github-actions/deploy-cloudrun@v2
+        uses: google-github-actions/deploy-cloudrun@v3
         with:
           service: ${{ env.WEB_SERVICE }}
           region: ${{ env.REGION }}
