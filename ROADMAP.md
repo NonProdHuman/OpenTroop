@@ -31,9 +31,7 @@ is the foundation; notification and configuration systems follow the same patter
 
 ---
 ## Next Features to address:
-- Dynamic Groups
 - Event RSVP and Permission workflow
-- Infrastructure-as-Code / Terraform Automation (docs/spec/devops-automation.md)
 
 ## Capability Pillars
 

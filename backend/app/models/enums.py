@@ -68,17 +68,17 @@ class Permission(enum.StrEnum):
 class GroupType(enum.StrEnum):
     """How a Group's membership is primarily managed.
 
-    MANUAL  — members are added and removed explicitly.
-    DYNAMIC — membership is computed from rules (e.g. role-based).
-    PATROL  — the roster's unit-of-belonging: a manual group a member belongs to
-              at most one of. Folds the former standalone Patrol model.
+    CUSTOM — the general-purpose group: members may be added explicitly *and/or*
+             resolved from dynamic rules. The two are unioned.
+    PATROL — the roster's unit-of-belonging: a manual group a member belongs to
+             at most one of (adults excluded). Patrols carry no rules. Folds the
+             former standalone Patrol model.
 
-    Resolution always unions manual inclusions with any rule-derived members,
-    regardless of type; the type is a management/UI hint, not a hard switch.
+    Resolution always unions manual inclusions with any rule-derived members; the
+    type is a management/UI hint plus the patrol one-per-member constraint.
     """
 
-    MANUAL = "manual"
-    DYNAMIC = "dynamic"
+    CUSTOM = "custom"
     PATROL = "patrol"
 
 
@@ -112,7 +112,6 @@ class RuleDimension(enum.StrEnum):
     OA_ACTIVE = "oa_active"
     POSITION = "position"
     GROUP_MEMBER = "group_member"
-    RELATIONSHIP = "relationship"
     RANK = "rank"  # Phase 2 — no-op until Pillar 4 advancement model
 
 

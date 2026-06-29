@@ -10,7 +10,7 @@ from tests.conftest import TENANT_A
 
 
 def _create_group(
-    client: TestClient, name: str = "PLC", group_type: str = "manual", rule_logic: str = "and"
+    client: TestClient, name: str = "PLC", group_type: str = "custom", rule_logic: str = "and"
 ) -> dict:
     r = client.post(
         "/groups/", json={"name": name, "group_type": group_type, "rule_logic": rule_logic}
@@ -100,7 +100,7 @@ def test_delete_group(client: TestClient) -> None:
 
 def test_duplicate_name_rejected(client: TestClient) -> None:
     _create_group(client, "Dup")
-    r = client.post("/groups/", json={"name": "Dup", "group_type": "manual"})
+    r = client.post("/groups/", json={"name": "Dup", "group_type": "custom"})
     assert r.status_code == 409
 
 
@@ -165,7 +165,7 @@ def test_patrol_membership_is_exclusive(client: TestClient) -> None:
 
 
 def test_rule_crud_and_validation(client: TestClient) -> None:
-    group = _create_group(client, "DynamicGroup", "dynamic")
+    group = _create_group(client, "DynamicGroup", "custom")
     position_id = _admin_position_id(client)
 
     # 1. GET rules - should be empty initially
@@ -225,6 +225,96 @@ def test_rule_crud_and_validation(client: TestClient) -> None:
     rules = client.get(f"/groups/{group['id']}/rules").json()
     dimensions = {rule["dimension"] for rule in rules}
     assert "oa_member" not in dimensions
+
+
+def test_manual_members_endpoint_excludes_rule_derived(client: TestClient) -> None:
+    """GET /manual-members returns only explicit GroupMember rows, not rule-matched."""
+    group = _create_group(client, "Scouts", "custom")
+    manual = _create_member(client, "ManuallyAdded")
+    # A second scout who is only resolved via a member_type rule.
+    client.post(
+        "/members/",
+        json={"first_name": "RuleOnly", "last_name": "Scout", "member_type": "scout"},
+    )
+    client.post(f"/groups/{group['id']}/members", json={"member_id": manual["id"]})
+    client.put(f"/groups/{group['id']}/rules/member_type", json={"values": ["scout"]})
+
+    resolved = {m["id"] for m in client.get(f"/groups/{group['id']}/members").json()}
+    manual_ids = {
+        gm["member_id"] for gm in client.get(f"/groups/{group['id']}/manual-members").json()
+    }
+
+    assert manual["id"] in resolved and manual["id"] in manual_ids
+    # The rule-only scout is resolved but is NOT a manual member.
+    assert len(resolved) >= 2
+    assert manual_ids == {manual["id"]}
+
+
+def test_pin_rule_matched_member_creates_manual_row(client: TestClient) -> None:
+    """A member already resolved via a rule can be added explicitly to 'pin' them."""
+    group = _create_group(client, "Scouts", "custom")
+    scout = _create_member(client, "Ruley")
+    client.put(f"/groups/{group['id']}/rules/member_type", json={"values": ["scout"]})
+
+    # Resolved via the rule, but not yet a manual member.
+    assert scout["id"] in {m["id"] for m in client.get(f"/groups/{group['id']}/members").json()}
+    assert client.get(f"/groups/{group['id']}/manual-members").json() == []
+
+    # Pin them.
+    r = client.post(f"/groups/{group['id']}/members", json={"member_id": scout["id"]})
+    assert r.status_code == 201
+    manual_ids = {
+        gm["member_id"] for gm in client.get(f"/groups/{group['id']}/manual-members").json()
+    }
+    assert manual_ids == {scout["id"]}
+
+
+def test_patrol_rejects_rules(client: TestClient) -> None:
+    """Patrols are manual-only — the rule editor is closed to them."""
+    patrol = _create_group(client, "Wolf", "patrol")
+    r = client.put(f"/groups/{patrol['id']}/rules/member_type", json={"values": ["scout"]})
+    assert r.status_code == 400
+    assert "Patrols cannot have dynamic rules" in r.text
+
+
+def test_relationship_dimension_removed(client: TestClient) -> None:
+    """The relationship dimension was replaced by include_parents — the path 422s now."""
+    group = _create_group(client, "Custom", "custom")
+    r = client.put(f"/groups/{group['id']}/rules/relationship", json={"values": [group["id"]]})
+    assert r.status_code == 422
+
+
+def test_include_parents_flag_and_resolution(client: TestClient) -> None:
+    """include_parents persists through the API and pulls parents into resolved membership."""
+    group = _create_group(client, "Scouts + Parents", "custom")
+    assert group["include_parents"] is False
+    assert group["cc_parents_on_messages"] is False
+
+    scout = _create_member(client, "Sammy")
+    parent = client.post(
+        "/members/",
+        json={"first_name": "Pat", "last_name": "Parent", "member_type": "adult"},
+    ).json()
+    client.post(
+        "/relationships/",
+        json={
+            "from_member_id": parent["id"],
+            "to_member_id": scout["id"],
+            "relationship_type": "parent_of",
+        },
+    )
+    client.post(f"/groups/{group['id']}/members", json={"member_id": scout["id"]})
+
+    # Without the flag: just the scout.
+    ids = {m["id"] for m in client.get(f"/groups/{group['id']}/members").json()}
+    assert ids == {scout["id"]}
+
+    # Enable include_parents via PATCH; parent now resolves too.
+    patched = client.patch(f"/groups/{group['id']}", json={"include_parents": True})
+    assert patched.status_code == 200
+    assert patched.json()["include_parents"] is True
+    ids = {m["id"] for m in client.get(f"/groups/{group['id']}/members").json()}
+    assert ids == {scout["id"], parent["id"]}
 
 
 # --- Tenant isolation -----------------------------------------------------

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Shield, Users, Zap, Lock, X, ChevronsUpDown, Check } from "lucide-react"
+import { Shield, Users, Lock, X, ChevronsUpDown, Check } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button"
 import {
   Popover,
@@ -23,8 +23,7 @@ import { cn } from "@/lib/utils"
 // Fallback accent colors when group.color is null
 const TYPE_FALLBACK: Record<string, string> = {
   patrol: "#F59E0B",  // amber
-  manual: "#3B82F6",  // blue
-  dynamic: "#8B5CF6", // violet
+  custom: "#3B82F6",  // blue
 }
 const SYSTEM_COLOR = "#6B7280" // gray
 
@@ -35,7 +34,7 @@ function accentColor(group: Group): string {
 }
 
 function isRemovable(group: Group): boolean {
-  return !group.is_system && group.group_type !== "dynamic"
+  return !group.is_system
 }
 
 function GroupTypeIcon({ group, className }: { group: Group; className?: string }) {
@@ -43,7 +42,6 @@ function GroupTypeIcon({ group, className }: { group: Group; className?: string 
   if (group.is_system) return <Lock className={cls} />
   switch (group.group_type) {
     case "patrol":  return <Shield className={cls} />
-    case "dynamic": return <Zap className={cls} />
     default:        return <Users className={cls} />
   }
 }
@@ -71,11 +69,9 @@ function GroupBubble({
   return (
     <span
       title={
-        group.group_type === "dynamic"
-          ? "Auto-assigned via role rule"
-          : group.is_system
-            ? "System group — membership is managed automatically"
-            : undefined
+        group.is_system
+          ? "System group — membership is managed automatically"
+          : undefined
       }
       className={cn(
         "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium",
@@ -123,9 +119,10 @@ export function GroupMembershipEditor({
 
   const memberGroupIds = new Set(memberGroups.map((g) => g.id))
 
-  // Groups available to add: exclude current memberships, dynamic, and system
+  // Groups available to add: exclude current memberships and system groups.
+  // Custom groups accept manual members even when they also have rules.
   const addable = allGroups.filter(
-    (g) => !memberGroupIds.has(g.id) && !g.is_system && g.group_type !== "dynamic",
+    (g) => !memberGroupIds.has(g.id) && !g.is_system,
   )
 
   function handleAdd(group: Group) {
@@ -151,7 +148,7 @@ export function GroupMembershipEditor({
         ))}
       </div>
 
-      {allGroups.filter((g) => !g.is_system && g.group_type !== "dynamic").length === 0 ? (
+      {allGroups.filter((g) => !g.is_system).length === 0 ? (
         <p className="text-xs text-muted-foreground">
           No groups have been created yet.{" "}
           <a href="/groups" className="underline underline-offset-2">

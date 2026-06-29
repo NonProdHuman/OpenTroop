@@ -15,6 +15,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import {
   useGroupMembers,
+  useGroupManualMembers,
   useGroupRules,
   useDeleteGroup,
   useAddGroupMember,
@@ -38,8 +39,7 @@ import {
 
 const TYPE_LABELS: Record<string, string> = {
   patrol: "Patrol",
-  manual: "Manual",
-  dynamic: "Dynamic",
+  custom: "Custom",
 }
 
 function GroupTypeIcon({ group }: { group: Group }) {
@@ -47,7 +47,6 @@ function GroupTypeIcon({ group }: { group: Group }) {
   if (group.is_system) return <Lock className={cls} />
   switch (group.group_type) {
     case "patrol":  return <Shield className={cls} />
-    case "dynamic": return <Zap className={cls} />
     default:        return <Users className={cls} />
   }
 }
@@ -75,6 +74,7 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
   const [addMemberOpen, setAddMemberOpen] = useState(false)
 
   const { data: members = [], isLoading: membersLoading } = useGroupMembers(group?.id ?? null)
+  const { data: manualRows = [] } = useGroupManualMembers(group?.id ?? null)
   const { data: rules = [] } = useGroupRules(group?.id ?? null)
   const { data: positions = [] } = usePositions()
   const { data: groups = [] } = useGroups()
@@ -89,12 +89,13 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
 
   if (!group) return null
 
-  const isDynamic = group.group_type === "dynamic"
   const isSystem = group.is_system
-  const memberIds = new Set(members.map((m) => m.id))
+  const manualIds = new Set(manualRows.map((r) => r.member_id))
+  // Exclude only existing *manual* members so a rule-matched member can still be
+  // pinned (added explicitly) to keep them in the group regardless of the rules.
   const addableMembers = allMembers.filter((m) => {
     if (m.is_deleted) return false
-    if (memberIds.has(m.id)) return false
+    if (manualIds.has(m.id)) return false
     if (group.group_type === "patrol" && m.member_type === "adult") return false
     return true
   })
@@ -127,8 +128,6 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
         return `Positions: ${rule.values?.map((id: string) => positionById.get(id) ?? id).join(", ")}`
       case "group_member":
         return `In Group(s): ${rule.values?.map((id: string) => groupById.get(id) ?? id).join(", ")}`
-      case "relationship":
-        return `Parents/guardians of members in: ${rule.values?.map((id: string) => groupById.get(id) ?? id).join(", ")}`
       case "rank":
         return `Ranks: ${rule.values?.join(", ")}`
       default:
@@ -224,7 +223,7 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
                         >
                           {name}
                         </button>
-                        {!isDynamic && !isSystem && (
+                        {!isSystem && manualIds.has(m.id) && (
                           <button
                             type="button"
                             onClick={() =>
@@ -250,15 +249,20 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
                           </button>
                         )}
                       </div>
-                      <Badge variant="outline" className="text-xs capitalize shrink-0">
-                        {m.member_type}
-                      </Badge>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {!manualIds.has(m.id) && (
+                          <span className="text-xs text-muted-foreground italic">via rules</span>
+                        )}
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {m.member_type}
+                        </Badge>
+                      </div>
                     </li>
                   )
                 })}
               </ul>
             )}
-            {!isDynamic && !isSystem && (
+            {!isSystem && (
               <div className="pt-2">
                 <Popover open={addMemberOpen} onOpenChange={setAddMemberOpen}>
                   <PopoverTrigger
@@ -316,9 +320,10 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
                 </Popover>
               </div>
             )}
-            {isDynamic && (
+            {rules.length > 0 && (
               <p className="text-xs text-muted-foreground pt-1 italic">
-                Membership is automatic — driven by dynamic rules below (logic: {group.rule_logic.toUpperCase()}).
+                Plus members matching the rules below (logic: {group.rule_logic.toUpperCase()}).
+                {group.include_parents && " Parents/guardians of resolved members are included."}
               </p>
             )}
           </Section>

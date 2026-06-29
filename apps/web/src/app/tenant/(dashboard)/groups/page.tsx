@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Shield, Users, Zap, Lock, Plus, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { Shield, Users, Lock, Plus, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,15 +44,13 @@ import {
 
 const TYPE_LABELS: Record<string, string> = {
   patrol: "Patrol",
-  manual: "Manual",
-  dynamic: "Dynamic",
+  custom: "Custom",
 }
 
 // Soft tinted badge classes for group types
 const TYPE_BADGE: Record<string, string> = {
   patrol:  "bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300",
-  manual:  "bg-amber-50  text-amber-700 border border-amber-200 dark:bg-amber-950 dark:text-amber-300",
-  dynamic: "bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950 dark:text-purple-300",
+  custom:  "bg-amber-50  text-amber-700 border border-amber-200 dark:bg-amber-950 dark:text-amber-300",
   system:  "bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400",
 }
 
@@ -67,7 +65,6 @@ function TintBadge({ label, className }: { label: string; className: string }) {
 function GroupTypeIcon({ group, className }: { group: Group; className?: string }) {
   switch (group.group_type) {
     case "patrol":  return <Shield className={className} />
-    case "dynamic": return <Zap className={className} />
     default:        return <Users className={className} />
   }
 }
@@ -129,7 +126,7 @@ export default function GroupsPage() {
     const count = memberCounts.get(group.id)
     const badgeClass = group.is_system
       ? TYPE_BADGE.system
-      : (TYPE_BADGE[group.group_type] ?? TYPE_BADGE.manual)
+      : (TYPE_BADGE[group.group_type] ?? TYPE_BADGE.custom)
     return (
       <tr
         key={group.id}
@@ -340,7 +337,7 @@ function GroupActionsDropdown({
         <DropdownMenuPortal>
           <DropdownMenuContent align="end" className="w-36">
             <DropdownMenuItem onClick={onViewDetails}>View details</DropdownMenuItem>
-            {!group.is_system && group.group_type !== "dynamic" && (
+            {!group.is_system && (
               <DropdownMenuItem onClick={onAddMember}>Add member…</DropdownMenuItem>
             )}
             {!group.is_system && (

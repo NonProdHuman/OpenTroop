@@ -22,15 +22,21 @@ class Group(TrackedBase):
     - manual inclusions (``GroupMember`` rows), and
     - dynamic, rule-based members (``GroupRule`` rows evaluated per dimension).
 
-    ``group_type`` classifies how a group is primarily managed and flags patrols,
-    the roster's unit-of-belonging. Patrols are folded into Group: a patrol is a
-    ``PATROL``-type group whose members are explicit ``GroupMember`` rows, and a
-    member belongs to at most one ``PATROL`` group at a time.
+    ``group_type`` is either ``CUSTOM`` (the general group: manual members and/or
+    rules) or ``PATROL`` (the roster's unit-of-belonging — manual members only, one
+    per member, adults excluded; patrols carry no rules).
 
     ``rule_logic`` controls how multiple rules combine:
     - AND (default): a member must match all rules (intersection).
     - OR: a member matching any rule is included (union).
     Manual members are always included regardless of rule_logic.
+
+    ``include_parents`` (membership): when set, the parents/guardians of the
+    resolved members are added to the group **after** rule resolution — so the
+    expansion reads as "...and their parents/guardians". ``cc_parents_on_messages``
+    (communications): the future messaging layer also sends to resolved members'
+    parents/guardians, **without** making them group members — it does not affect
+    ``resolve_group_members``, visibility, or the iCal feed.
 
     Groups drive event visibility (audiences) and, later, email/SMS distribution
     lists and report scoping — every consumer resolves them the same way via
@@ -44,7 +50,7 @@ class Group(TrackedBase):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     group_type: Mapped[GroupType] = mapped_column(
         SAEnum(GroupType, values_callable=lambda x: [e.value for e in x]),
-        default=GroupType.MANUAL,
+        default=GroupType.CUSTOM,
         nullable=False,
     )
     color: Mapped[str | None] = mapped_column(String(20), nullable=True)
@@ -54,6 +60,12 @@ class Group(TrackedBase):
         default=RuleLogic.AND,
         nullable=False,
         server_default="and",
+    )
+    include_parents: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
+    cc_parents_on_messages: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
     )
 
     members: Mapped[list[GroupMember]] = relationship(

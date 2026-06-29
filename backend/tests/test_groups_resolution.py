@@ -41,7 +41,7 @@ def _member(
 
 def test_union_of_manual_and_dynamic_position_rule(db_session) -> None:
     group = Group(
-        tenant_id=_TENANT, name="PLC", group_type=GroupType.DYNAMIC, rule_logic=RuleLogic.OR
+        tenant_id=_TENANT, name="PLC", group_type=GroupType.CUSTOM, rule_logic=RuleLogic.OR
     )
     position = Position(tenant_id=_TENANT, name="Patrol Leader", slug="patrol-leader")
     session = db_session
@@ -92,7 +92,7 @@ def test_soft_deleted_members_excluded(db_session) -> None:
 
 def test_empty_group_resolves_empty(db_session) -> None:
     session = db_session
-    group = Group(tenant_id=_TENANT, name="Empty", group_type=GroupType.MANUAL)
+    group = Group(tenant_id=_TENANT, name="Empty", group_type=GroupType.CUSTOM)
     session.add(group)
     session.flush()
     assert resolve_group_members(group.id, session) == frozenset()
@@ -103,7 +103,7 @@ def test_boolean_and_attribute_rules(db_session) -> None:
     group = Group(
         tenant_id=_TENANT,
         name="Active OA Scouts",
-        group_type=GroupType.DYNAMIC,
+        group_type=GroupType.CUSTOM,
         rule_logic=RuleLogic.AND,
     )
     session.add(group)
@@ -146,9 +146,9 @@ def test_boolean_and_attribute_rules(db_session) -> None:
 def test_group_member_recursive_rule(db_session) -> None:
     session = db_session
     parent_group = Group(
-        tenant_id=_TENANT, name="ParentGroup", group_type=GroupType.DYNAMIC, rule_logic=RuleLogic.OR
+        tenant_id=_TENANT, name="ParentGroup", group_type=GroupType.CUSTOM, rule_logic=RuleLogic.OR
     )
-    child_group = Group(tenant_id=_TENANT, name="ChildGroup", group_type=GroupType.MANUAL)
+    child_group = Group(tenant_id=_TENANT, name="ChildGroup", group_type=GroupType.CUSTOM)
     session.add_all([parent_group, child_group])
     session.flush()
 
@@ -177,17 +177,65 @@ def test_group_member_recursive_rule(db_session) -> None:
     )
 
 
-def test_relationship_rule(db_session) -> None:
+def test_include_parents_expands_after_resolution(db_session) -> None:
+    """include_parents adds the parents/guardians of the resolved set (manual + dynamic)."""
     session = db_session
-    parents_group = Group(tenant_id=_TENANT, name="Eagle Parents", group_type=GroupType.DYNAMIC)
-    scouts_group = Group(tenant_id=_TENANT, name="Eagle Scouts", group_type=GroupType.MANUAL)
-    session.add_all([parents_group, scouts_group])
+    group = Group(
+        tenant_id=_TENANT,
+        name="Eagle Patrol + Parents",
+        group_type=GroupType.CUSTOM,
+        include_parents=True,
+    )
+    session.add(group)
     session.flush()
 
     scout = _member(session, "Scout")
     parent = _member(session, "Parent", member_type=MemberType.ADULT)
+    guardian = _member(session, "Guardian", member_type=MemberType.ADULT)
+    unrelated = _member(session, "Unrelated", member_type=MemberType.ADULT)
 
-    # Add relationship
+    session.add_all(
+        [
+            MemberRelationship(
+                tenant_id=_TENANT,
+                from_member_id=parent.id,
+                to_member_id=scout.id,
+                relationship_type=RelationshipType.PARENT_OF,
+            ),
+            MemberRelationship(
+                tenant_id=_TENANT,
+                from_member_id=guardian.id,
+                to_member_id=scout.id,
+                relationship_type=RelationshipType.GUARDIAN_OF,
+            ),
+        ]
+    )
+    # Scout is a manual member; parent + guardian should be pulled in, unrelated not.
+    session.add(GroupMember(tenant_id=_TENANT, group_id=group.id, member_id=scout.id))
+    session.flush()
+
+    assert resolve_group_members(group.id, session) == frozenset({scout.id, parent.id, guardian.id})
+    assert unrelated.id not in resolve_group_members(group.id, session)
+
+
+def test_include_parents_does_not_break_and_logic(db_session) -> None:
+    """Regression: with parents as a *rule* under AND, the group emptied (parents aren't
+    scouts, so the intersection was empty). As a post-resolution toggle it composes."""
+    session = db_session
+    group = Group(
+        tenant_id=_TENANT,
+        name="Active Scouts + Parents",
+        group_type=GroupType.CUSTOM,
+        rule_logic=RuleLogic.AND,
+        include_parents=True,
+    )
+    session.add(group)
+    session.flush()
+
+    scout = _member(
+        session, "Scout", member_type=MemberType.SCOUT, membership_status=MemberStatus.ACTIVE
+    )
+    parent = _member(session, "Parent", member_type=MemberType.ADULT)
     session.add(
         MemberRelationship(
             tenant_id=_TENANT,
@@ -196,25 +244,33 @@ def test_relationship_rule(db_session) -> None:
             relationship_type=RelationshipType.PARENT_OF,
         )
     )
-    session.add(GroupMember(tenant_id=_TENANT, group_id=scouts_group.id, member_id=scout.id))
-    session.add(
-        GroupRule(
-            tenant_id=_TENANT,
-            group_id=parents_group.id,
-            dimension=RuleDimension.RELATIONSHIP,
-            values=[str(scouts_group.id)],
-        )
+    # AND of two rules that both match the scout, then parents expand on top.
+    session.add_all(
+        [
+            GroupRule(
+                tenant_id=_TENANT,
+                group_id=group.id,
+                dimension=RuleDimension.MEMBER_TYPE,
+                values=["scout"],
+            ),
+            GroupRule(
+                tenant_id=_TENANT,
+                group_id=group.id,
+                dimension=RuleDimension.MEMBERSHIP_STATUS,
+                values=["active"],
+            ),
+        ]
     )
     session.flush()
 
-    # Parents group should resolve parent
-    assert resolve_group_members(parents_group.id, session) == frozenset({parent.id})
+    # Pre-fix this returned frozenset() because the parent rule emptied the AND.
+    assert resolve_group_members(group.id, session) == frozenset({scout.id, parent.id})
 
 
 def test_cycle_detection(db_session) -> None:
     session = db_session
-    group_a = Group(tenant_id=_TENANT, name="GroupA", group_type=GroupType.DYNAMIC)
-    group_b = Group(tenant_id=_TENANT, name="GroupB", group_type=GroupType.DYNAMIC)
+    group_a = Group(tenant_id=_TENANT, name="GroupA", group_type=GroupType.CUSTOM)
+    group_b = Group(tenant_id=_TENANT, name="GroupB", group_type=GroupType.CUSTOM)
     session.add_all([group_a, group_b])
     session.flush()
 

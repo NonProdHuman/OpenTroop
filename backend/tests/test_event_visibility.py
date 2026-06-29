@@ -7,12 +7,13 @@ from sqlalchemy import select
 
 from app.core.event_visibility import event_visible_to_member, visibility_clause
 from app.core.groups import member_group_ids
-from app.models.enums import GroupType, MemberType, RuleDimension
+from app.models.enums import GroupType, MemberType, RelationshipType, RuleDimension
 from app.models.event import Event
 from app.models.event_audience import EventAudience
 from app.models.group import Group, GroupMember, GroupRule
 from app.models.member import Member
 from app.models.rbac import MemberPositionAssignment, Position
+from app.models.relationship import MemberRelationship
 
 _TENANT = uuid.UUID("10000000-0000-0000-0000-000000000001")
 
@@ -37,7 +38,7 @@ def _member(session, name: str = "M") -> Member:
     return m
 
 
-def _group(session, name: str, group_type: GroupType = GroupType.MANUAL) -> Group:
+def _group(session, name: str, group_type: GroupType = GroupType.CUSTOM) -> Group:
     g = Group(tenant_id=_TENANT, name=name, group_type=group_type)
     session.add(g)
     session.flush()
@@ -47,7 +48,7 @@ def _group(session, name: str, group_type: GroupType = GroupType.MANUAL) -> Grou
 def test_member_group_ids_manual_and_dynamic(db_session) -> None:
     session = db_session
     manual_g = _group(session, "Wolf", GroupType.PATROL)
-    dynamic_g = _group(session, "PLC", GroupType.DYNAMIC)
+    dynamic_g = _group(session, "PLC", GroupType.CUSTOM)
     position = Position(tenant_id=_TENANT, name="Patrol Leader", slug="pl")
     member = _member(session)
     session.add(position)
@@ -68,6 +69,33 @@ def test_member_group_ids_manual_and_dynamic(db_session) -> None:
     session.flush()
 
     assert member_group_ids(member.id, session) == frozenset({manual_g.id, dynamic_g.id})
+
+
+def test_member_group_ids_credits_include_parents(db_session) -> None:
+    """A parent belongs to an include_parents group even when it has only manual members
+    (no rules) — so event visibility and the iCal feed treat the parent as a member."""
+    session = db_session
+    group = _group(session, "Patrol + Parents", GroupType.CUSTOM)
+    group.include_parents = True
+    scout = _member(session, "Scout")
+    parent = Member(
+        tenant_id=_TENANT, first_name="Parent", last_name="X", member_type=MemberType.ADULT
+    )
+    session.add(parent)
+    session.flush()
+    session.add(
+        MemberRelationship(
+            tenant_id=_TENANT,
+            from_member_id=parent.id,
+            to_member_id=scout.id,
+            relationship_type=RelationshipType.PARENT_OF,
+        )
+    )
+    session.add(GroupMember(tenant_id=_TENANT, group_id=group.id, member_id=scout.id))
+    session.flush()
+
+    assert group.id in member_group_ids(parent.id, session)
+    assert group.id in member_group_ids(scout.id, session)
 
 
 def test_event_with_no_audience_is_troop_wide(db_session) -> None:

@@ -123,6 +123,29 @@ def list_group_members(group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> 
     ).all()
 
 
+@router.get(
+    "/{group_id}/manual-members",
+    response_model=list[GroupMemberRead],
+    dependencies=[Depends(require(Permission.MEMBER_READ))],
+)
+def list_group_manual_members(
+    group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
+) -> Sequence[GroupMember]:
+    """Return only the **explicit** (manual) memberships of a group.
+
+    These are the ``GroupMember`` rows — the members a leader added by hand, as
+    opposed to those resolved dynamically by rules. The UI uses this to separate
+    removable manual members from rule-derived ones.
+    """
+    get_or_404(db, Group, group_id, tenant_id, "Group not found")
+    return db.scalars(
+        select(GroupMember).where(
+            GroupMember.group_id == group_id,
+            GroupMember.is_deleted.is_(False),
+        )
+    ).all()
+
+
 @router.post(
     "/{group_id}/members",
     response_model=GroupMemberRead,
@@ -226,7 +249,12 @@ def upsert_group_rule(
     db: DbDep,
 ) -> GroupRule:
     """Create or update a dynamic membership rule for a specific dimension."""
-    get_or_404(db, Group, group_id, tenant_id, "Group not found")
+    group = get_or_404(db, Group, group_id, tenant_id, "Group not found")
+    if group.group_type is GroupType.PATROL:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Patrols cannot have dynamic rules",
+        )
 
     values = body.values
     if dimension in (RuleDimension.OA_MEMBER, RuleDimension.OA_ACTIVE):
@@ -278,7 +306,7 @@ def upsert_group_rule(
                     detail=f"Invalid position UUID: {val}",
                 ) from err
             require_tenant_fk(db, Position, pos_id, tenant_id, "position_id")
-    elif dimension in (RuleDimension.GROUP_MEMBER, RuleDimension.RELATIONSHIP):
+    elif dimension == RuleDimension.GROUP_MEMBER:
         if not values:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

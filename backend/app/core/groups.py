@@ -16,7 +16,7 @@ import uuid
 from functools import reduce
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models.enums import MemberStatus, MemberType, RuleDimension, RuleLogic
@@ -137,14 +137,6 @@ def evaluate_rule(
                     uuid.UUID(ref_group_id), session, _visited=_visited
                 )
             return combined
-        case RuleDimension.RELATIONSHIP:
-            combined_parents: set[uuid.UUID] = set()
-            for ref_group_id in values or []:
-                child_ids = resolve_group_members(
-                    uuid.UUID(ref_group_id), session, _visited=_visited
-                )
-                combined_parents |= _parents_of(child_ids, session)
-            return combined_parents
         case RuleDimension.RANK:
             # Phase 2 — no-op until Pillar 4 advancement model exists
             return set()
@@ -172,8 +164,10 @@ def resolve_group_members(
     - AND: a member must match *all* rules (intersection).
     - OR: a member matching *any* rule is included (union).
 
-    Manual members are always included regardless of rule logic.
-    Soft-deleted members, memberships, and rules are excluded.
+    Manual members are always included regardless of rule logic. If the group has
+    ``include_parents`` set, the parents/guardians of the resolved set are added in
+    a final pass (after manual ∪ dynamic). Soft-deleted members, memberships, and
+    rules are excluded.
     """
     # Cycle guard — prevents infinite recursion for group-of-groups
     if _visited is None:
@@ -220,17 +214,34 @@ def resolve_group_members(
 
     # 4. Union manual + dynamic
     candidates = manual | dynamic
-    if not candidates:
+    if not candidates and not group.include_parents:
         return frozenset()
 
     # 5. Filter to non-deleted members
-    live = session.scalars(
-        select(Member.id).where(
-            Member.id.in_(candidates),
-            Member.is_deleted.is_(False),
-        )
-    ).all()
-    return frozenset(live)
+    resolved = set(
+        session.scalars(
+            select(Member.id).where(
+                Member.id.in_(candidates),
+                Member.is_deleted.is_(False),
+            )
+        ).all()
+    )
+
+    # 6. Optionally expand to include parents/guardians of the resolved set.
+    #    Runs after manual ∪ dynamic so it reads as "...and their parents/guardians".
+    if group.include_parents and resolved:
+        parents = _parents_of(resolved, session)
+        if parents:
+            resolved |= set(
+                session.scalars(
+                    select(Member.id).where(
+                        Member.id.in_(parents),
+                        Member.is_deleted.is_(False),
+                    )
+                ).all()
+            )
+
+    return frozenset(resolved)
 
 
 def member_group_ids(member_id: uuid.UUID, session: Session) -> frozenset[uuid.UUID]:
@@ -255,19 +266,23 @@ def member_group_ids(member_id: uuid.UUID, session: Session) -> frozenset[uuid.U
     if member is None or member.is_deleted:
         return frozenset(manual)
 
-    # For each non-deleted group with rules, check if this member is in the resolved set.
-    # This is the brute-force approach — acceptable for troop-scale data (< 30 groups).
-    # For larger scale, we'd want a reverse index.
-    all_groups_with_rules = session.scalars(
-        select(Group.id)
-        .where(
+    # For each non-deleted group whose membership is computed (has rules) or expands to
+    # parents (include_parents), check if this member is in the resolved set. The
+    # include_parents groups must be scanned too: a parent of a *manually* added member
+    # belongs to such a group even though it has no rules. Brute-force is acceptable for
+    # troop-scale data (< 30 groups); for larger scale we'd want a reverse index.
+    computed_group_ids = session.scalars(
+        select(Group.id).where(
             Group.is_deleted.is_(False),
+            or_(
+                Group.id.in_(select(GroupRule.group_id).where(GroupRule.is_deleted.is_(False))),
+                Group.include_parents.is_(True),
+            ),
         )
-        .where(Group.id.in_(select(GroupRule.group_id).where(GroupRule.is_deleted.is_(False))))
     ).all()
 
     dynamic: set[uuid.UUID] = set()
-    for gid in all_groups_with_rules:
+    for gid in computed_group_ids:
         if gid in manual:
             continue  # Already included
         resolved = resolve_group_members(gid, session)

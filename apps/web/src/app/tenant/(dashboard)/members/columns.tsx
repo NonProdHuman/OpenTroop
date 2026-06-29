@@ -24,8 +24,7 @@ const STATUS_BADGE: Record<string, string> = {
 
 const GROUP_TYPE_BADGE: Record<string, string> = {
   patrol: "bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300",
-  manual: "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950 dark:text-amber-300",
-  dynamic: "bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950 dark:text-purple-300",
+  custom: "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950 dark:text-amber-300",
 }
 
 const SYSTEM_BADGE = "bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400"
@@ -98,7 +97,7 @@ export function buildColumns(
         return (
           <div className="flex flex-wrap gap-1">
             {sortedGroups.map((g) => {
-              let badgeClass = GROUP_TYPE_BADGE[g.group_type] ?? GROUP_TYPE_BADGE.manual
+              let badgeClass = GROUP_TYPE_BADGE[g.group_type] ?? GROUP_TYPE_BADGE.custom
               if (g.is_system) {
                 badgeClass = SYSTEM_BADGE
               }

@@ -21,6 +21,7 @@ vi.mock("@/components/ui/popover", () => ({
 
 vi.mock("@/hooks/use-groups", () => ({
   useGroupMembers: vi.fn(),
+  useGroupManualMembers: vi.fn(),
   useGroupRules: vi.fn(),
   useDeleteGroup: vi.fn(),
   useAddGroupMember: vi.fn(),
@@ -59,6 +60,8 @@ describe("GroupDetailSheet", () => {
     color: "#F59E0B",
     description: "Alpha patrol description",
     rule_logic: "and",
+      include_parents: false,
+      cc_parents_on_messages: false,
   }
 
   const mockGroupMembers: Member[] = [
@@ -174,6 +177,11 @@ describe("GroupDetailSheet", () => {
     vi.mocked(groupsHook.useGroupMembers).mockReturnValue({
       data: mockGroupMembers,
       isLoading: false,
+    } as any)
+
+    // m1 is a manual member (so its remove "×" shows).
+    vi.mocked(groupsHook.useGroupManualMembers).mockReturnValue({
+      data: mockGroupMembers.map((m) => ({ member_id: m.id })),
     } as any)
 
     vi.mocked(groupsHook.useGroupRules).mockReturnValue({
