@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - develop
   workflow_dispatch: # Allows manual trigger from the GitHub Actions UI
 
 env:
@@ -15,12 +16,15 @@ env:
   DEPLOY_ENVIRONMENT: ${{ vars.DEPLOY_ENVIRONMENT || vars.ENVIRONMENT || 'production' }}
   PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || vars.API_PUBLIC_URL || '' }}
   BACKEND_IMAGE: ${{ vars.GCP_REGION || vars.REGION || 'us-central1' }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID || vars.PROJECT_ID || 'opentroop' }}/${{ vars.GCP_ARTIFACT_REPOSITORY || vars.AR_REPO || 'opentroop-containers' }}/opentroop-api:${{ github.sha }}
+  BACKEND_IMAGE_LATEST: ${{ vars.GCP_REGION || vars.REGION || 'us-central1' }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID || vars.PROJECT_ID || 'opentroop' }}/${{ vars.GCP_ARTIFACT_REPOSITORY || vars.AR_REPO || 'opentroop-containers' }}/opentroop-api:latest
   FRONTEND_IMAGE: ${{ vars.GCP_REGION || vars.REGION || 'us-central1' }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID || vars.PROJECT_ID || 'opentroop' }}/${{ vars.GCP_ARTIFACT_REPOSITORY || vars.AR_REPO || 'opentroop-containers' }}/opentroop-web:${{ github.sha }}
+  FRONTEND_IMAGE_LATEST: ${{ vars.GCP_REGION || vars.REGION || 'us-central1' }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID || vars.PROJECT_ID || 'opentroop' }}/${{ vars.GCP_ARTIFACT_REPOSITORY || vars.AR_REPO || 'opentroop-containers' }}/opentroop-web:latest
 
 jobs:
   build-and-deploy:
     name: Build and Deploy to Cloud Run
     runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
 
     # These permissions are required for Workload Identity Federation
     permissions:
@@ -29,7 +33,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Google Auth
         id: auth
@@ -39,7 +43,7 @@ jobs:
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT || secrets.SERVICE_ACCOUNT }}
 
       - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
 
       - name: Configure Docker to use Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
@@ -47,14 +51,17 @@ jobs:
       # --- BACKEND ---
       - name: Build Backend Image
         working-directory: ./backend
-        run: docker build -t ${{ env.BACKEND_IMAGE }} .
+        run: |
+          docker build -t ${{ env.BACKEND_IMAGE }} -t ${{ env.BACKEND_IMAGE_LATEST }} .
 
       - name: Push Backend Image
-        run: docker push ${{ env.BACKEND_IMAGE }}
+        run: |
+          docker push ${{ env.BACKEND_IMAGE }}
+          docker push ${{ env.BACKEND_IMAGE_LATEST }}
 
       - name: Deploy Backend to Cloud Run
         id: deploy-backend
-        uses: google-github-actions/deploy-cloudrun@v2
+        uses: google-github-actions/deploy-cloudrun@v3
         with:
           service: ${{ env.API_SERVICE }}
           region: ${{ env.REGION }}
@@ -77,14 +84,17 @@ jobs:
       # --- FRONTEND ---
       - name: Build Frontend Image
         # Note: Next.js build might require NEXT_PUBLIC_* args at build time
-        run: docker build --build-arg NEXT_PUBLIC_API_URL=${PUBLIC_API_URL:-${{ steps.deploy-backend.outputs.url }}} --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }} --build-arg NEXT_PUBLIC_CLERK_JWT_TEMPLATE=${{ vars.NEXT_PUBLIC_CLERK_JWT_TEMPLATE || secrets.NEXT_PUBLIC_CLERK_JWT_TEMPLATE }} --build-arg NEXT_PUBLIC_TENANT_ID=${{ secrets.NEXT_PUBLIC_TENANT_ID }} -f apps/web/Dockerfile -t ${{ env.FRONTEND_IMAGE }} .
+        run: |
+          docker build --build-arg NEXT_PUBLIC_API_URL=${PUBLIC_API_URL:-${{ steps.deploy-backend.outputs.url }}} --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }} --build-arg NEXT_PUBLIC_CLERK_JWT_TEMPLATE=${{ vars.NEXT_PUBLIC_CLERK_JWT_TEMPLATE || secrets.NEXT_PUBLIC_CLERK_JWT_TEMPLATE }} --build-arg NEXT_PUBLIC_TENANT_ID=${{ secrets.NEXT_PUBLIC_TENANT_ID }} -f apps/web/Dockerfile -t ${{ env.FRONTEND_IMAGE }} -t ${{ env.FRONTEND_IMAGE_LATEST }} .
 
       - name: Push Frontend Image
-        run: docker push ${{ env.FRONTEND_IMAGE }}
+        run: |
+          docker push ${{ env.FRONTEND_IMAGE }}
+          docker push ${{ env.FRONTEND_IMAGE_LATEST }}
 
       - name: Deploy Frontend to Cloud Run
         id: deploy-frontend
-        uses: google-github-actions/deploy-cloudrun@v2
+        uses: google-github-actions/deploy-cloudrun@v3
         with:
           service: ${{ env.WEB_SERVICE }}
           region: ${{ env.REGION }}

@@ -35,3 +35,6 @@ apps/mobile/.env.local
 
 # OS
 .DS_Store
+
+#Scalr Terraform CLI
+terraform/backend.tf

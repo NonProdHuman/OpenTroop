@@ -26,11 +26,6 @@ variable "app_domain" {
   type        = string
 }
 
-variable "github_repository" {
-  description = "GitHub repository allowed to deploy through Workload Identity Federation, in owner/name form."
-  type        = string
-}
-
 variable "artifact_repository_name" {
   description = "Artifact Registry Docker repository name. Defaults to <project>-<environment>-containers."
   type        = string
@@ -230,22 +225,28 @@ variable "neon_app_role" {
   default     = "opentroop_app"
 }
 
-variable "neon_min_cu" {
-  description = "Minimum Neon compute units."
-  type        = number
-  default     = 0.25
-}
+# variable "neon_min_cu" {
+#   description = "Minimum Neon compute units."
+#   type        = number
+#   default     = 0.25
+# }
 
-variable "neon_max_cu" {
-  description = "Maximum Neon compute units."
-  type        = number
-  default     = 1
-}
+# variable "neon_max_cu" {
+#   description = "Maximum Neon compute units."
+#   type        = number
+#   default     = 1
+# }
 
-variable "neon_suspend_timeout_seconds" {
-  description = "Seconds before inactive Neon compute suspends."
+# variable "neon_suspend_timeout_seconds" {
+#   description = "Seconds before inactive Neon compute suspends."
+#   type        = number
+#   default     = 300
+# }
+
+variable "neon_history_retention_seconds" {
+  description = "History retention in seconds for the Neon project (maximum of 21600 / 6 hours for Free tier, default 86400 / 24 hours for paid plans)."
   type        = number
-  default     = 300
+  default     = 21600
 }
 
 variable "database_url" {
@@ -328,4 +329,10 @@ variable "web_ingress" {
   description = "Ingress traffic policy for the Web service. Can be INGRESS_TRAFFIC_ALL, INGRESS_TRAFFIC_INTERNAL_ONLY, or INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER."
   type        = string
   default     = "INGRESS_TRAFFIC_ALL"
+}
+
+variable "deletion_protection" {
+  description = "Enable or disable deletion protection on Cloud Run services."
+  type        = bool
+  default     = false
 }

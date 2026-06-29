@@ -70,9 +70,9 @@ locals {
     } : k => v if v != null
   }
 
-  runtime_secret_names = toset(keys(local.runtime_secret_values))
+  runtime_secret_names = nonsensitive(toset(keys(local.runtime_secret_values)))
 
-  api_secret_env_names = [
+  api_secret_env_names = nonsensitive([
     for name in [
       "APP_SECRET",
       "AUTH_AUDIENCE",
@@ -82,19 +82,17 @@ locals {
       "DATABASE_URL_ADMIN",
       "DATABASE_URL_MIGRATE",
     ] : name if lookup(local.runtime_secret_values, name, null) != null
-  ]
+  ])
 
-  web_secret_env_names = [
+  web_secret_env_names = nonsensitive([
     for name in [
       "CLERK_SECRET_KEY",
     ] : name if lookup(local.runtime_secret_values, name, null) != null
-  ]
+  ])
 
-  api_service_account_id    = "${substr(local.name_prefix, 0, 20)}-api"
-  web_service_account_id    = "${substr(local.name_prefix, 0, 20)}-web"
-  github_service_account_id = "${substr(local.name_prefix, 0, 20)}-github"
-  workload_identity_pool_id = "${substr(local.name_prefix, 0, 24)}-github"
-  worker_name               = "${local.name_prefix}-proxy"
+  api_service_account_id = "${substr(local.name_prefix, 0, 20)}-api"
+  web_service_account_id = "${substr(local.name_prefix, 0, 20)}-web"
+  worker_name            = "${local.name_prefix}-proxy"
 }
 
 check "database_url_configured" {
