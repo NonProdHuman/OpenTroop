@@ -319,9 +319,9 @@ boolean tree. Tracked here so the decision is explicit.
 3. **Old `relationship` rules** — dropped silently in migration (no real data exists).
 4. **Two parent options** — `include_parents` (membership; custom only) and
    `cc_parents_on_messages` (comms; custom + patrol, stored now, consumed by Messaging later).
+5. **Surface the comms checkbox now** — shown in the UI immediately with a "coming soon"
+   hint (Messaging consumes it later). Not deferred.
 
 ## Open Questions
 
-- **Surface the comms checkbox now or defer the UI?** Proposal: surface now with a
-  "coming soon" hint (data model lands regardless). Hold the visible checkbox only if
-  preferred until Messaging (Pillar 2) ships.
+None — all decisions resolved. Ready to implement.
