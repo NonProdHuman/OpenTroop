@@ -8,7 +8,7 @@ import type { Membership } from "@/types/api"
 
 const STORAGE_KEY = "opentroop.active_tenant"
 const DEFAULT_TENANT = process.env.NEXT_PUBLIC_TENANT_ID ?? ""
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+const BASE = "/api"
 const CLERK_JWT_TEMPLATE = process.env.NEXT_PUBLIC_CLERK_JWT_TEMPLATE || undefined
 
 interface TenantContextValue {
