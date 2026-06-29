@@ -6,6 +6,8 @@ import { useMe } from "@/hooks/use-me"
 import { useMemberships } from "@/hooks/use-memberships"
 import { Loader2 } from "lucide-react"
 
+import { getTenantRedirectUrl } from "@/lib/subdomain"
+
 export default function RootPage() {
   const router = useRouter()
   const { data: me, isLoading: meLoading } = useMe()
@@ -15,7 +17,12 @@ export default function RootPage() {
     if (meLoading || membershipsLoading) return
 
     if (memberships && memberships.length > 0) {
-      router.replace("/members")
+      const redirectUrl = getTenantRedirectUrl(memberships[0].tenant_slug, "/members")
+      if (redirectUrl) {
+        window.location.replace(redirectUrl)
+      } else {
+        router.replace("/members")
+      }
     } else if (me?.platform_role) {
       router.replace("/platform/tenants")
     }
