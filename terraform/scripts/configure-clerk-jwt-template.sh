@@ -40,9 +40,15 @@ import sys
 
 path, name = sys.argv[1], sys.argv[2]
 payload = json.load(open(path))
-templates = payload.get("data", payload if isinstance(payload, list) else [])
+if isinstance(payload, list):
+    templates = payload
+elif isinstance(payload, dict):
+    templates = payload.get("data", [])
+else:
+    templates = []
+
 for template in templates:
-    if template.get("name") == name:
+    if isinstance(template, dict) and template.get("name") == name:
         print(template.get("id", ""))
         break
 PY
