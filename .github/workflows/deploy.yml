@@ -57,20 +57,6 @@ jobs:
           docker push ${{ env.BACKEND_IMAGE }}
           docker push ${{ env.BACKEND_IMAGE_LATEST }}
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          python-version: "3.12"
-          enable-cache: true
-
-      - name: Run Database Migrations
-        working-directory: ./backend
-        run: |
-          uv sync --frozen --no-dev
-          uv run alembic upgrade head
-        env:
-          DATABASE_URL_MIGRATE: ${{ secrets.DATABASE_URL_MIGRATE || secrets.DATABASE_URL }}
-
       - name: Deploy Backend to Cloud Run
         id: deploy-backend
         uses: google-github-actions/deploy-cloudrun@v3
