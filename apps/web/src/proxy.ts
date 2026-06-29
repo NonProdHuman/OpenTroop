@@ -2,13 +2,13 @@ import { NextResponse } from "next/server"
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
 
 // Define which routes do not require authentication
-const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)", "/", "/landing(.*)", "/api(.*)"])
+const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)", "/landing(.*)", "/api(.*)"])
 
 export default clerkMiddleware(async (auth, request) => {
   const url = request.nextUrl
 
-  // Check if it's the root landing page domain to ensure the root '/' is considered public
-  const hostname = request.headers.get("host") || ""
+  // Read X-Forwarded-Host since Cloud Run sits behind Cloudflare proxy
+  const hostname = request.headers.get("x-forwarded-host") || request.headers.get("host") || ""
   const isLocal = hostname.includes("localhost") || hostname.includes("127.0.0.1")
   const isLanding = isLocal
     ? (hostname === "localhost:3000" || hostname === "opentroop.localhost:3000")
