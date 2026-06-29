@@ -336,7 +336,7 @@ sub-navigation vs. in-page tabs — is specified in
 App-shell work not already tracked under a pillar:
 
 - [x] Collapsible sidebar with sub-navigation (hybrid IA — `app-sidebar.tsx`)
-- [ ] **Current-member + permissions endpoint** — a tenant-scoped
+- [x] **Current-member + permissions endpoint** — a tenant-scoped
       `GET /auth/session` (resolved from the JWT + `X-Tenant-ID`) returning the
       caller's `Member` and effective `permissions[]` (via `resolve_permissions`),
       plus a `usePermissions()` / `has(permission)` hook. Today the frontend only
@@ -344,12 +344,12 @@ App-shell work not already tracked under a pillar:
       permissions**, so nav and buttons can't be gated. Client-side gating is UX
       only; the backend `require()` stays the real enforcement. Spec:
       `docs/spec/session-permissions.md`. **Prerequisite** for:
-- [ ] Permission-filtered nav & action buttons — hide sections (e.g. Money without
+- [x] Permission-filtered nav & action buttons — hide sections (e.g. Money without
       `finance:read`) and actions (Add Member without `member:write`) the caller
       can't use; extends the `isPlatformAdmin` pattern in `app-sidebar.tsx`
 - [ ] **Home / dashboard** landing (announcements feed, upcoming events, my action
       items) — replaces today's redirect-to-Members default
-- [ ] **Roles & permissions** management UI (RBAC backend exists; no surface yet)
+- [x] **Roles & permissions** management UI (RBAC backend exists; no surface yet)
 - [ ] **Bulk editing** — bulk medical-form dates and other mass member updates
       (Members → Bulk edit)
 - [ ] **Parent ("My Family") views** — permission-scoped views inside Members and
