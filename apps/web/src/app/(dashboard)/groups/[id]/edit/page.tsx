@@ -164,16 +164,18 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
   const [expandedDimensions, setExpandedDimensions] = useState<Set<RuleDimension>>(new Set())
 
   const isSystem = group.is_system
-  const memberIds = new Set(members.map((m) => m.id))
 
   // Split the resolved set into hand-added (removable) vs rule-derived (display only).
   const manualIds = new Set(manualRows.map((r) => r.member_id))
   const manualMembers = members.filter((m) => manualIds.has(m.id))
   const dynamicMembers = members.filter((m) => !manualIds.has(m.id))
+  const dynamicIds = new Set(dynamicMembers.map((m) => m.id))
 
+  // Exclude only existing *manual* members — a rule-matched member can still be
+  // added to "pin" them so they stay even if the rule later stops matching.
   const addableMembers = allMembers.filter((m) => {
     if (m.is_deleted) return false
-    if (memberIds.has(m.id)) return false
+    if (manualIds.has(m.id)) return false
     if (type === "patrol" && m.member_type === "adult") return false
     return true
   })
@@ -353,7 +355,12 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
                           }}
                         >
                           {displayName(m)}
-                          <span className="ml-auto text-xs text-muted-foreground capitalize">
+                          {dynamicIds.has(m.id) && (
+                            <span className="ml-auto text-xs text-muted-foreground italic">
+                              via rules — pin
+                            </span>
+                          )}
+                          <span className={cn("text-xs text-muted-foreground capitalize", !dynamicIds.has(m.id) && "ml-auto")}>
                             {m.member_type}
                           </span>
                         </CommandItem>

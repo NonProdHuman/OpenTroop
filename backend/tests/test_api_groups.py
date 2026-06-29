@@ -248,6 +248,23 @@ def test_manual_members_endpoint_excludes_rule_derived(client: TestClient) -> No
     assert manual_ids == {manual["id"]}
 
 
+def test_pin_rule_matched_member_creates_manual_row(client: TestClient) -> None:
+    """A member already resolved via a rule can be added explicitly to 'pin' them."""
+    group = _create_group(client, "Scouts", "custom")
+    scout = _create_member(client, "Ruley")
+    client.put(f"/groups/{group['id']}/rules/member_type", json={"values": ["scout"]})
+
+    # Resolved via the rule, but not yet a manual member.
+    assert scout["id"] in {m["id"] for m in client.get(f"/groups/{group['id']}/members").json()}
+    assert client.get(f"/groups/{group['id']}/manual-members").json() == []
+
+    # Pin them.
+    r = client.post(f"/groups/{group['id']}/members", json={"member_id": scout["id"]})
+    assert r.status_code == 201
+    manual_ids = {gm["member_id"] for gm in client.get(f"/groups/{group['id']}/manual-members").json()}
+    assert manual_ids == {scout["id"]}
+
+
 def test_patrol_rejects_rules(client: TestClient) -> None:
     """Patrols are manual-only — the rule editor is closed to them."""
     patrol = _create_group(client, "Wolf", "patrol")

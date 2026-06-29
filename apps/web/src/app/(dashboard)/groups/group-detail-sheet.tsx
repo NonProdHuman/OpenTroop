@@ -91,10 +91,11 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
 
   const isSystem = group.is_system
   const manualIds = new Set(manualRows.map((r) => r.member_id))
-  const memberIds = new Set(members.map((m) => m.id))
+  // Exclude only existing *manual* members so a rule-matched member can still be
+  // pinned (added explicitly) to keep them in the group regardless of the rules.
   const addableMembers = allMembers.filter((m) => {
     if (m.is_deleted) return false
-    if (memberIds.has(m.id)) return false
+    if (manualIds.has(m.id)) return false
     if (group.group_type === "patrol" && m.member_type === "adult") return false
     return true
   })
