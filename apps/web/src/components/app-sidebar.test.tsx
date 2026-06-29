@@ -58,10 +58,10 @@ function mockPermissions(has: (p: string) => boolean) {
   })
 }
 
-function renderSidebar() {
+function renderSidebar(isAdminView = false) {
   return render(
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar isAdminView={isAdminView} />
     </SidebarProvider>,
   )
 }
@@ -141,19 +141,32 @@ describe("AppSidebar", () => {
     expect(screen.getByText("OT")).toBeInTheDocument()
   })
 
-  it("hides the Platform link for non-platform-admins", () => {
+  it("hides the Platform Admin link for non-platform-admins in tenant view", () => {
     mockMe({ data: { platform_role: null } })
     renderSidebar()
-    expect(screen.queryByText("Platform")).not.toBeInTheDocument()
+    expect(screen.queryByText("Platform Admin")).not.toBeInTheDocument()
   })
 
-  it("shows the Platform link for platform admins", async () => {
+  it("shows the Platform Admin link for platform admins in tenant view", () => {
     mockMe({ data: { platform_role: "superadmin" } })
     renderSidebar()
-    expect(screen.getByText("Platform")).toBeInTheDocument()
-    await userEvent.click(screen.getByText("Platform"))
-    expect(screen.getByText("Tenants").closest("a")).toHaveAttribute("href", "http://admin.opentroop.localhost:3000/tenants")
-    expect(screen.getByText("Admins").closest("a")).toHaveAttribute("href", "http://admin.opentroop.localhost:3000/admins")
+    expect(screen.getByText("Platform Admin")).toBeInTheDocument()
+    expect(screen.getByText("Platform Admin").closest("a")).toHaveAttribute("href", "http://admin.opentroop.localhost:3000/tenants")
+  })
+
+  it("shows Tenants and Admins links in admin view and hides troop items", () => {
+    mockMe({ data: { platform_role: "superadmin" } })
+    renderSidebar(true) // isAdminView = true
+
+    // Troop items shouldn't be here
+    expect(screen.queryByText("Events")).not.toBeInTheDocument()
+
+    // Platform footer shouldn't be here since we're already in admin
+    expect(screen.queryByText("Platform Admin")).not.toBeInTheDocument()
+
+    // Admin links should be present and top-level
+    expect(screen.getByText("Tenants").closest("a")).toHaveAttribute("href", "/tenants")
+    expect(screen.getByText("Admins").closest("a")).toHaveAttribute("href", "/admins")
   })
 
   it("hides nav items whose required permission is absent", async () => {

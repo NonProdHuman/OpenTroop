@@ -25,7 +25,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
 
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar isAdminView={true} />
       <SidebarInset>
         {/* Platform sub-header: sidebar trigger + breadcrumb + Tenants/Admins tabs + back link */}
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
