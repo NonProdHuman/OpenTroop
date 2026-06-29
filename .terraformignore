@@ -1,0 +1,25 @@
+# Ignore python virtual environments
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Ignore frontend node modules or built assets
+node_modules/
+.next/
+dist/
+build/
+apps/
+backend/
+reference/
+scripts/
+
+# Ignore local tool caches
+.uv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Ignore any massive doc or asset folders if you have them
+docs/
+assets/

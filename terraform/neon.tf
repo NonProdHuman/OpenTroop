@@ -1,10 +1,11 @@
 resource "neon_project" "database" {
   count = var.manage_neon ? 1 : 0
 
-  name           = "${local.name_prefix}-db"
-  pg_version     = var.neon_pg_version
-  region_id      = var.neon_region_id
-  store_password = "yes"
+  name                      = "${local.name_prefix}-db"
+  pg_version                = var.neon_pg_version
+  region_id                 = var.neon_region_id
+  store_password            = "yes"
+  history_retention_seconds = var.neon_history_retention_seconds
 
   branch {
     name          = var.neon_branch_name
@@ -13,9 +14,9 @@ resource "neon_project" "database" {
   }
 
   default_endpoint_settings {
-    autoscaling_limit_min_cu = var.neon_min_cu
-    autoscaling_limit_max_cu = var.neon_max_cu
-    suspend_timeout_seconds  = var.neon_suspend_timeout_seconds
+    # autoscaling_limit_min_cu = var.neon_min_cu
+    # autoscaling_limit_max_cu = var.neon_max_cu
+    # suspend_timeout_seconds  = var.neon_suspend_timeout_seconds
   }
 }
 
