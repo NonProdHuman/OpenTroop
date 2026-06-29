@@ -66,11 +66,11 @@ membership model.
       inspect tenants; suspend/unsuspend (suspended tenants are locked out of tenant-scoped
       requests); list, invite, and revoke tenant admins (last-admin guard). Shared
       provisioning helpers in `app/core/provisioning.py`
-- [x] Platform control-plane **UI** — global management console at `/platform` (admin-gated via
+- [x] Platform control-plane **UI** — global management console on the `admin` subdomain (e.g. `admin.opentroop.dev`, admin-gated via
       `platform_role`): tenants list, provision-tenant dialog, tenant detail with suspend/unsuspend
-      and admin invite/revoke; sidebar link shown only to platform admins
+      and admin invite/revoke; linked from the footer of the tenant sidebar for platform admins.
 - [x] Platform-admin management — `GET/POST/DELETE /platform/admins` (grant/revoke gated to
-      superadmins; last-superadmin guard) + `/platform/admins` console screen; promotes platform
+      superadmins; last-superadmin guard) + `admin.opentroop.dev/admins` console screen; promotes platform
       admins through the UI instead of the `promote-platform-admin` CLI alone
 - [ ] Scoutbook member export import (BSA recharter format)
 - [ ] Automated invite email delivery (depends on Pillar 5 notification infra) — until then
