@@ -46,7 +46,8 @@ async def get_tenant_id(
     1. Subdomain — ``troop123.opentroop.app`` → slug lookup in DB.
     2. ``X-Tenant-ID`` header — raw UUID → DB validation.
     """
-    host = request.headers.get("host", "")
+    forwarded_host = request.headers.get("x-forwarded-host")
+    host = forwarded_host or request.headers.get("host", "")
     slug = _extract_subdomain(host, settings.app_domain)
 
     if slug:
