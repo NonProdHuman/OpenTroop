@@ -97,7 +97,10 @@ class EventParticipant(TrackedBase):
     # Explicit member response, distinct from signed_up/attended. DECLINED drives
     # gray-out in the app and omission from the member's personal iCal feed.
     rsvp_status: Mapped[RsvpStatus] = mapped_column(
-        SAEnum(RsvpStatus), default=RsvpStatus.NO_RESPONSE, nullable=False, index=True
+        SAEnum(RsvpStatus, values_callable=lambda x: [e.value for e in x]),
+        default=RsvpStatus.NO_RESPONSE,
+        nullable=False,
+        index=True,
     )
     attended: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     guest_count: Mapped[int] = mapped_column(default=0, nullable=False)
