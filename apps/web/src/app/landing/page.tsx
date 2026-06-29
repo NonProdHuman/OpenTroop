@@ -7,6 +7,7 @@ import { useMemberships } from "@/hooks/use-memberships"
 import { Loader2 } from "lucide-react"
 
 import { getTenantRedirectUrl } from "@/lib/subdomain"
+import { getAdminUrl } from "@/lib/domains"
 
 export default function RootPage() {
   const router = useRouter()
@@ -24,7 +25,7 @@ export default function RootPage() {
         router.replace("/members")
       }
     } else if (me?.platform_role) {
-      router.replace("/platform/tenants")
+      window.location.replace(getAdminUrl("/tenants"))
     }
   }, [me, memberships, meLoading, membershipsLoading, router])
 

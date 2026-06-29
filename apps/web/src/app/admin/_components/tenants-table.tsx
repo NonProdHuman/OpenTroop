@@ -55,7 +55,7 @@ export function TenantsTable({
           tenants.map((t) => (
             <TableRow key={t.id} className="hover:bg-muted/40 transition-colors duration-75">
               <TableCell className="font-medium">
-                <Link href={`/platform/tenants/${t.id}`} className="hover:underline underline-offset-4">
+                <Link href={`/tenants/${t.id}`} className="hover:underline underline-offset-4">
                   {t.name}
                 </Link>
               </TableCell>
