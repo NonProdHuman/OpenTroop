@@ -226,7 +226,12 @@ def upsert_group_rule(
     db: DbDep,
 ) -> GroupRule:
     """Create or update a dynamic membership rule for a specific dimension."""
-    get_or_404(db, Group, group_id, tenant_id, "Group not found")
+    group = get_or_404(db, Group, group_id, tenant_id, "Group not found")
+    if group.group_type is GroupType.PATROL:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Patrols cannot have dynamic rules",
+        )
 
     values = body.values
     if dimension in (RuleDimension.OA_MEMBER, RuleDimension.OA_ACTIVE):
@@ -278,7 +283,7 @@ def upsert_group_rule(
                     detail=f"Invalid position UUID: {val}",
                 ) from err
             require_tenant_fk(db, Position, pos_id, tenant_id, "position_id")
-    elif dimension in (RuleDimension.GROUP_MEMBER, RuleDimension.RELATIONSHIP):
+    elif dimension == RuleDimension.GROUP_MEMBER:
         if not values:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
