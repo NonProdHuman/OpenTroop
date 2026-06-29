@@ -54,6 +54,7 @@ locals {
     var.cors_origins,
     [
       "https://${var.app_domain}",
+      "https://*.${var.app_domain}",
     ],
   ))
 
