@@ -206,16 +206,32 @@ frontend never re-derives it). Add `*Create` / `*Update` carrying the date field
 1. **Positions are created only when actually used** — i.e. referenced by at least one
    history row whose `Person_ID` resolves to an imported member. Unused catalog entries are
    ignored (a troop's catalog lists dozens of positions it has never filled).
-2. **Reuse seeded positions by slug.** Slugify the TWH `Position` name
-   (`"Assistant Scoutmaster"` → `assistant-scoutmaster`) and match against existing
-   `Position.slug` in the tenant. A match reuses the seeded position (so its functional-role
-   permissions apply); no match creates a new non-system `Position`
-   (`is_system=False`, `applies_to` from `Adult_Flag`, `sort_order` from `Display_Sequence`).
-   - Known imperfect matches that will create fresh positions: `"Committee Chairman"`
-     (seeded: `committee-chair`), `"Chartered organization representative"` (seeded:
-     `chartered-org-rep`). Acceptable — they import as plain titles with no permissions. A
-     **slug alias table** (TWH `Position_Code` → seeded slug; `CC`→`committee-chair`,
-     `CR`→`chartered-org-rep`, …) is a later refinement, not v1.
+2. **Match seeded positions deterministically — three tiers, no fuzzy matching.** For each
+   used catalog entry, resolve to an OpenTroop `Position` in this order:
+   1. **Exact slug match.** Slugify the TWH `Position` name (`"Assistant Scoutmaster"` →
+      `assistant-scoutmaster`) and match an existing `Position.slug` in the tenant. Handles
+      the bulk that already line up (`Scoutmaster`, `Patrol Leader`, `Committee Member`, …).
+   2. **BSA `Position_Code` crosswalk.** A small static dict maps the canonical BSA code to a
+      seeded slug for cases where names differ but the code is unambiguous. Confirmed from
+      real exports: `SM`→`scoutmaster`, `SA`→`assistant-scoutmaster`, `CC`→`committee-chair`,
+      `CR`→`chartered-org-rep`, `MC`→`committee-member`. Extended as more codes are observed
+      (scout codes `SPL`, `PL`, … added when seen). Codes are a controlled, unique vocabulary,
+      so there is no collision risk.
+   3. **Create a new non-system `Position`.** Anything still unmatched (custom troop roles,
+      scout positions with no code that don't name-match) is created fresh
+      (`is_system=False`, `applies_to` from `Adult_Flag`, `sort_order` from
+      `Display_Sequence`). It imports as a plain title with **no permissions** — safe by
+      default; the troop can map it into a functional role later.
+
+   **Fuzzy/similarity matching is explicitly rejected.** In an RBAC context the near-miss
+   names are precisely the ones with *different* permissions — `Committee Chair` vs
+   `Committee Member`, `Scoutmaster` vs `Assistant Scoutmaster`, `Patrol Leader` vs `Senior
+   Patrol Leader`. A wrong match silently mis-grants authority, so the high false-positive
+   cost rules out similarity scoring; tier 2's exact code table is the deliberate alternative.
+
+   **Every created (tier-3) position is surfaced** in the import result (`warnings` plus the
+   `positions` count) so the admin sees "created N new positions: […] — review and assign
+   functional roles if needed" rather than silent drift.
 3. **Import full history, dated.** For every history row (current *and* ended), write one
    `MemberPositionAssignment` with `start_date` ← `Start_Date` and `end_date` ← `End_Date`
    (null for current). This is the change from the current-only prototype: ended terms are
@@ -274,15 +290,16 @@ so the API is built to fit it. On the member detail/edit screen (`members-screen
   prevention moved to the API. One source of truth for currency.
 - **Importer loads full history** once the schema can hold it (this spec), reversing the
   current-only prototype's skip-ended behavior.
+- **Importer matching is deterministic** (exact slug → BSA code crosswalk → create new); no
+  fuzzy/similarity matching, because near-miss position names carry different permissions.
+- **Singletons are not enforced.** A position may have multiple current holders;
+  "one Scoutmaster / one SPL" is advisory only (resolves roles-rbac open question #1).
+- **Future-dated terms are current.** A future `start_date` counts as current (not just a
+  future `end_date`) — supports recording elections ahead of the term start. No
+  `start_date <= today` gate.
 
 ## Open questions
 
-1. **Term-aware singletons.** roles-rbac open question #1 (one Scoutmaster, one SPL) becomes
-   tractable with terms — "at most one *current* holder." Enforce here, or keep advisory?
-   Proposed: advisory in v1, revisit with the position-editor UI.
-2. **`assigned_by_id` on import.** Imported terms have no OpenTroop actor to credit.
+1. **`assigned_by_id` on import.** Imported terms have no OpenTroop actor to credit.
    Proposed: leave null (the audit trail legitimately starts at import); consider a synthetic
    "imported from TWH" marker later.
-3. **Currency of a null `start_date` + future-dated troops.** The chosen rule treats a future
-   `start_date` as already current. If troops find pre-dated assignments confusing, gate
-   currency on `start_date <= today` too. Deferred pending real usage.
