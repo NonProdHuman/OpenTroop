@@ -1,11 +1,18 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Check, ChevronDown, ChevronUp, Users } from "lucide-react"
+import { AlertTriangle, Check, ChevronDown, ChevronUp, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { useSession } from "@/hooks/use-session"
 import { useRelationships } from "@/hooks/use-relationships"
@@ -294,10 +301,13 @@ function MemberRsvpRow({
           <span className="text-sm font-medium">{memberName(member)}</span>
           <span className="text-xs text-muted-foreground capitalize">{member.member_type}</span>
           {needsSlip && slipStatus === "pending" && draft.rsvp_status === "going" && (
-            <span className="text-xs text-amber-600 font-medium">Permission needed</span>
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+              <AlertTriangle className="h-3 w-3" />
+              Permission needed
+            </span>
           )}
           {needsSlip && slipStatus === "granted" && (
-            <span className="text-xs text-green-600 font-medium flex items-center gap-0.5">
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800">
               <Check className="h-3 w-3" />
               Permission granted
             </span>
@@ -317,38 +327,44 @@ function MemberRsvpRow({
       </div>
 
       {/* Permission slip prompt (shown right after going is selected by a guardian) */}
-      {showPermDialog && needsSlip && canSign && (
-        <div className="rounded-md bg-amber-50 border border-amber-200 p-3 space-y-2 text-sm">
-          <p className="text-amber-800 font-medium">Permission required</p>
-          <p className="text-amber-700 text-xs whitespace-pre-wrap">{permissionMessage}</p>
-          <div className="space-y-1">
-            <Label className="text-xs">Your name (electronic signature)</Label>
-            <Input
-              value={sigInput}
-              onChange={(e) => setSigInput(e.target.value)}
-              placeholder="Type your full name"
-              className="h-7 text-sm"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              className="h-7 text-xs"
-              disabled={!sigInput.trim() || grantPermission.isPending}
-              onClick={handleGrantPermission}
-            >
-              I Agree — Grant Permission
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 text-xs"
-              onClick={() => setShowPermDialog(false)}
-            >
-              Later
-            </Button>
-          </div>
-        </div>
+      {needsSlip && canSign && (
+        <Dialog open={showPermDialog} onOpenChange={setShowPermDialog}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                Permission required for {member.first_name}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="max-h-[50vh] overflow-y-auto rounded-md border border-border bg-muted/30 p-3">
+              <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap">
+                {permissionMessage}
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Your name (electronic signature)</Label>
+              <Input
+                value={sigInput}
+                onChange={(e) => setSigInput(e.target.value)}
+                placeholder="Type your full name"
+                className="h-9 text-sm"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowPermDialog(false)}>
+                Later
+              </Button>
+              <Button
+                className="bg-green-700 hover:bg-green-800 text-white"
+                disabled={!sigInput.trim() || grantPermission.isPending}
+                onClick={handleGrantPermission}
+              >
+                <Check className="h-3.5 w-3.5 mr-1" />
+                I Agree — Grant Permission
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* "Give permission" button shown to a guardian when slip is pending */}
@@ -359,10 +375,10 @@ function MemberRsvpRow({
         draft.rsvp_status === "going" && (
           <Button
             size="sm"
-            variant="outline"
-            className="h-7 text-xs"
+            className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white"
             onClick={() => setShowPermDialog(true)}
           >
+            <AlertTriangle className="h-3 w-3 mr-1" />
             Give permission for {member.first_name}
           </Button>
         )}
