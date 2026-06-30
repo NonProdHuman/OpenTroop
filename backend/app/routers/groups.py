@@ -36,14 +36,14 @@ router = APIRouter(prefix="/groups", tags=["groups"])
 
 
 @router.get(
-    "/", response_model=list[GroupRead], dependencies=[Depends(require(Permission.MEMBER_READ))]
+    "", response_model=list[GroupRead], dependencies=[Depends(require(Permission.MEMBER_READ))]
 )
 def list_groups(tenant_id: TenantDep, db: DbDep) -> Sequence[Group]:
     return db.scalars(select(Group).where(Group.is_deleted.is_(False))).all()
 
 
 @router.post(
-    "/",
+    "",
     response_model=GroupRead,
     status_code=201,
     dependencies=[Depends(require(Permission.MEMBER_WRITE))],

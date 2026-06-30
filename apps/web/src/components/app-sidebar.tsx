@@ -87,7 +87,9 @@ export function AppSidebar({ isAdminView = false }: { isAdminView?: boolean }) {
   const pathname = usePathname()
   const { data: me } = useMe()
   const isPlatformAdmin = Boolean(me?.platform_role)
-  const { has } = usePermissions()
+  // In admin view the console is platform-scoped (gated by platform_role), so don't
+  // fetch tenant RBAC — avoids a spurious tenant-scoped /auth/session on admin hosts.
+  const { has } = usePermissions(!isAdminView)
   const { state, setOpen } = useSidebar()
   const currentNavItems = isAdminView ? adminNavItems : tenantNavItems
 

@@ -22,7 +22,7 @@ def _validate_permission_slip_config(allow_signups: bool, require_permission_sli
 
 
 @router.get(
-    "/",
+    "",
     response_model=list[EventTypeRead],
     dependencies=[Depends(require(Permission.EVENT_READ))],
 )
@@ -31,7 +31,7 @@ def list_event_types(tenant_id: TenantDep, db: DbDep) -> Sequence[EventType]:
 
 
 @router.post(
-    "/",
+    "",
     response_model=EventTypeRead,
     status_code=201,
     dependencies=[Depends(require(Permission.EVENT_WRITE))],

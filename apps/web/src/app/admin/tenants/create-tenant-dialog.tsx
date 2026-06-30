@@ -81,7 +81,11 @@ export function CreateTenantDialog() {
                 this token.
               </DialogDescription>
             </DialogHeader>
-            <InviteTokenDisplay token={result.invite_token} expiresAt={result.invite_expires_at} />
+            <InviteTokenDisplay
+              token={result.invite_token}
+              slug={result.slug}
+              expiresAt={result.invite_expires_at}
+            />
             <DialogFooter>
               <Button onClick={() => handleOpenChange(false)}>Done</Button>
             </DialogFooter>

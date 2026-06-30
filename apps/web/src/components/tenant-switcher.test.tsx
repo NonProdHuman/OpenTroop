@@ -137,15 +137,26 @@ describe("TenantSwitcher", () => {
     expect(screen.getByRole("menuitem", { name: /Troop Beta/ })).toBeInTheDocument()
   })
 
-  it("calls setActiveTenantId with the chosen tenant when a menu item is clicked", async () => {
-    const setActiveTenantId = vi.fn()
+  it("navigates to the chosen troop's subdomain when a menu item is clicked", async () => {
+    const hrefSpy = vi.fn()
+    const original = window.location
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        protocol: "http:",
+        set href(v: string) {
+          hrefSpy(v)
+        },
+      },
+    })
     mockMemberships([MEMBERSHIP_A, MEMBERSHIP_B])
-    mockTenant("tenant-a", setActiveTenantId)
+    mockTenant("tenant-a")
     render(<TenantSwitcher />)
 
     await userEvent.click(screen.getByRole("menuitem", { name: /Troop Beta/ }))
 
-    expect(setActiveTenantId).toHaveBeenCalledWith("tenant-b")
+    expect(hrefSpy).toHaveBeenCalledWith("http://troop-beta.localhost:3000/members")
+    Object.defineProperty(window, "location", { configurable: true, value: original })
   })
 
   it("shows a checkmark next to the active membership", () => {

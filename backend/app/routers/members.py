@@ -15,14 +15,14 @@ router = APIRouter(prefix="/members", tags=["members"])
 
 
 @router.get(
-    "/", response_model=list[MemberRead], dependencies=[Depends(require(Permission.MEMBER_READ))]
+    "", response_model=list[MemberRead], dependencies=[Depends(require(Permission.MEMBER_READ))]
 )
 def list_members(tenant_id: TenantDep, db: DbDep) -> Sequence[Member]:
     return db.scalars(select(Member).where(Member.is_deleted.is_(False))).all()
 
 
 @router.post(
-    "/",
+    "",
     response_model=MemberRead,
     status_code=201,
     dependencies=[Depends(require(Permission.MEMBER_WRITE))],

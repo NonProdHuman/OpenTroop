@@ -1,10 +1,12 @@
 "use client"
 
 import { useEffect } from "react"
+import Link from "next/link"
 import { Building2, ChevronsUpDown, Check } from "lucide-react"
 import { useMemberships } from "@/hooks/use-memberships"
 import { useActiveTenant } from "@/lib/tenant-context"
 import { getTenantRedirectUrl } from "@/lib/subdomain"
+import { getTenantUrl } from "@/lib/domains"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,20 +32,30 @@ export function TenantSwitcher() {
 
   const activeMembership = memberships.find((m) => m.tenant_id === activeTenantId)
 
-  // Single membership — no point showing a dropdown.
+  // Single membership — no dropdown, but make it a link to the troop's dashboard so
+  // it works as navigation (notably from the admin console back into the tenant).
   if (memberships.length <= 1) {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <div className="flex items-center gap-2 px-2 py-1">
-            <Building2 className="h-4 w-4 shrink-0" style={{ color: "var(--sidebar-foreground)", opacity: 0.5 }} />
-            <span
-              className="text-sm font-medium truncate"
-              style={{ color: "var(--sidebar-foreground)" }}
-            >
-              {activeMembership?.tenant_name ?? "No troop selected"}
-            </span>
-          </div>
+          {activeMembership ? (
+            <SidebarMenuButton render={<Link href={getTenantUrl(activeMembership.tenant_slug, "/members")} />}>
+              <Building2 className="h-4 w-4 shrink-0 opacity-50" />
+              <span className="text-sm font-medium truncate">
+                {activeMembership.tenant_name}
+              </span>
+            </SidebarMenuButton>
+          ) : (
+            <div className="flex items-center gap-2 px-2 py-1">
+              <Building2 className="h-4 w-4 shrink-0" style={{ color: "var(--sidebar-foreground)", opacity: 0.5 }} />
+              <span
+                className="text-sm font-medium truncate"
+                style={{ color: "var(--sidebar-foreground)" }}
+              >
+                No troop selected
+              </span>
+            </div>
+          )}
         </SidebarMenuItem>
       </SidebarMenu>
     )
