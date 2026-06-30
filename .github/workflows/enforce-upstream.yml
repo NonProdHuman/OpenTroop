@@ -1,0 +1,23 @@
+name: Enforce Git Workflow
+
+on:
+    pull_request:
+        branches:
+            - main
+
+jobs:
+    validate-branch:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check source branch
+              run: |
+                  SRC_BRANCH="${{ github.head_ref }}"
+                  echo "PR source branch is: $SRC_BRANCH"
+
+                  if [ "$SRC_BRANCH" != "develop" ]; then
+                    echo "❌ ERROR: PRs targeting 'main' must originate from 'develop'."
+                    echo "Please retarget this PR to 'develop' first."
+                    exit 1
+                  fi
+
+                  echo "✅ Valid branch lifecycle progression."

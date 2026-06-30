@@ -113,6 +113,12 @@ Every tenant-scoped table MUST inherit `TrackedBase` (`app/models/base.py`), whi
 instead. `PlatformBase` has the same `id`, timestamps, and `is_deleted` as
 `TrackedBase` but **no `tenant_id`**.
 
+**External-source provenance.** Entities that a bulk import creates also mix in
+`SourceTracked` (`source_system` / `source_id` / `source_updated_at`, all nullable)
+so a future incremental sync can match an upstream record to its OpenTroop row and
+detect changes. The TWH importer populates these; nothing reads them yet — it's
+groundwork for dual-run sync. See [`docs/spec/twh-sync.md`](docs/spec/twh-sync.md).
+
 The dialect-agnostic SQLAlchemy `Uuid` type lets the Postgres-targeted models run
 unmodified on SQLite, which is how the test suite stays DB-free.
 
@@ -192,10 +198,18 @@ unmodified on SQLite, which is how the test suite stays DB-free.
 - `FunctionalRolePermission` — grants a single `Permission` to a `FunctionalRole`.
 - `PositionFunctionalRole` — the many-to-many mapping (position ↔ functional role); the
   product surface, seeded with sensible defaults and edited rarely to tune governance.
-- `MemberPositionAssignment` — assigns a member to a position (the routine write).
-  `assigned_by_id` is the audit trail; soft-delete preserves history; a member may hold
-  multiple positions (permissions union across them). There is deliberately **no** path
-  to assign a functional role or raw permission directly to a member.
+- `MemberPositionAssignment` — a member's **term** holding a position (the routine write).
+  Nullable `start_date`/`end_date` make one row a dated term (`end_date` null/future ⇒
+  *current*; a past `end_date` is history). Currency is one rule —
+  `app.core.permissions.is_assignment_current` / `current_assignment_clause` — and the
+  permission resolver and group position rules grant only from **current** terms.
+  `assigned_by_id` is the audit trail; `is_deleted` is the "created in error" tombstone
+  (distinct from an ended term). A member may hold multiple positions (permissions union
+  across them) and the same position across repeat terms — there is **no**
+  `(member_id, position_id)` unique constraint; "at most one current term per
+  (member, position)" is enforced in the API. There is deliberately **no** path to assign
+  a functional role or raw permission directly to a member. See
+  [`docs/spec/position-history.md`](docs/spec/position-history.md).
 - `Permission` — `StrEnum` in `enums.py` listing all system capabilities, namespaced
   by domain (`member:read`, `event:create`, `role:manage`, etc.).
 - `resolve_permissions(member_id, session)` in `app/core/permissions.py` — a flat 2-hop

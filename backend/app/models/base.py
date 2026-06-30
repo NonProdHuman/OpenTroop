@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, Uuid
+from sqlalchemy import Boolean, DateTime, String, Uuid
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from uuid6 import uuid7
 
@@ -12,6 +12,29 @@ class Base(DeclarativeBase):
 
 def _utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+class SourceTracked:
+    """Mixin: provenance for rows imported/synced from an external system (e.g. TWH).
+
+    Applied **alongside** ``TrackedBase`` to the entities a bulk import creates, so a
+    later *incremental sync* can match an external record to its OpenTroop row
+    (match-and-upsert instead of duplicating) and detect what changed upstream. All
+    three fields are NULL for rows created natively in OpenTroop. This is groundwork
+    only — no sync engine reads them yet; capturing provenance now means today's
+    imports are upgradeable instead of orphaned. See ``docs/spec/twh-sync.md``.
+
+      * ``source_system``     - originating system id (e.g. ``"twh"``)
+      * ``source_id``         - that system's stable record id (TWH ``<i>``), indexed
+      * ``source_updated_at`` - the source's own last-modified time (TWH
+        ``Last_Update_UTC``); the change-detection + last-writer-wins signal for sync
+    """
+
+    source_system: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    source_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    source_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class PlatformBase(Base):

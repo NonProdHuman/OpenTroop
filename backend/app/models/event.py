@@ -9,7 +9,7 @@ from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Tex
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import TrackedBase
+from app.models.base import SourceTracked, TrackedBase
 from app.models.enums import RsvpStatus
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from app.models.member import Member
 
 
-class Event(TrackedBase):
+class Event(SourceTracked, TrackedBase):
     __tablename__ = "events"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -85,7 +85,7 @@ class EventOrganizer(TrackedBase):
     member: Mapped[Member] = relationship()
 
 
-class EventParticipant(TrackedBase):
+class EventParticipant(SourceTracked, TrackedBase):
     __tablename__ = "event_participants"
 
     event_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("events.id"), nullable=False, index=True)
