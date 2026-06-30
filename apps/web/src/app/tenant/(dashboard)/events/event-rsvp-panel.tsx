@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Check, ChevronDown, ChevronUp, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -86,8 +86,30 @@ function isDirectGuardian(
 }
 
 // ---------------------------------------------------------------------------
-// RSVP toggle row (one member)
+// Local editable state for one member's RSVP
 // ---------------------------------------------------------------------------
+
+type RsvpDraft = {
+  rsvp_status: RsvpStatus
+  driver: boolean
+  drives_to: boolean
+  drives_from: boolean
+  seat_count: number | null
+  guest_count: number
+  comment: string
+}
+
+function draftFrom(participant: EventParticipant | undefined): RsvpDraft {
+  return {
+    rsvp_status: participant?.rsvp_status ?? "no_response",
+    driver: participant?.driver ?? false,
+    drives_to: participant?.drives_to ?? false,
+    drives_from: participant?.drives_from ?? false,
+    seat_count: participant?.seat_count ?? null,
+    guest_count: participant?.guest_count ?? 0,
+    comment: participant?.comment ?? "",
+  }
+}
 
 const STATUS_LABELS: Record<RsvpStatus, string> = {
   no_response: "No response",
@@ -132,13 +154,46 @@ function RsvpStatusButtons({
   )
 }
 
+function CheckboxButton({
+  checked,
+  onToggle,
+  disabled,
+  size = "md",
+  label,
+}: {
+  checked: boolean
+  onToggle: () => void
+  disabled?: boolean
+  size?: "sm" | "md"
+  label: string
+}) {
+  const box = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4"
+  const tick = size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3"
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={onToggle}
+      disabled={disabled}
+      className={cn(
+        box,
+        "rounded border border-border flex items-center justify-center shrink-0",
+        checked && "bg-primary border-primary",
+      )}
+    >
+      {checked && <Check className={cn(tick, "text-primary-foreground")} />}
+    </button>
+  )
+}
+
 function MemberRsvpRow({
   member,
   event,
   participant,
   actorId,
   relationships,
-  isManager,
   permissionMessage,
 }: {
   member: Member
@@ -146,44 +201,74 @@ function MemberRsvpRow({
   participant: EventParticipant | undefined
   actorId: string
   relationships: MemberRelationship[]
-  isManager: boolean
   permissionMessage: string
 }) {
   const [expanded, setExpanded] = useState(false)
   const [sigInput, setSigInput] = useState("")
   const [showPermDialog, setShowPermDialog] = useState(false)
+  const [draft, setDraft] = useState<RsvpDraft>(() => draftFrom(participant))
+
+  // Re-seed local state from the server only when the participant *identity*
+  // changes (initial load, or first creation). After that the local draft is the
+  // source of truth so edits feel instant and aren't clobbered by refetches.
+  const seededId = useRef<string | null>(participant?.id ?? null)
+  useEffect(() => {
+    if (participant && participant.id !== seededId.current) {
+      seededId.current = participant.id
+      setDraft(draftFrom(participant))
+    }
+  }, [participant])
 
   const addParticipant = useAddParticipant(event.id)
   const updateParticipant = useUpdateParticipant(event.id)
   const grantPermission = useGrantPermission(event.id)
 
-  const isPending = addParticipant.isPending || updateParticipant.isPending
-  const current = participant
-  const rsvp: RsvpStatus = current?.rsvp_status ?? "no_response"
   const isScout = member.member_type === "scout"
   const needsSlip = event.event_type.require_permission_slip && isScout
-  const slipStatus = current?.permission_status
+  const slipStatus = participant?.permission_status
   const canSign = isDirectGuardian(actorId, member.id, relationships)
   const allowGuests = event.event_type.allow_guests
 
-  function mutate(updates: Partial<Parameters<typeof updateParticipant.mutate>[0]>) {
-    if (!current) {
+  /** Persist a partial change to the server (create the row if it doesn't exist yet). */
+  function persist(changes: Partial<RsvpDraft>) {
+    if (!participant) {
       addParticipant.mutate({
         member_id: member.id,
-        rsvp_status: "no_response",
-        ...updates,
-      } as Parameters<typeof addParticipant.mutate>[0])
+        rsvp_status: draft.rsvp_status,
+        ...changes,
+        comment: (changes.comment ?? draft.comment) || null,
+      })
     } else {
       updateParticipant.mutate({
         memberId: member.id,
-        ...updates,
-      } as Parameters<typeof updateParticipant.mutate>[0])
+        ...changes,
+        ...(changes.comment !== undefined ? { comment: changes.comment || null } : {}),
+      })
+    }
+  }
+
+  /** Toggle/select fields update local state and persist immediately. */
+  function setAndPersist(changes: Partial<RsvpDraft>) {
+    setDraft((d) => ({ ...d, ...changes }))
+    persist(changes)
+  }
+
+  /** Text/number fields update local state on change; persist happens on blur. */
+  function setLocal(changes: Partial<RsvpDraft>) {
+    setDraft((d) => ({ ...d, ...changes }))
+  }
+
+  /** Commit a field on blur only if it differs from the server value. */
+  function commitField(field: keyof RsvpDraft) {
+    const serverDraft = draftFrom(participant)
+    if (draft[field] !== serverDraft[field]) {
+      persist({ [field]: draft[field] } as Partial<RsvpDraft>)
     }
   }
 
   function handleRsvpChange(s: RsvpStatus) {
-    mutate({ rsvp_status: s })
-    if (s === "going" && needsSlip && canSign) {
+    setAndPersist({ rsvp_status: s })
+    if (s === "going" && needsSlip && canSign && slipStatus !== "granted") {
       setShowPermDialog(true)
     }
   }
@@ -208,7 +293,7 @@ function MemberRsvpRow({
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">{memberName(member)}</span>
           <span className="text-xs text-muted-foreground capitalize">{member.member_type}</span>
-          {needsSlip && slipStatus === "pending" && rsvp === "going" && (
+          {needsSlip && slipStatus === "pending" && draft.rsvp_status === "going" && (
             <span className="text-xs text-amber-600 font-medium">Permission needed</span>
           )}
           {needsSlip && slipStatus === "granted" && (
@@ -219,7 +304,7 @@ function MemberRsvpRow({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <RsvpStatusButtons value={rsvp} onChange={handleRsvpChange} disabled={isPending} />
+          <RsvpStatusButtons value={draft.rsvp_status} onChange={handleRsvpChange} />
           <button
             type="button"
             onClick={() => setExpanded((p) => !p)}
@@ -267,77 +352,55 @@ function MemberRsvpRow({
       )}
 
       {/* "Give permission" button shown to a guardian when slip is pending */}
-      {!showPermDialog && needsSlip && slipStatus === "pending" && canSign && rsvp === "going" && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7 text-xs"
-          onClick={() => setShowPermDialog(true)}
-        >
-          Give permission for {member.first_name}
-        </Button>
-      )}
+      {!showPermDialog &&
+        needsSlip &&
+        slipStatus === "pending" &&
+        canSign &&
+        draft.rsvp_status === "going" && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            onClick={() => setShowPermDialog(true)}
+          >
+            Give permission for {member.first_name}
+          </Button>
+        )}
 
       {/* Expanded detail: drivers, guests, note */}
       {expanded && (
         <div className="space-y-3 pt-1 border-t border-border">
-          {/* Driver section (adults, or managers viewing anyone) */}
-          {(member.member_type === "adult" || isManager) && (
+          {/* Driver section (adults only — scouts don't drive) */}
+          {member.member_type === "adult" && (
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  role="checkbox"
-                  aria-checked={current?.driver ?? false}
-                  onClick={() => mutate({ driver: !(current?.driver ?? false) })}
-                  disabled={isPending}
-                  className={cn(
-                    "h-4 w-4 rounded border border-border flex items-center justify-center",
-                    current?.driver && "bg-primary border-primary",
-                  )}
-                >
-                  {current?.driver && <Check className="h-3 w-3 text-primary-foreground" />}
-                </button>
+                <CheckboxButton
+                  checked={draft.driver}
+                  onToggle={() => setAndPersist({ driver: !draft.driver })}
+                  label="Willing to drive"
+                />
                 <Label className="text-xs cursor-pointer">Willing to drive</Label>
               </div>
 
-              {current?.driver && (
+              {draft.driver && (
                 <div className="pl-6 space-y-2">
                   <div className="flex gap-4">
                     <label className="flex items-center gap-1.5 text-xs">
-                      <button
-                        type="button"
-                        role="checkbox"
-                        aria-checked={current?.drives_to ?? false}
-                        onClick={() => mutate({ drives_to: !(current?.drives_to ?? false) })}
-                        disabled={isPending}
-                        className={cn(
-                          "h-3.5 w-3.5 rounded border border-border flex items-center justify-center",
-                          current?.drives_to && "bg-primary border-primary",
-                        )}
-                      >
-                        {current?.drives_to && (
-                          <Check className="h-2.5 w-2.5 text-primary-foreground" />
-                        )}
-                      </button>
+                      <CheckboxButton
+                        size="sm"
+                        checked={draft.drives_to}
+                        onToggle={() => setAndPersist({ drives_to: !draft.drives_to })}
+                        label="Drives to event"
+                      />
                       To event
                     </label>
                     <label className="flex items-center gap-1.5 text-xs">
-                      <button
-                        type="button"
-                        role="checkbox"
-                        aria-checked={current?.drives_from ?? false}
-                        onClick={() => mutate({ drives_from: !(current?.drives_from ?? false) })}
-                        disabled={isPending}
-                        className={cn(
-                          "h-3.5 w-3.5 rounded border border-border flex items-center justify-center",
-                          current?.drives_from && "bg-primary border-primary",
-                        )}
-                      >
-                        {current?.drives_from && (
-                          <Check className="h-2.5 w-2.5 text-primary-foreground" />
-                        )}
-                      </button>
+                      <CheckboxButton
+                        size="sm"
+                        checked={draft.drives_from}
+                        onToggle={() => setAndPersist({ drives_from: !draft.drives_from })}
+                        label="Drives from event"
+                      />
                       From event
                     </label>
                   </div>
@@ -347,10 +410,11 @@ function MemberRsvpRow({
                       type="number"
                       min={1}
                       max={15}
-                      value={current?.seat_count ?? ""}
+                      value={draft.seat_count ?? ""}
                       onChange={(e) =>
-                        mutate({ seat_count: e.target.value ? Number(e.target.value) : null })
+                        setLocal({ seat_count: e.target.value ? Number(e.target.value) : null })
                       }
+                      onBlur={() => commitField("seat_count")}
                       className="h-7 w-20 text-sm"
                     />
                   </div>
@@ -367,8 +431,9 @@ function MemberRsvpRow({
                 type="number"
                 min={0}
                 max={99}
-                value={current?.guest_count ?? 0}
-                onChange={(e) => mutate({ guest_count: Number(e.target.value) })}
+                value={draft.guest_count}
+                onChange={(e) => setLocal({ guest_count: Number(e.target.value) || 0 })}
+                onBlur={() => commitField("guest_count")}
                 className="h-7 w-20 text-sm"
               />
               <span className="text-xs text-muted-foreground">non-roster attendees</span>
@@ -379,8 +444,9 @@ function MemberRsvpRow({
           <div className="space-y-1">
             <Label className="text-xs">Note</Label>
             <Textarea
-              value={current?.comment ?? ""}
-              onChange={(e) => mutate({ comment: e.target.value || null })}
+              value={draft.comment}
+              onChange={(e) => setLocal({ comment: e.target.value })}
+              onBlur={() => commitField("comment")}
               rows={2}
               placeholder="e.g. Arriving late Friday…"
               className="text-sm resize-none"
@@ -403,7 +469,6 @@ interface EventRsvpPanelProps {
 export function EventRsvpPanel({ event }: EventRsvpPanelProps) {
   const { data: session } = useSession()
   const currentMember = session?.member
-  const isManager = session?.permissions.includes("event:write") ?? false
 
   const { data: allRelationships = [] } = useRelationships(currentMember?.id ?? null)
   const { data: allMembers = [] } = useMembers()
@@ -420,7 +485,8 @@ export function EventRsvpPanel({ event }: EventRsvpPanelProps) {
 
   const household = householdIds(currentMember.id, allRelationships, allMembers)
 
-  // Members to show: the current member's household, ordered self-first then by name
+  // The panel is a *self-service* surface: only the current member's household.
+  // (Leader-facing attendee management lives on the event edit page, not here.)
   const familyMembers = [...household]
     .map((id) => memberById.get(id))
     .filter((m): m is Member => m !== undefined && !m.is_deleted)
@@ -430,15 +496,7 @@ export function EventRsvpPanel({ event }: EventRsvpPanelProps) {
       return memberName(a).localeCompare(memberName(b))
     })
 
-  // Managers also see all other participants not in their household
-  const otherParticipantIds = isManager
-    ? participants
-        .map((p) => p.member_id)
-        .filter((id) => !household.has(id))
-    : []
-  const otherParticipants = otherParticipantIds
-    .map((id) => memberById.get(id))
-    .filter((m): m is Member => m !== undefined)
+  const goingCount = participants.filter((p) => p.rsvp_status === "going").length
 
   return (
     <div className="space-y-3">
@@ -446,10 +504,10 @@ export function EventRsvpPanel({ event }: EventRsvpPanelProps) {
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           RSVP
         </h3>
-        {participants.length > 0 && (
+        {goingCount > 0 && (
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             <Users className="h-3.5 w-3.5" />
-            {participants.filter((p) => p.rsvp_status === "going").length} going
+            {goingCount} going
           </span>
         )}
       </div>
@@ -463,28 +521,9 @@ export function EventRsvpPanel({ event }: EventRsvpPanelProps) {
             participant={participantByMemberId.get(m.id)}
             actorId={currentMember.id}
             relationships={allRelationships}
-            isManager={isManager}
             permissionMessage={permissionMessage}
           />
         ))}
-
-        {isManager && otherParticipants.length > 0 && (
-          <>
-            <p className="text-xs text-muted-foreground pt-1">Other participants</p>
-            {otherParticipants.map((m) => (
-              <MemberRsvpRow
-                key={m.id}
-                member={m}
-                event={event}
-                participant={participantByMemberId.get(m.id)}
-                actorId={currentMember.id}
-                relationships={allRelationships}
-                isManager={isManager}
-                permissionMessage={permissionMessage}
-              />
-            ))}
-          </>
-        )}
       </div>
     </div>
   )
