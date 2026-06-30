@@ -127,47 +127,9 @@
   --sidebar-ring:          var(--amber-500);
 }
 
-/* ── Dark mode: full system dark mode for content area ───────────────────── */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background:            var(--slate-950);
-    --foreground:            var(--slate-100);
-
-    --card:                  var(--slate-900);
-    --card-foreground:       var(--slate-100);
-
-    --popover:               var(--slate-900);
-    --popover-foreground:    var(--slate-100);
-
-    --primary:               var(--slate-200);
-    --primary-foreground:    var(--slate-900);
-
-    --secondary:             var(--slate-800);
-    --secondary-foreground:  var(--slate-100);
-
-    --muted:                 var(--slate-800);
-    --muted-foreground:      var(--slate-400);
-
-    --accent:                oklch(0.540 0.155 63 / 20%);
-    --accent-foreground:     var(--amber-300);
-
-    --destructive:           oklch(0.704 0.191 22.216);
-
-    --border:                oklch(1 0 0 / 10%);
-    --input:                 oklch(1 0 0 / 12%);
-    --ring:                  var(--amber-500);
-
-    --chart-1: var(--amber-400);
-    --chart-2: var(--slate-400);
-    --chart-3: var(--amber-200);
-    --chart-4: var(--slate-300);
-    --chart-5: var(--amber-600);
-
-    /* Sidebar stays dark — same values, unchanged */
-  }
-}
-
-/* Also support explicit .dark class (e.g. for manual toggle in future) */
+/* Dark mode: next-themes writes class="dark" on <html>; the @custom-variant
+   above makes Tailwind dark: utilities respond to that class. CSS variables
+   live here — single source of truth, no competing @media block. */
 .dark {
   --background:            var(--slate-950);
   --foreground:            var(--slate-100);
