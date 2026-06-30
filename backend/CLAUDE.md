@@ -145,6 +145,11 @@ TWH datetime format: `M/D/YYYY H:MM:SS AM/PM` (parsed by `_parse_datetime` /
 in the importer's `source_tz` and converts to UTC for storage (`source_tz`
 defaults to UTC). TWH integer IDs never persist; every row gets a new UUIDv7.
 
+Every imported row carries **source provenance** (`SourceTracked` mixin: `source_system="twh"`,
+`source_id` = the TWH `<i>`, `source_updated_at` = `Last_Update_UTC`) so a future incremental
+sync can match-and-upsert instead of duplicating. This is groundwork only — no sync engine
+reads it yet. See [`docs/spec/twh-sync.md`](../docs/spec/twh-sync.md).
+
 Invoke via `uv run import-twh <tenant-uuid> path/to/export.xml [--timezone America/New_York]`.
 The same `timezone` is accepted as a form field on `POST /import/twh`.
 Test fixture: `backend/tests/fixtures/sample_twh_minimal.xml` — all PII is fake.

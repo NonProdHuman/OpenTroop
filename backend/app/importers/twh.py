@@ -257,6 +257,23 @@ class TwhImporter:
         return self.result
 
     # ------------------------------------------------------------------
+    # Source provenance (incremental-sync groundwork)
+    # ------------------------------------------------------------------
+
+    def _source(self, elem: ET.Element, twh_id: str) -> dict[str, object]:
+        """Provenance kwargs for an imported row: TWH id + its ``Last_Update_UTC``.
+
+        Lets a later incremental sync match this row to its TWH record and detect
+        upstream changes (see ``docs/spec/twh-sync.md``). ``Last_Update_UTC`` is already
+        UTC, so it is parsed without the source-timezone shift applied to wall-clock fields.
+        """
+        return {
+            "source_system": "twh",
+            "source_id": twh_id,
+            "source_updated_at": _parse_datetime(_text(elem, "Last_Update_UTC")),
+        }
+
+    # ------------------------------------------------------------------
     # Patrols
     # ------------------------------------------------------------------
 
@@ -267,7 +284,12 @@ class TwhImporter:
                 continue
             name = _text(elem, "Patrol_Name") or f"Patrol {twh_id}"
             # Patrols are folded into the general Group model as PATROL-type groups.
-            patrol = Group(tenant_id=self.tenant_id, name=name, group_type=GroupType.PATROL)
+            patrol = Group(
+                tenant_id=self.tenant_id,
+                name=name,
+                group_type=GroupType.PATROL,
+                **self._source(elem, twh_id),
+            )
             self.session.add(patrol)
             self.session.flush()
             self._patrol_map[twh_id] = patrol.id
@@ -346,6 +368,7 @@ class TwhImporter:
 
             member = Member(
                 tenant_id=self.tenant_id,
+                **self._source(elem, twh_id),
                 first_name=first_name,
                 middle_name=_text(elem, "Name_Middle") or None,
                 last_name=last_name,
@@ -432,6 +455,7 @@ class TwhImporter:
             self.session.add(
                 MemberRelationship(
                     tenant_id=self.tenant_id,
+                    **self._source(elem, twh_id),
                     from_member_id=adult_id,  # adult is "from" (holds the named role)
                     to_member_id=scout_id,
                     relationship_type=rel_type,
@@ -501,6 +525,9 @@ class TwhImporter:
                 applies_to=PositionScope.ADULT if is_adult else PositionScope.SCOUT,
                 is_system=False,
                 sort_order=seq,
+                # Provenance: the TWH leadership-position catalog id (no per-row timestamp).
+                source_system="twh",
+                source_id=twh_pos_id,
             )
             self.session.add(position)
             self.session.flush()
@@ -572,6 +599,8 @@ class TwhImporter:
                         position_id=position_id,
                         start_date=start,
                         end_date=end,
+                        # Provenance: the leadership-history row id + its last-update time.
+                        **self._source(elem, _text(elem, "i")),
                     )
                 )
                 self.result.position_assignments += 1
@@ -601,6 +630,7 @@ class TwhImporter:
 
             location = Location(
                 tenant_id=self.tenant_id,
+                **self._source(elem, twh_id),
                 name=_text(elem, "Location_Name") or f"Location {twh_id}",
                 street1=_text(elem, "Address_Line_1") or None,
                 street2=_text(elem, "Address_Line_2") or None,
@@ -651,6 +681,7 @@ class TwhImporter:
 
             et = EventType(
                 tenant_id=self.tenant_id,
+                **self._source(elem, twh_id),
                 name=name,
                 is_active=is_active,
                 is_system=False,
@@ -715,6 +746,7 @@ class TwhImporter:
 
             event = Event(
                 tenant_id=self.tenant_id,
+                **self._source(elem, twh_id),
                 name=_text(elem, "Event_Name") or f"Event {twh_id}",
                 event_type_id=event_type_id,
                 location_id=location_id,
@@ -807,6 +839,7 @@ class TwhImporter:
             self.session.add(
                 EventParticipant(
                     tenant_id=self.tenant_id,
+                    **self._source(elem, _text(elem, "i")),
                     event_id=event_id,
                     member_id=member_id,
                     signed_up=signed_up,

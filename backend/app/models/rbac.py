@@ -25,14 +25,14 @@ from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, UniqueConstra
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import TrackedBase
+from app.models.base import SourceTracked, TrackedBase
 from app.models.enums import Permission, PositionScope
 
 if TYPE_CHECKING:
     from app.models.member import Member
 
 
-class Position(TrackedBase):
+class Position(SourceTracked, TrackedBase):
     """What a member *is* in the troop — the assignable unit.
 
     Maps to functional roles via ``PositionFunctionalRole``; a member holding the
@@ -141,7 +141,7 @@ class PositionFunctionalRole(TrackedBase):
     )
 
 
-class MemberPositionAssignment(TrackedBase):
+class MemberPositionAssignment(SourceTracked, TrackedBase):
     """A member's **term** holding a position — the only routine RBAC write.
 
     One row = one term: a member held a position from ``start_date`` to an optional

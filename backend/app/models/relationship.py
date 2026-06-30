@@ -7,14 +7,14 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import TrackedBase
+from app.models.base import SourceTracked, TrackedBase
 from app.models.enums import RelationshipType
 
 if TYPE_CHECKING:
     from app.models.member import Member
 
 
-class MemberRelationship(TrackedBase):
+class MemberRelationship(SourceTracked, TrackedBase):
     """Directional family link between two members.
 
     from_member holds the named role (parent_of, guardian_of); to_member is the child/ward.

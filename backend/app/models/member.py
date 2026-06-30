@@ -8,7 +8,7 @@ from sqlalchemy import Boolean, Date, ForeignKey, Index, String, Text, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import TrackedBase
+from app.models.base import SourceTracked, TrackedBase
 from app.models.enums import MemberStatus, MemberType, SwimClassification
 
 if TYPE_CHECKING:
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from app.models.user import User  # User does not import Member, so no cycle
 
 
-class Member(TrackedBase):
+class Member(SourceTracked, TrackedBase):
     __tablename__ = "members"
     __table_args__ = (
         Index(

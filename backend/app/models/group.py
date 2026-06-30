@@ -7,7 +7,7 @@ from sqlalchemy import Boolean, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import TrackedBase
+from app.models.base import SourceTracked, TrackedBase
 from app.models.enums import GroupType, RuleDimension, RuleLogic
 from app.models.types import JsonList
 
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from app.models.member import Member
 
 
-class Group(TrackedBase):
+class Group(SourceTracked, TrackedBase):
     """A named, resolvable set of members — the unifying targeting primitive.
 
     A group's membership is the union of:

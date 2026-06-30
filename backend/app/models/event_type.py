@@ -3,10 +3,10 @@ from __future__ import annotations
 from sqlalchemy import Boolean, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import TrackedBase
+from app.models.base import SourceTracked, TrackedBase
 
 
-class EventType(TrackedBase):
+class EventType(SourceTracked, TrackedBase):
     __tablename__ = "event_types"
     __table_args__ = (UniqueConstraint("tenant_id", "name", name="uix_event_types_tenant_name"),)
 

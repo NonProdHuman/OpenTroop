@@ -246,6 +246,42 @@ def test_relationship_direction(result_and_session) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Source provenance (incremental-sync groundwork)
+# ---------------------------------------------------------------------------
+
+
+def test_member_source_provenance(result_and_session) -> None:
+    _, session = result_and_session
+    alice = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Alice").one()
+    assert alice.source_system == "twh"
+    assert alice.source_id == "1"  # TWH Person <i>
+    # Last_Update_UTC is parsed (already UTC) into a tz-aware datetime.
+    assert alice.source_updated_at is not None
+    assert alice.source_updated_at.year == 2026
+    assert alice.source_updated_at.hour == 13
+
+
+def test_member_without_last_update_has_null_timestamp(result_and_session) -> None:
+    _, session = result_and_session
+    # Dave's fixture record has no Last_Update_UTC → null timestamp, but id is still set.
+    dave = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Dave").one()
+    assert dave.source_system == "twh"
+    assert dave.source_id == "2"
+    assert dave.source_updated_at is None
+
+
+def test_position_and_assignment_provenance(result_and_session) -> None:
+    _, session = result_and_session
+    sm = session.query(Position).filter_by(tenant_id=_TENANT, slug="scoutmaster").one()
+    assert sm.source_system == "twh"
+    assert sm.source_id == "4"  # TWH Leadership_Position catalog <i>
+    bob = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Bob").one()
+    term = next(a for a in _assignments(session, bob) if a.end_date is None)
+    assert term.source_system == "twh"
+    assert term.source_id == "1"  # Adult_Leadership_History row <i>
+
+
+# ---------------------------------------------------------------------------
 # Leadership positions
 # ---------------------------------------------------------------------------
 

@@ -113,6 +113,12 @@ Every tenant-scoped table MUST inherit `TrackedBase` (`app/models/base.py`), whi
 instead. `PlatformBase` has the same `id`, timestamps, and `is_deleted` as
 `TrackedBase` but **no `tenant_id`**.
 
+**External-source provenance.** Entities that a bulk import creates also mix in
+`SourceTracked` (`source_system` / `source_id` / `source_updated_at`, all nullable)
+so a future incremental sync can match an upstream record to its OpenTroop row and
+detect changes. The TWH importer populates these; nothing reads them yet — it's
+groundwork for dual-run sync. See [`docs/spec/twh-sync.md`](docs/spec/twh-sync.md).
+
 The dialect-agnostic SQLAlchemy `Uuid` type lets the Postgres-targeted models run
 unmodified on SQLite, which is how the test suite stays DB-free.
 
