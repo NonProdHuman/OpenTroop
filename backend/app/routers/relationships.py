@@ -19,7 +19,7 @@ router = APIRouter(prefix="/relationships", tags=["relationships"])
 
 
 @router.get(
-    "/",
+    "",
     response_model=list[MemberRelationshipRead],
     dependencies=[Depends(require(Permission.MEMBER_READ_CONTACT))],
 )
@@ -40,7 +40,7 @@ def list_relationships(
 
 
 @router.post(
-    "/",
+    "",
     response_model=MemberRelationshipRead,
     status_code=201,
     dependencies=[Depends(require(Permission.MEMBER_WRITE))],

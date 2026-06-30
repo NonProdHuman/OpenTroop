@@ -55,7 +55,7 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 
 @router.get(
-    "/", response_model=list[EventRead], dependencies=[Depends(require(Permission.EVENT_READ))]
+    "", response_model=list[EventRead], dependencies=[Depends(require(Permission.EVENT_READ))]
 )
 def list_events(tenant_id: TenantDep, db: DbDep, member: CurrentMemberDep) -> Sequence[Event]:
     """List events visible to the caller.
@@ -70,7 +70,7 @@ def list_events(tenant_id: TenantDep, db: DbDep, member: CurrentMemberDep) -> Se
 
 
 @router.post(
-    "/",
+    "",
     response_model=EventRead,
     status_code=201,
     dependencies=[Depends(require(Permission.EVENT_CREATE))],

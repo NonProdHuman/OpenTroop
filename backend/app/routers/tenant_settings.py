@@ -17,7 +17,7 @@ router = APIRouter(prefix="/tenant/settings", tags=["tenant-settings"])
 
 
 @router.get(
-    "/",
+    "",
     response_model=TenantSettingsRead,
     dependencies=[Depends(require(Permission.EVENT_READ))],
 )
@@ -32,7 +32,7 @@ def get_settings(tenant_id: TenantDep, db: DbDep) -> TenantSettingsRead:
 
 
 @router.patch(
-    "/",
+    "",
     response_model=TenantSettingsRead,
     dependencies=[Depends(require(Permission.ROLE_MANAGE))],
 )

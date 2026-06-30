@@ -19,7 +19,7 @@ router = APIRouter(prefix="/functional-roles", tags=["functional-roles"])
 
 
 @router.get(
-    "/",
+    "",
     response_model=list[FunctionalRoleRead],
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
@@ -28,7 +28,7 @@ def list_functional_roles(tenant_id: TenantDep, db: DbDep) -> Sequence[Functiona
 
 
 @router.post(
-    "/",
+    "",
     response_model=FunctionalRoleRead,
     status_code=201,
     dependencies=[Depends(require(Permission.ROLE_MANAGE))],
