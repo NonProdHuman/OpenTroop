@@ -18,20 +18,21 @@ The authorization model is deliberately two levels deep (see
 from __future__ import annotations
 
 import uuid
+from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import TrackedBase
+from app.models.base import SourceTracked, TrackedBase
 from app.models.enums import Permission, PositionScope
 
 if TYPE_CHECKING:
     from app.models.member import Member
 
 
-class Position(TrackedBase):
+class Position(SourceTracked, TrackedBase):
     """What a member *is* in the troop — the assignable unit.
 
     Maps to functional roles via ``PositionFunctionalRole``; a member holding the
@@ -140,18 +141,26 @@ class PositionFunctionalRole(TrackedBase):
     )
 
 
-class MemberPositionAssignment(TrackedBase):
-    """Assigns a member to a position — the only routine RBAC write.
+class MemberPositionAssignment(SourceTracked, TrackedBase):
+    """A member's **term** holding a position — the only routine RBAC write.
 
-    There is deliberately no path to assign a functional role or raw permission
-    to a member; positions are the sole member-facing link. ``assigned_by_id``
-    is the audit trail; soft-delete preserves assignment history.
+    One row = one term: a member held a position from ``start_date`` to an optional
+    ``end_date`` (null ⇒ current). A member who held the same position twice has two
+    rows. There is deliberately no path to assign a functional role or raw permission
+    to a member; positions are the sole member-facing link. ``assigned_by_id`` is the
+    audit trail.
+
+    Currency (whether a term is *live*) follows a single rule — see
+    ``app.core.permissions.is_assignment_current`` / ``current_assignment_clause`` —
+    and is what the permission resolver filters on. ``is_deleted`` is the hard
+    tombstone ("created in error"), distinct from a legitimately ended term.
+
+    There is **no** ``(member_id, position_id)`` unique constraint — repeat terms
+    are valid history. "At most one *current* term per (member, position)" is
+    enforced in the API layer instead.
     """
 
     __tablename__ = "member_position_assignments"
-    __table_args__ = (
-        UniqueConstraint("member_id", "position_id", name="uq_member_position_assignments"),
-    )
 
     member_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("members.id"), nullable=False, index=True
@@ -162,6 +171,8 @@ class MemberPositionAssignment(TrackedBase):
     assigned_by_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("members.id"), nullable=True
     )
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     member: Mapped[Member] = relationship("Member", foreign_keys=[member_id])
     position: Mapped[Position] = relationship(

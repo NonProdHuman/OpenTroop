@@ -46,6 +46,9 @@ const makeAssignment = (overrides: Partial<MemberPositionAssignment>): MemberPos
   member_id: "m1",
   position_id: "p1",
   assigned_by_id: null,
+  start_date: "2024-01-01",
+  end_date: null,
+  is_current: true,
   ...overrides,
 })
 
@@ -149,7 +152,7 @@ describe("MemberPositionsEditor", () => {
 
   it("calls removePosition mutation when remove button is clicked", async () => {
     const position = makePosition({ id: "p1", name: "Patrol Leader", is_system: false })
-    const assignment = makeAssignment({ position_id: "p1" })
+    const assignment = makeAssignment({ id: "a1", position_id: "p1" })
 
     render(
       <MemberPositionsEditor
@@ -161,7 +164,7 @@ describe("MemberPositionsEditor", () => {
     )
 
     await userEvent.click(screen.getByRole("button", { name: /remove patrol leader/i }))
-    expect(mockRemove).toHaveBeenCalledWith({ memberId: "m1", positionId: "p1" })
+    expect(mockRemove).toHaveBeenCalledWith({ memberId: "m1", assignmentId: "a1" })
   })
 
   it("shows 'Add position' combobox when canAssign is true and unassigned positions exist", () => {

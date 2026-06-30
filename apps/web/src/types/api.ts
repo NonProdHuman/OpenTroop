@@ -125,6 +125,11 @@ export interface MemberPositionAssignment {
   member_id: string
   position_id: string
   assigned_by_id: string | null
+  // A term: held from start_date to an optional end_date (null = open-ended).
+  start_date: string | null
+  end_date: string | null
+  // Derived server-side from the currency rule (not is_deleted and not ended).
+  is_current: boolean
 }
 
 // ── Relationships ─────────────────────────────────────────────────────────────

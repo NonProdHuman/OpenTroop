@@ -442,13 +442,13 @@ production data exists; the importer and provisioning are the only writers.
    Do we enforce "at most one holder" (like patrols enforce one group), and is it
    troop-wide (Scoutmaster) vs per-patrol (Patrol Leader — one per patrol, not per troop)?
    The per-patrol case doesn't fit a simple flag; proposed: defer, treat as advisory.
-2. **Position term/history.** Do we need start/end dates on `MemberPositionAssignment`
-   (elections, annual turnover) beyond soft-delete + `created_at`? Affects whether the
-   audit trail is sufficient or needs explicit terms.
+2. **Position term/history.** ~~Do we need start/end dates on `MemberPositionAssignment`?~~
+   → Addressed in [`position-history.md`](position-history.md): add dated terms, filter the
+   resolver to current terms.
 3. **Reports & communications granularity.** `report:read` and the two `communication:*`
    permissions are coarse. Fine for now, or do reports need per-domain read scopes?
-4. **TWH importer mapping.** TWH exports leadership/positions in its own vocabulary —
-   we need the concrete crosswalk from TWH position names to seeded OpenTroop positions
-   (and a fallback for unrecognized ones).
+4. **TWH importer mapping.** ~~Concrete crosswalk from TWH position names to seeded
+   positions.~~ → Addressed in [`position-history.md`](position-history.md): slug-match to
+   seeded positions, create non-system positions for the rest, import full dated history.
 </content>
 </invoke>

@@ -23,10 +23,12 @@ import { cn } from "@/lib/utils"
 function PositionBadge({
   position,
   memberId,
+  assignmentId,
   canAssign,
 }: {
   position: Position
   memberId: string
+  assignmentId: string
   canAssign: boolean
 }) {
   const removePosition = useRemoveMemberPosition()
@@ -45,7 +47,7 @@ function PositionBadge({
       {removable && (
         <button
           type="button"
-          onClick={() => removePosition.mutate({ memberId, positionId: position.id })}
+          onClick={() => removePosition.mutate({ memberId, assignmentId })}
           disabled={removePosition.isPending}
           className="ml-0.5 rounded-full hover:opacity-70 disabled:opacity-40"
           aria-label={`Remove ${position.name}`}
@@ -108,6 +110,7 @@ export function MemberPositionsEditor({
               key={a.id}
               position={position}
               memberId={memberId}
+              assignmentId={a.id}
               canAssign={canAssign}
             />
           )

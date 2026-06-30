@@ -8,11 +8,14 @@ from zoneinfo import ZoneInfo
 import pytest
 from sqlalchemy.orm import Session
 
+from app.core.permissions import is_assignment_current
+from app.core.provisioning import seed_default_rbac
 from app.importers.twh import TwhImporter, _parse_date, _parse_datetime, resolve_source_tz
 from app.models.enums import (
     GroupType,
     MemberStatus,
     MemberType,
+    PositionScope,
     RelationshipType,
     RsvpStatus,
     SwimClassification,
@@ -22,6 +25,7 @@ from app.models.event_type import EventType
 from app.models.group import Group, GroupMember
 from app.models.location import Location
 from app.models.member import Member
+from app.models.rbac import MemberPositionAssignment, Position
 from app.models.relationship import MemberRelationship
 
 
@@ -239,6 +243,145 @@ def test_relationship_direction(result_and_session) -> None:
         .one()
     )
     assert rel.relationship_type == RelationshipType.PARENT_OF
+
+
+# ---------------------------------------------------------------------------
+# Source provenance (incremental-sync groundwork)
+# ---------------------------------------------------------------------------
+
+
+def test_member_source_provenance(result_and_session) -> None:
+    _, session = result_and_session
+    alice = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Alice").one()
+    assert alice.source_system == "twh"
+    assert alice.source_id == "1"  # TWH Person <i>
+    # Last_Update_UTC is parsed (already UTC) into a tz-aware datetime.
+    assert alice.source_updated_at is not None
+    assert alice.source_updated_at.year == 2026
+    assert alice.source_updated_at.hour == 13
+
+
+def test_member_without_last_update_has_null_timestamp(result_and_session) -> None:
+    _, session = result_and_session
+    # Dave's fixture record has no Last_Update_UTC → null timestamp, but id is still set.
+    dave = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Dave").one()
+    assert dave.source_system == "twh"
+    assert dave.source_id == "2"
+    assert dave.source_updated_at is None
+
+
+def test_position_and_assignment_provenance(result_and_session) -> None:
+    _, session = result_and_session
+    sm = session.query(Position).filter_by(tenant_id=_TENANT, slug="scoutmaster").one()
+    assert sm.source_system == "twh"
+    assert sm.source_id == "4"  # TWH Leadership_Position catalog <i>
+    bob = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Bob").one()
+    term = next(a for a in _assignments(session, bob) if a.end_date is None)
+    assert term.source_system == "twh"
+    assert term.source_id == "1"  # Adult_Leadership_History row <i>
+
+
+# ---------------------------------------------------------------------------
+# Leadership positions
+# ---------------------------------------------------------------------------
+
+
+def _assignments(session: Session, member: Member) -> list[MemberPositionAssignment]:
+    return (
+        session.query(MemberPositionAssignment)
+        .filter(
+            MemberPositionAssignment.member_id == member.id,
+            MemberPositionAssignment.is_deleted.is_(False),
+        )
+        .all()
+    )
+
+
+def _current_position_slugs(session: Session, member: Member) -> set[str]:
+    """Slugs of positions the member *currently* holds (via the currency rule)."""
+    slugs = set()
+    for a in _assignments(session, member):
+        if is_assignment_current(a.is_deleted, a.end_date):
+            pos = session.get(Position, a.position_id)
+            assert pos is not None
+            slugs.add(pos.slug)
+    return slugs
+
+
+def test_only_used_positions_created(result_and_session) -> None:
+    result, session = result_and_session
+    # Three catalog entries are referenced by a history row: Scoutmaster, Committee
+    # Chairman, Patrol Leader. Against a bare tenant all three are created fresh.
+    assert result.positions == 3
+    slugs = {p.slug for p in session.query(Position).filter_by(tenant_id=_TENANT)}
+    assert {"scoutmaster", "committee-chairman", "patrol-leader"} <= slugs
+
+
+def test_position_applies_to_scope(result_and_session) -> None:
+    _, session = result_and_session
+    sm = session.query(Position).filter_by(tenant_id=_TENANT, slug="scoutmaster").one()
+    pl = session.query(Position).filter_by(tenant_id=_TENANT, slug="patrol-leader").one()
+    assert sm.applies_to == PositionScope.ADULT
+    assert pl.applies_to == PositionScope.SCOUT
+
+
+def test_full_history_imported_with_dates(result_and_session) -> None:
+    result, session = result_and_session
+    # Five terms total: Bob SM (current), Eve CC (current), Bob CC (ended),
+    # Alice PL (current), Dave PL (ended). The unknown-position row is skipped.
+    assert result.position_assignments == 5
+    bob = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Bob").one()
+    bob_terms = _assignments(session, bob)
+    assert len(bob_terms) == 2  # current Scoutmaster + ended Committee Chairman
+    ended = [t for t in bob_terms if t.end_date is not None]
+    assert len(ended) == 1
+    assert ended[0].start_date is not None
+
+
+def test_current_terms_distinguished_from_historical(result_and_session) -> None:
+    _, session = result_and_session
+    bob = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Bob").one()
+    dave = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Dave").one()
+    alice = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Alice").one()
+    # Bob currently holds only Scoutmaster; his Committee Chairman term ended.
+    assert _current_position_slugs(session, bob) == {"scoutmaster"}
+    # Alice currently holds Patrol Leader; Dave's PL term ended → none current.
+    assert _current_position_slugs(session, alice) == {"patrol-leader"}
+    assert _current_position_slugs(session, dave) == set()
+    # Dave still has the historical term on record.
+    assert len(_assignments(session, dave)) == 1
+
+
+def test_unknown_position_warns_and_skips(result_and_session) -> None:
+    result, _ = result_and_session
+    assert any("999" in w and "position" in w.lower() for w in result.warnings)
+
+
+def test_created_positions_surfaced_in_warnings(result_and_session) -> None:
+    result, _ = result_and_session
+    assert any("Created 3 new position" in w for w in result.warnings)
+
+
+def test_positions_reuse_seeded_via_slug_and_code(db_session: Session) -> None:
+    """With RBAC seeded, all three import positions match seeded ones (slug + CC code)."""
+    tenant = __import__("uuid").UUID("10000000-0000-0000-0000-0000000000aa")
+    seed_default_rbac(db_session, tenant)
+    seeded_sm = db_session.query(Position).filter_by(tenant_id=tenant, slug="scoutmaster").one()
+    seeded_cc = db_session.query(Position).filter_by(tenant_id=tenant, slug="committee-chair").one()
+
+    root = ET.parse(_FIXTURE).getroot()  # noqa: S314 — committed fixture, not web input
+    result = TwhImporter(db_session, tenant).run(root)
+
+    # scoutmaster + patrol-leader match by slug; "Committee Chairman" matches the seeded
+    # "Committee Chair" via the CC code crosswalk → nothing new created.
+    assert result.positions == 0
+    bob = db_session.query(Member).filter_by(tenant_id=tenant, first_name="Bob").one()
+    eve = db_session.query(Member).filter_by(tenant_id=tenant, first_name="Eve").one()
+    bob_sm = next(a for a in _assignments(db_session, bob) if a.end_date is None)
+    eve_cc = _assignments(db_session, eve)[0]
+    assert bob_sm.position_id == seeded_sm.id  # reused seeded Scoutmaster
+    assert eve_cc.position_id == seeded_cc.id  # reused seeded Committee Chair via code
+    assert seeded_sm.is_system is True
 
 
 # ---------------------------------------------------------------------------

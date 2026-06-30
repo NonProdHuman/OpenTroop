@@ -1,4 +1,4 @@
-"""API tests for /members/{member_id}/positions — assigning positions to members."""
+"""API tests for /members/{member_id}/positions — dated position terms."""
 
 from fastapi.testclient import TestClient
 
@@ -20,8 +20,8 @@ def _create_position(client: TestClient, slug: str = "scoutmaster") -> dict:
     return r.json()
 
 
-def _assign(client: TestClient, member_id: str, position_id: str) -> dict:
-    r = client.post(f"/members/{member_id}/positions", json={"position_id": position_id})
+def _assign(client: TestClient, member_id: str, position_id: str, **extra) -> dict:
+    r = client.post(f"/members/{member_id}/positions", json={"position_id": position_id, **extra})
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -32,8 +32,11 @@ def test_assign_position(client: TestClient) -> None:
     data = _assign(client, m["id"], pos["id"])
     assert data["member_id"] == m["id"]
     assert data["position_id"] == pos["id"]
-    # assigned_by is the acting member (the admin), recorded automatically.
     assert data["assigned_by_id"] == str(_ADMIN_MEMBER_IDS[TENANT_A])
+    # A new term defaults to starting today, open-ended → current.
+    assert data["start_date"] is not None
+    assert data["end_date"] is None
+    assert data["is_current"] is True
 
 
 def test_list_member_positions(client: TestClient) -> None:
@@ -46,37 +49,62 @@ def test_list_member_positions(client: TestClient) -> None:
     assert {p1["id"], p2["id"]} <= position_ids
 
 
-def test_assign_is_idempotent(client: TestClient) -> None:
-    m = _create_member(client)
-    pos = _create_position(client)
-    first = _assign(client, m["id"], pos["id"])
-    second = _assign(client, m["id"], pos["id"])
-    assert first["id"] == second["id"]
-
-
-def test_unassign_position(client: TestClient) -> None:
+def test_assign_duplicate_current_conflicts(client: TestClient) -> None:
     m = _create_member(client)
     pos = _create_position(client)
     _assign(client, m["id"], pos["id"])
-    resp = client.delete(f"/members/{m['id']}/positions/{pos['id']}")
+    r = client.post(f"/members/{m['id']}/positions", json={"position_id": pos["id"]})
+    assert r.status_code == 409
+
+
+def test_delete_term_by_assignment_id(client: TestClient) -> None:
+    m = _create_member(client)
+    pos = _create_position(client)
+    a = _assign(client, m["id"], pos["id"])
+    resp = client.delete(f"/members/{m['id']}/positions/{a['id']}")
     assert resp.status_code == 204
     assert client.get(f"/members/{m['id']}/positions").json() == []
+    # Soft-deleted → gone from history too.
+    assert client.get(f"/members/{m['id']}/positions?current=false").json() == []
 
 
-def test_reassign_after_unassign_revives(client: TestClient) -> None:
+def test_delete_missing_returns_404(client: TestClient) -> None:
     m = _create_member(client)
-    pos = _create_position(client)
-    first = _assign(client, m["id"], pos["id"])
-    client.delete(f"/members/{m['id']}/positions/{pos['id']}")
-    revived = _assign(client, m["id"], pos["id"])
-    assert revived["id"] == first["id"]  # the prior row is revived, not duplicated
+    import uuid
 
-
-def test_unassign_missing_returns_404(client: TestClient) -> None:
-    m = _create_member(client)
-    pos = _create_position(client)
-    resp = client.delete(f"/members/{m['id']}/positions/{pos['id']}")
+    resp = client.delete(f"/members/{m['id']}/positions/{uuid.uuid4()}")
     assert resp.status_code == 404
+
+
+def test_end_term_then_history_and_reassign(client: TestClient) -> None:
+    m = _create_member(client)
+    pos = _create_position(client)
+    # Start the term in the past so we can end it in the past too (end >= start).
+    a = _assign(client, m["id"], pos["id"], start_date="2025-01-01")
+
+    # End the term in the past via PATCH → no longer current.
+    r = client.patch(f"/members/{m['id']}/positions/{a['id']}", json={"end_date": "2025-06-01"})
+    assert r.status_code == 200
+    assert r.json()["is_current"] is False
+
+    # Default (current) list is empty; full history still shows the ended term.
+    assert client.get(f"/members/{m['id']}/positions").json() == []
+    history = client.get(f"/members/{m['id']}/positions?current=false").json()
+    assert len(history) == 1
+    assert history[0]["end_date"] == "2025-06-01"
+
+    # The position can be re-assigned now that the prior term has ended (new row).
+    b = _assign(client, m["id"], pos["id"])
+    assert b["id"] != a["id"]
+    assert len(client.get(f"/members/{m['id']}/positions?current=false").json()) == 2
+
+
+def test_patch_end_before_start_rejected(client: TestClient) -> None:
+    m = _create_member(client)
+    pos = _create_position(client)
+    a = _assign(client, m["id"], pos["id"], start_date="2025-06-01")
+    r = client.patch(f"/members/{m['id']}/positions/{a['id']}", json={"end_date": "2025-01-01"})
+    assert r.status_code == 422
 
 
 def test_assign_position_wrong_tenant(client: TestClient, other_client: TestClient) -> None:
@@ -97,5 +125,4 @@ def test_tenant_isolation(client: TestClient, other_client: TestClient) -> None:
     m = _create_member(client)
     pos = _create_position(client)
     _assign(client, m["id"], pos["id"])
-    # other_client (TENANT_B) cannot see TENANT_A's member at all.
     assert other_client.get(f"/members/{m['id']}/positions").status_code == 404

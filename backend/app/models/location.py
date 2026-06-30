@@ -3,10 +3,10 @@ from __future__ import annotations
 from sqlalchemy import String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import TrackedBase
+from app.models.base import SourceTracked, TrackedBase
 
 
-class Location(TrackedBase):
+class Location(SourceTracked, TrackedBase):
     __tablename__ = "locations"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)

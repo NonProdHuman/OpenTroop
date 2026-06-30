@@ -7,6 +7,8 @@ class TwhImportRead(BaseModel):
     patrols: int
     members: int
     relationships: int
+    positions: int
+    position_assignments: int
     locations: int
     event_types: int
     events: int
