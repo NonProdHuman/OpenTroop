@@ -21,9 +21,7 @@ def _create_position(client: TestClient, slug: str = "scoutmaster") -> dict:
 
 
 def _assign(client: TestClient, member_id: str, position_id: str, **extra) -> dict:
-    r = client.post(
-        f"/members/{member_id}/positions", json={"position_id": position_id, **extra}
-    )
+    r = client.post(f"/members/{member_id}/positions", json={"position_id": position_id, **extra})
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -85,9 +83,7 @@ def test_end_term_then_history_and_reassign(client: TestClient) -> None:
     a = _assign(client, m["id"], pos["id"], start_date="2025-01-01")
 
     # End the term in the past via PATCH → no longer current.
-    r = client.patch(
-        f"/members/{m['id']}/positions/{a['id']}", json={"end_date": "2025-06-01"}
-    )
+    r = client.patch(f"/members/{m['id']}/positions/{a['id']}", json={"end_date": "2025-06-01"})
     assert r.status_code == 200
     assert r.json()["is_current"] is False
 
@@ -107,9 +103,7 @@ def test_patch_end_before_start_rejected(client: TestClient) -> None:
     m = _create_member(client)
     pos = _create_position(client)
     a = _assign(client, m["id"], pos["id"], start_date="2025-06-01")
-    r = client.patch(
-        f"/members/{m['id']}/positions/{a['id']}", json={"end_date": "2025-01-01"}
-    )
+    r = client.patch(f"/members/{m['id']}/positions/{a['id']}", json={"end_date": "2025-01-01"})
     assert r.status_code == 422
 
 
