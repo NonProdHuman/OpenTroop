@@ -71,4 +71,11 @@ def unscoped() -> Generator[None, None, None]:
     try:
         yield
     finally:
-        _bypass.reset(token)
+        try:
+            _bypass.reset(token)
+        except ValueError:
+            # Starlette runs a sync yield-dependency's enter and exit (on the error
+            # path) in different contexts via the threadpool, which invalidates the
+            # token here and would otherwise mask the real exception as a 500. The
+            # ContextVar copy in this context is independent, so clear the flag directly.
+            _bypass.set(False)

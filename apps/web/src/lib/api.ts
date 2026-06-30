@@ -2,12 +2,14 @@
 
 import { useAuth } from "@clerk/nextjs"
 import { useCallback } from "react"
+import { useActiveTenant } from "@/lib/tenant-context"
 
 const BASE = "/api"
 const CLERK_JWT_TEMPLATE = process.env.NEXT_PUBLIC_CLERK_JWT_TEMPLATE || undefined
 
 export function useApi() {
   const { getToken } = useAuth()
+  const { activeTenantId } = useActiveTenant()
 
   const request = useCallback(
     async <T>(path: string, init?: RequestInit): Promise<T> => {
@@ -20,6 +22,10 @@ export function useApi() {
         headers: {
           ...(isFormData ? {} : { "Content-Type": "application/json" }),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          // Tenant scope. The backend resolves tenant from the subdomain first
+          // (x-forwarded-host) and falls back to this header — which is what makes
+          // plain localhost:3000 work in dev without wildcard DNS or https.
+          ...(activeTenantId ? { "X-Tenant-ID": activeTenantId } : {}),
           ...(init?.headers ?? {}),
         },
       })
@@ -33,7 +39,7 @@ export function useApi() {
       }
       return res.json() as Promise<T>
     },
-    [getToken],
+    [getToken, activeTenantId],
   )
 
   return { request }

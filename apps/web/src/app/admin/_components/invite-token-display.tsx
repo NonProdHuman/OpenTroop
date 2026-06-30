@@ -4,19 +4,29 @@ import { Check, Copy } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { getTenantUrl } from "@/lib/domains"
 
 /**
  * Shows a freshly-minted invite/claim token with a copy button. Until automated
  * email delivery exists, the platform admin hands this token to the invitee
  * out-of-band; they redeem it via the app's claim flow after signing in.
+ *
+ * The claim link targets the invitee's own tenant subdomain (e.g.
+ * troop123.opentroop.app — or troop123.opentroop.localhost:3000 in dev) so they
+ * land in the right tenant context after claiming.
  */
-export function InviteTokenDisplay({ token, expiresAt }: { token: string; expiresAt?: string }) {
+export function InviteTokenDisplay({
+  token,
+  slug,
+  expiresAt,
+}: {
+  token: string
+  slug: string
+  expiresAt?: string
+}) {
   const [copied, setCopied] = useState(false)
 
-  const baseUrl = typeof window !== "undefined"
-    ? `${window.location.protocol}//${window.location.hostname.includes("localhost") ? "localhost:3000" : "opentroop.dev"}`
-    : "https://opentroop.dev"
-  const claimUrl = `${baseUrl}/claim?token=${token}`
+  const claimUrl = getTenantUrl(slug, `/claim?token=${token}`)
 
   async function copy() {
     try {

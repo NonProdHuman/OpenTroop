@@ -27,5 +27,7 @@ export function getTenantRedirectUrl(slug: string, path: string = "/members"): s
   }
 
   const portSuffix = port ? `:${port}` : ""
-  return `https://${slug}.${baseDomain}${portSuffix}${path}`
+  // Preserve the current protocol so local dev (http) isn't forced onto https.
+  const protocol = window.location.protocol // "http:" or "https:"
+  return `${protocol}//${slug}.${baseDomain}${portSuffix}${path}`
 }

@@ -37,6 +37,14 @@ def test_extract_subdomain_case_insensitive() -> None:
     assert _extract_subdomain("Troop123.opentroop.app", "opentroop.app") == "troop123"
 
 
+def test_extract_subdomain_reserved_returns_none() -> None:
+    # Platform surfaces must never be parsed as tenant slugs.
+    assert _extract_subdomain("admin.opentroop.app", "opentroop.app") is None
+    assert _extract_subdomain("www.opentroop.app", "opentroop.app") is None
+    # Case-insensitive and port-tolerant too.
+    assert _extract_subdomain("Admin.opentroop.localhost:3000", "opentroop.localhost") is None
+
+
 # ---------------------------------------------------------------------------
 # User / Identity provisioning
 # ---------------------------------------------------------------------------
@@ -68,6 +76,30 @@ def test_get_or_create_user_second_login_returns_same_user(db_session: Session) 
     user1 = get_or_create_user(claims, db_session)
     user2 = get_or_create_user(claims, db_session)
     assert user1.id == user2.id
+
+
+def test_get_or_create_user_backfills_email_on_later_login(db_session: Session) -> None:
+    # First login without email/name (e.g. JWT lacked the claims).
+    bare = {"iss": "https://accounts.google.com", "sub": "late-email"}
+    user = get_or_create_user(bare, db_session)
+    assert user.email is None
+    assert user.display_name is None
+
+    # A later login now carries the claims → they backfill onto the existing user.
+    enriched = {**bare, "email": "carol@example.com", "name": "Carol Jones"}
+    same = get_or_create_user(enriched, db_session)
+    assert same.id == user.id
+    assert same.email == "carol@example.com"
+    assert same.display_name == "Carol Jones"
+
+
+def test_get_or_create_user_does_not_clobber_existing_email(db_session: Session) -> None:
+    first = {"iss": "https://accounts.google.com", "sub": "stable", "email": "first@example.com"}
+    user = get_or_create_user(first, db_session)
+    # A later login with a different email does not overwrite the stored one.
+    get_or_create_user({**first, "email": "changed@example.com"}, db_session)
+    db_session.refresh(user)
+    assert user.email == "first@example.com"
 
 
 def test_get_or_create_user_different_providers_create_separate_users(

@@ -11,13 +11,19 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.models.tenant import Tenant
 
+# Subdomains that name platform surfaces, not tenants. They must never resolve to a
+# tenant slug — e.g. ``admin.opentroop.app`` is the platform console, ``www`` the
+# landing alias. Mirrors the ``admin.`` special-casing in the web middleware (proxy.ts).
+RESERVED_SUBDOMAINS: frozenset[str] = frozenset({"admin", "www"})
+
 
 def _extract_subdomain(host: str, app_domain: str) -> str | None:
     """Return the single subdomain prefix if *host* is a direct subdomain of *app_domain*.
 
     ``troop123.opentroop.app`` → ``"troop123"``
     Nested subdomains (``a.troop123.opentroop.app``) are rejected to prevent
-    tenant spoofing via crafted Host headers.
+    tenant spoofing via crafted Host headers. Reserved platform subdomains
+    (``admin``, ``www``) return ``None`` so they're never treated as tenants.
     """
     host = host.lower().split(":")[0]  # strip optional port
     suffix = f".{app_domain.lower()}"
@@ -25,6 +31,8 @@ def _extract_subdomain(host: str, app_domain: str) -> str | None:
         return None
     prefix = host[: -len(suffix)]
     if not prefix or "." in prefix:
+        return None
+    if prefix in RESERVED_SUBDOMAINS:
         return None
     return prefix
 
