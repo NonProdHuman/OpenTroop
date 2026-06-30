@@ -151,7 +151,7 @@ describe("AppSidebar", () => {
     mockMe({ data: { platform_role: "superadmin" } })
     renderSidebar()
     expect(screen.getByText("Platform Admin")).toBeInTheDocument()
-    expect(screen.getByText("Platform Admin").closest("a")).toHaveAttribute("href", "http://admin.opentroop.localhost:3000/tenants")
+    expect(screen.getByText("Platform Admin").closest("a")).toHaveAttribute("href", "http://admin.localhost:3000/tenants")
   })
 
   it("shows Tenants and Admins links in admin view and hides troop items", () => {
