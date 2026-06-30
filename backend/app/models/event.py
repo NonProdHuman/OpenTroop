@@ -10,7 +10,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import SourceTracked, TrackedBase
-from app.models.enums import RsvpStatus
+from app.models.enums import PermissionSlipStatus, RsvpStatus
 
 if TYPE_CHECKING:
     from app.models.event_type import EventType
@@ -88,6 +88,10 @@ class EventOrganizer(TrackedBase):
 class EventParticipant(SourceTracked, TrackedBase):
     __tablename__ = "event_participants"
 
+    # Derived per-request, never persisted (not a Mapped column ⇒ ignored by the mapper).
+    # The router fills it via app.core.permission_slip before serialization.
+    permission_status: PermissionSlipStatus = PermissionSlipStatus.NOT_REQUIRED
+
     event_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("events.id"), nullable=False, index=True)
     member_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("members.id"), nullable=False, index=True
@@ -105,6 +109,10 @@ class EventParticipant(SourceTracked, TrackedBase):
     attended: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     guest_count: Mapped[int] = mapped_column(default=0, nullable=False)
     driver: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Informational carpool legs (only meaningful when driver=True). No capacity math
+    # is done with these yet — they're stored to enable a future seat-allocation feature.
+    drives_to: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    drives_from: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     seat_count: Mapped[int | None] = mapped_column(nullable=True)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     signed_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -131,6 +139,10 @@ class EventParticipant(SourceTracked, TrackedBase):
         ForeignKey("members.id"), nullable=True
     )
     electronic_permission_signature: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # The exact tenant permission language the parent agreed to, captured at sign time.
+    # Editing Tenant.permission_message never rewrites already-signed slips (legal record);
+    # the future permission-slip PDF renders from this snapshot.
+    permission_message_snapshot: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     event: Mapped[Event] = relationship(back_populates="participants")
     member: Mapped[Member] = relationship(foreign_keys=[member_id])

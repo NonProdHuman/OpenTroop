@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, UniqueConstraint
+from sqlalchemy import DateTime, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import PlatformBase
@@ -27,3 +27,6 @@ class Tenant(PlatformBase):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Customizable parental permission-slip language shown before a parent clicks "I Agree".
+    # Static text (no merge fields). Null ⇒ a built-in default is shown (see DEFAULT_PERMISSION_MESSAGE).
+    permission_message: Mapped[str | None] = mapped_column(Text, nullable=True)

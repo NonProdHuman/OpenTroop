@@ -20,4 +20,7 @@ class EventType(SourceTracked, TrackedBase):
     tracks_mileage: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     allow_signups: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     require_permission_slip: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # When True, the RSVP form exposes a guest-count field for non-roster attendees
+    # (e.g. a family BBQ where grandparents come). Independent of allow_signups gating.
+    allow_guests: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_online: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

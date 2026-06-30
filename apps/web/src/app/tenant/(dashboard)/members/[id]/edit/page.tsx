@@ -2,11 +2,12 @@
 
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useMember, useUpdateMember } from "@/hooks/use-members"
+import { useMember, useMembers, useUpdateMember } from "@/hooks/use-members"
 import { useGroups, useMemberGroups } from "@/hooks/use-groups"
 import { useMemberPositions } from "@/hooks/use-member-positions"
 import { usePositions } from "@/hooks/use-positions"
 import { usePermissions } from "@/hooks/use-session"
+import { FamilyRelationshipsEditor } from "@/components/family-relationships-editor"
 import { GroupMembershipEditor } from "@/components/group-membership-editor"
 import { MemberPositionsEditor } from "@/components/member-positions-editor"
 import { PageHeader } from "@/components/page-header"
@@ -22,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { useRelationships } from "@/hooks/use-relationships"
 import type { Member, MemberStatus, MemberType, SwimClassification } from "@/types/api"
 
 type FormState = {
@@ -198,6 +200,8 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
   const memberGroups = useMemberGroups(id)
   const { data: assignments = [] } = useMemberPositions(id)
   const { data: allPositions = [] } = usePositions()
+  const { data: relationships = [] } = useRelationships(id)
+  const { data: allMembers = [] } = useMembers()
   const updateMember = useUpdateMember()
 
   const [form, setForm] = useState<FormState>(() => toFormState(member))
@@ -442,6 +446,16 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
             </div>
           </div>
         )}
+
+        <Separator />
+
+        {/* ── Family ───────────────────────────────────────── */}
+        <SectionTitle>Family</SectionTitle>
+        <FamilyRelationshipsEditor
+          memberId={id}
+          relationships={relationships}
+          allMembers={allMembers}
+        />
 
         <Separator />
 

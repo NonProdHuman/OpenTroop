@@ -10,6 +10,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format"
 import type { Event } from "@/types/api"
+import { EventRsvpPanel } from "./event-rsvp-panel"
 import { EventTypeBadge } from "./event-type-badge"
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -157,6 +158,13 @@ export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheet
               </Section>
             </>
           ) : null}
+
+          {event.event_type.allow_signups && (
+            <>
+              <Separator />
+              <EventRsvpPanel event={event} />
+            </>
+          )}
 
           <Separator />
 
