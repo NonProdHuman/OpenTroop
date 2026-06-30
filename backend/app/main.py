@@ -18,6 +18,7 @@ from app.routers import (
     platform,
     positions,
     relationships,
+    tenant_settings,
 )
 
 app = FastAPI(title=settings.app_name)
@@ -52,6 +53,7 @@ app.include_router(event_types.router)
 app.include_router(events.router)
 app.include_router(calendar.router)
 app.include_router(imports.router)
+app.include_router(tenant_settings.router)
 
 
 @app.get("/health")

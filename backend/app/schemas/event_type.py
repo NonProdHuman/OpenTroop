@@ -12,6 +12,7 @@ class EventTypeBase(BaseModel):
     tracks_mileage: bool = False
     allow_signups: bool = True
     require_permission_slip: bool = False
+    allow_guests: bool = False
     is_online: bool = False
 
 
@@ -24,6 +25,7 @@ class EventTypeUpdate(BaseModel):
     tracks_mileage: bool | None = None
     allow_signups: bool | None = None
     require_permission_slip: bool | None = None
+    allow_guests: bool | None = None
     is_online: bool | None = None
 
 

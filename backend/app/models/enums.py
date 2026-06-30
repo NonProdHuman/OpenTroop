@@ -155,6 +155,23 @@ class RsvpStatus(enum.StrEnum):
     MAYBE = "maybe"
 
 
+class PermissionSlipStatus(enum.StrEnum):
+    """Derived status of a scout's parental permission slip for an event.
+
+    Not stored — computed from the event type, the scout's RSVP, and whether a
+    parent has signed under the *current* tenant permission language. See
+    ``app.core.permission_slip`` and ``docs/spec/event-rsvp-permission.md``.
+
+    NOT_REQUIRED — the event type doesn't require a slip, or the scout isn't going.
+    PENDING      — required and the scout is going, but no valid signature yet.
+    GRANTED      — a parent/guardian has signed under the current language.
+    """
+
+    NOT_REQUIRED = "not_required"
+    PENDING = "pending"
+    GRANTED = "granted"
+
+
 class RelationshipType(enum.StrEnum):
     """Nature of a relationship between two members.
 
