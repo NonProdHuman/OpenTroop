@@ -5,6 +5,8 @@ import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
 import type {
   Event,
+  EventAudience,
+  EventOrganizer,
   EventParticipant,
   EventParticipantCounts,
   EventType,
@@ -20,6 +22,16 @@ export function useEvents() {
     queryKey: [activeTenantId, "events"],
     queryFn: () => request<Event[]>("/events/"),
     enabled: Boolean(activeTenantId),
+  })
+}
+
+export function useEvent(id: string | null) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  return useQuery({
+    queryKey: [activeTenantId, "events", id],
+    queryFn: () => request<Event>(`/events/${id}`),
+    enabled: id !== null && Boolean(activeTenantId),
   })
 }
 
@@ -147,6 +159,105 @@ export function useCreateEvent() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "events"] })
+    },
+  })
+}
+
+export function useUpdateEvent() {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Event> }) =>
+      request<Event>(`/events/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (updated, { id }) => {
+      queryClient.setQueryData([activeTenantId, "events", id], updated)
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "events"] })
+    },
+  })
+}
+
+// ── Audiences (visibility groups) ─────────────────────────────────────────────
+
+export function useEventAudiences(eventId: string | null) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  return useQuery({
+    queryKey: [activeTenantId, "event-audiences", eventId],
+    queryFn: () => request<EventAudience[]>(`/events/${eventId}/audiences`),
+    enabled: eventId !== null && Boolean(activeTenantId),
+  })
+}
+
+export function useAddEventAudience(eventId: string) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (groupId: string) =>
+      request<EventAudience>(`/events/${eventId}/audiences`, {
+        method: "POST",
+        body: JSON.stringify({ group_id: groupId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "event-audiences", eventId] })
+    },
+  })
+}
+
+export function useRemoveEventAudience(eventId: string) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (groupId: string) =>
+      request(`/events/${eventId}/audiences/${groupId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "event-audiences", eventId] })
+    },
+  })
+}
+
+// ── Organizers ─────────────────────────────────────────────────────────────────
+
+export function useEventOrganizers(eventId: string | null) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  return useQuery({
+    queryKey: [activeTenantId, "event-organizers", eventId],
+    queryFn: () => request<EventOrganizer[]>(`/events/${eventId}/organizers`),
+    enabled: eventId !== null && Boolean(activeTenantId),
+  })
+}
+
+export function useAddEventOrganizer(eventId: string) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (memberId: string) =>
+      request<EventOrganizer>(`/events/${eventId}/organizers`, {
+        method: "POST",
+        body: JSON.stringify({ member_id: memberId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "event-organizers", eventId] })
+    },
+  })
+}
+
+export function useRemoveEventOrganizer(eventId: string) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (memberId: string) =>
+      request(`/events/${eventId}/organizers/${memberId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "event-organizers", eventId] })
     },
   })
 }

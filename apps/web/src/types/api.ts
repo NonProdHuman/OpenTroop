@@ -265,6 +265,26 @@ export interface EventParticipantCounts {
   guests: number
 }
 
+export interface EventAudience {
+  id: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  event_id: string
+  group_id: string
+}
+
+export interface EventOrganizer {
+  id: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  event_id: string
+  member_id: string
+}
+
 export interface TenantSettings {
   permission_message: string
 }

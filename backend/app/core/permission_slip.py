@@ -22,12 +22,37 @@ from app.models.event_type import EventType
 from app.models.member import Member
 from app.models.tenant import Tenant
 
-# Placeholder default until the troop sets its own. The real BSA permission language
-# will replace this constant; it is intentionally generic for now.
+# Standard BSA activity consent/release language. Troops may override via
+# Tenant.permission_message; this is the default shown until they do.
 DEFAULT_PERMISSION_MESSAGE = (
-    "I give permission for my scout to participate in this event. In the event of an "
-    "emergency and if I cannot be reached, I authorize the adult leaders present to "
-    "obtain and consent to medical treatment for my scout."
+    "I understand that participation in Scouting activities involves the risk of personal "
+    "injury, including death, due to the physical, mental, and emotional challenges in the "
+    "activities offered. Information about those activities may be obtained from the venue, "
+    "activity coordinators, or local council. I also understand that participation in these "
+    "activities is entirely voluntary and requires participants to follow instructions and "
+    "abide by all applicable rules and the standards of conduct.\n\n"
+    "In case of an emergency involving my child, I understand that efforts will be made to "
+    "contact me. In the event I cannot be reached, permission is hereby given to the medical "
+    "provider to secure proper treatment, including hospitalization, anesthesia, surgery, or "
+    "injections of medication for my child. Medical providers are authorized to disclose "
+    "protected health information to the adult in charge and/or any physician or health care "
+    "provider involved in providing medical care to the participant. Protected Health "
+    "Information/Confidential Health Information (PHI/CHI) under the Standards for Privacy of "
+    "Individually Identifiable Health Information, 45 C.F.R. §§160.103, 164.501, et "
+    "seq., as amended from time to time, includes examination findings, test results, and "
+    "treatment provided for purposes of medical evaluation of the participant, follow-up and "
+    "communication with the participant’s parents or guardian, and/or determination of "
+    "the participant’s ability to continue in the program activities.\n\n"
+    "With appreciation of the dangers and risks associated with programs and activities "
+    "including preparations for and transportation to and from the activity, on my own behalf "
+    "and/or on behalf of my child, I hereby fully and completely release and waive any and all "
+    "claims for personal injury, death, or loss that may arise against the Boy Scouts of "
+    "America, the local council, the activity coordinators, and all employees, volunteers, "
+    "related parties, or other organizations associated with any program or activity.\n\n"
+    "NOTE: The Boy Scouts of America and local councils cannot continually monitor compliance "
+    "of program participants or any limitations imposed upon them by parents or medical "
+    "providers. List any restrictions imposed on a child participant in connection with "
+    "programs or activities below and counsel your child to comply with those restrictions."
 )
 
 
