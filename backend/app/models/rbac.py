@@ -51,6 +51,7 @@ class Position(SourceTracked, TrackedBase):
         nullable=False,
     )
     is_system: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     functional_role_links: Mapped[list[PositionFunctionalRole]] = relationship(

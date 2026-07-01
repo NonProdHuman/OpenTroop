@@ -80,16 +80,21 @@ export function MemberPositionsEditor({
 
   const assignedIds = new Set(assignments.map((a) => a.position_id))
 
-  // Sort by position sort_order then name
-  const sorted = [...assignments].sort((a, b) => {
-    const pa = allPositions.find((p) => p.id === a.position_id)
-    const pb = allPositions.find((p) => p.id === b.position_id)
-    if (!pa || !pb) return 0
-    if (pa.sort_order !== pb.sort_order) return pa.sort_order - pb.sort_order
-    return pa.name.localeCompare(pb.name)
-  })
+  // Sort by position sort_order then name. Filter out default positions.
+  const sorted = [...assignments]
+    .filter((a) => {
+      const p = allPositions.find((pos) => pos.id === a.position_id)
+      return p && !p.is_default
+    })
+    .sort((a, b) => {
+      const pa = allPositions.find((p) => p.id === a.position_id)
+      const pb = allPositions.find((p) => p.id === b.position_id)
+      if (!pa || !pb) return 0
+      if (pa.sort_order !== pb.sort_order) return pa.sort_order - pb.sort_order
+      return pa.name.localeCompare(pb.name)
+    })
 
-  const addable = allPositions.filter((p) => !assignedIds.has(p.id))
+  const addable = allPositions.filter((p) => !assignedIds.has(p.id) && !p.is_default)
 
   function handleAdd(position: Position) {
     assignPosition.mutate({ memberId, positionId: position.id })

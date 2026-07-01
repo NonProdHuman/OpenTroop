@@ -2,7 +2,7 @@
 
 **Status:** Draft
 **Pillar:** Roster & Relationships (Pillar 1) — RBAC foundation
-**Related:** [`session-permissions.md`](session-permissions.md) · [`groups-screen.md`](groups-screen.md) · [`members-screen.md`](members-screen.md)
+**Related:** [`session-permissions.md`](session-permissions.md) · [`groups-screen.md`](groups-screen.md) · [`members-screen.md`](members-screen.md) · [`baseline-member-access.md`](baseline-member-access.md) (extends this spec — every member's baseline read access)
 **Supersedes (data model):** the single `Role` / `RoleMembership` design currently in
 `app/models/role.py`. This spec splits that one table into **Positions** and
 **Functional Roles** (see [Migration](#migration-from-the-current-role-model)).

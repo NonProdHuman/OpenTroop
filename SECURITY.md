@@ -28,13 +28,13 @@ we work toward a fix.
 The following are in scope:
 
 - The FastAPI backend (`backend/`)
+- The Next.js frontend (`apps/web/`)
 - Authentication and tenant isolation logic
 - SQL injection, privilege escalation, or cross-tenant data leakage
 - Any exposure of PII (personally identifiable information), especially for minors
 
 The following are **out of scope** for this project at this stage:
 
-- The frontend (not yet built)
 - Third-party services (Clerk, Cloud SQL, etc.) — report those to their vendors
 
 ## Disclosure Policy

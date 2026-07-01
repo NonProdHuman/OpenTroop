@@ -66,8 +66,9 @@ export function useInviteMember() {
   const { request } = useApi()
   return useMutation({
     mutationFn: (id: string) =>
-      request<{ token: string; expires_at: string }>(`/members/${id}/invite`, {
-        method: "POST",
-      }),
+      request<{ token: string; expires_at: string; email_sent: boolean }>(
+        `/members/${id}/invite`,
+        { method: "POST" },
+      ),
   })
 }

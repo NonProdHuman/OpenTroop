@@ -422,6 +422,17 @@ class TwhImporter:
                     )
                 )
 
+            # Assign baseline member position
+            from app.core.provisioning import get_or_create_member_position
+            from app.models.rbac import MemberPositionAssignment
+
+            member_pos = get_or_create_member_position(self.session, self.tenant_id)
+            self.session.add(
+                MemberPositionAssignment(
+                    tenant_id=self.tenant_id, member_id=member.id, position_id=member_pos.id
+                )
+            )
+
     # ------------------------------------------------------------------
     # Relationships
     # ------------------------------------------------------------------

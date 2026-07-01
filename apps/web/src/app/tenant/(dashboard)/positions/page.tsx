@@ -104,8 +104,13 @@ function PositionDetailSheet({
                 System
               </Badge>
             )}
+            {position.is_default && (
+              <Badge variant="outline" className="gap-1 border-blue-200 text-blue-700 bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:bg-blue-950/30">
+                Default
+              </Badge>
+            )}
           </div>
-          {canManage && (
+          {canManage && !position.is_default && (
             <div className="flex items-center gap-2 pt-1 flex-wrap">
               <Button size="sm" variant="outline" onClick={() => { onOpenChange(false); router.push(`/positions/${position.id}/edit`) }}>
                 <Pencil className="h-3.5 w-3.5 mr-1.5" />
@@ -267,6 +272,7 @@ export default function PositionsPage() {
                       <div className="flex items-center gap-2">
                         <span>{p.name}</span>
                         {p.is_system && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                        {p.is_default && <span className="text-[10px] uppercase tracking-wider font-semibold text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950/30">Default</span>}
                       </div>
                     </td>
                     <td className="px-4 py-3">
