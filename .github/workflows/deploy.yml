@@ -74,7 +74,13 @@ jobs:
       - name: Build Frontend Image
         # Note: Next.js build might require NEXT_PUBLIC_* args at build time
         run: |
-          docker build --build-arg NEXT_PUBLIC_API_URL=${PUBLIC_API_URL:-${{ steps.deploy-backend.outputs.url }}} --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }} --build-arg NEXT_PUBLIC_CLERK_JWT_TEMPLATE=${{ vars.NEXT_PUBLIC_CLERK_JWT_TEMPLATE || secrets.NEXT_PUBLIC_CLERK_JWT_TEMPLATE }} --build-arg NEXT_PUBLIC_TENANT_ID=${{ secrets.NEXT_PUBLIC_TENANT_ID }} -f apps/web/Dockerfile -t ${{ env.FRONTEND_IMAGE }} -t ${{ env.FRONTEND_IMAGE_LATEST }} .
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL=${PUBLIC_API_URL:-${{ steps.deploy-backend.outputs.url }}} \
+            --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }} \
+            --build-arg NEXT_PUBLIC_CLERK_JWT_TEMPLATE=${{ vars.NEXT_PUBLIC_CLERK_JWT_TEMPLATE || secrets.NEXT_PUBLIC_CLERK_JWT_TEMPLATE }} \
+            --build-arg NEXT_PUBLIC_TENANT_ID=${{ secrets.NEXT_PUBLIC_TENANT_ID }} \
+            --build-arg NEXT_PUBLIC_APP_DOMAIN=${{ vars.NEXT_PUBLIC_APP_DOMAIN || vars.APP_DOMAIN || '' }} \
+            -f apps/web/Dockerfile -t ${{ env.FRONTEND_IMAGE }} -t ${{ env.FRONTEND_IMAGE_LATEST }} .
 
       - name: Push Frontend Image
         run: |

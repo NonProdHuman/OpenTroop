@@ -1,0 +1,35 @@
+name: Bug report
+description: Something isn't working as expected
+labels: ["bug"]
+body:
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected to happen
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: Backend (Python/OS/Docker?) and/or frontend (browser), and whether SaaS or self-hosted.
+    validations:
+      required: false
+  - type: markdown
+    attributes:
+      value: "Bug fixes must ship with a test that would have caught the bug (see CONTRIBUTING.md)."
