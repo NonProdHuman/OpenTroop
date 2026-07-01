@@ -39,6 +39,21 @@ def _extract_subdomain(host: str, app_domain: str) -> str | None:
     return prefix
 
 
+def _resolve_request_host(request: Request) -> str:
+    """Return the host to use for subdomain tenant resolution.
+
+    ``X-Forwarded-Host`` is client-supplied; honoring it unconditionally would let an
+    attacker pick the tenant on any deployment whose proxy doesn't strip the header.
+    It is only trusted when the deployment declares a trusted proxy in front
+    (``TRUST_FORWARDED_HOST=true``); otherwise ``Host`` is used.
+    """
+    if settings.trust_forwarded_host:
+        forwarded_host = request.headers.get("x-forwarded-host")
+        if forwarded_host:
+            return forwarded_host
+    return request.headers.get("host", "")
+
+
 def _reject_if_suspended(tenant: Tenant) -> None:
     """Block tenant-scoped access to a suspended tenant (a platform admin can lift it)."""
     if tenant.suspended_at is not None:
@@ -56,9 +71,7 @@ async def get_tenant_id(
     1. Subdomain — ``troop123.opentroop.app`` → slug lookup in DB.
     2. ``X-Tenant-ID`` header — raw UUID → DB validation.
     """
-    forwarded_host = request.headers.get("x-forwarded-host")
-    host = forwarded_host or request.headers.get("host", "")
-    slug = _extract_subdomain(host, settings.app_domain)
+    slug = _extract_subdomain(_resolve_request_host(request), settings.app_domain)
 
     if slug:
         tenant = db.scalar(select(Tenant).where(Tenant.slug == slug, Tenant.is_deleted.is_(False)))
@@ -102,9 +115,7 @@ async def scope_calendar_feed_tenant(
     why the feed resolves the tenant here instead of reusing ``get_tenant_id`` (which
     raises 403 on suspension and 400 on a missing context).
     """
-    forwarded_host = request.headers.get("x-forwarded-host")
-    host = forwarded_host or request.headers.get("host", "")
-    slug = _extract_subdomain(host, settings.app_domain)
+    slug = _extract_subdomain(_resolve_request_host(request), settings.app_domain)
 
     tenant: Tenant | None = None
     if slug:

@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     # Domain used for subdomain tenant routing (e.g. troop123.opentroop.app → "opentroop.app")
     app_domain: str = Field(min_length=1)
 
+    # Honor the X-Forwarded-Host header for subdomain tenant resolution. The header is
+    # client-controlled, so only enable this when every path to the API goes through a
+    # trusted proxy that sets (or strips) it — e.g. the Cloudflare Worker in the SaaS
+    # deployment. When False (default), tenant resolution uses the Host header only.
+    trust_forwarded_host: bool = False
+
     # Secret used to sign member invite/claim tokens (HS256). Must be changed in production.
     app_secret: str = Field(min_length=1)
 

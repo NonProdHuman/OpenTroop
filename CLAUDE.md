@@ -271,7 +271,10 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   `User` + `Identity` row pair, creating both atomically on first login.
 - **Tenant resolution** (`app/core/tenant.py`): `get_tenant_id` resolves the tenant
   from the request subdomain first (`troop123.opentroop.app` → slug lookup), then
-  falls back to the `X-Tenant-ID` header (raw UUID → DB validation). Nested
+  falls back to the `X-Tenant-ID` header (raw UUID → DB validation). The subdomain
+  host comes from `Host`; the client-controlled `X-Forwarded-Host` is honored only
+  when `TRUST_FORWARDED_HOST=true` — set it only behind a trusted proxy that
+  overwrites the header (the Cloudflare Worker does; Terraform wires this). Nested
   subdomains are rejected to prevent Host-header spoofing. A **suspended** tenant
   (`Tenant.suspended_at` set) is rejected with 403 on both resolution paths.
 - **FastAPI dependencies** (`app/core/deps.py`): `TenantDep`, `DbDep`,
