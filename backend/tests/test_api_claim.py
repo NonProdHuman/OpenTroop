@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.deps import get_notification_service
+from app.core.invite import build_claim_url
 from app.core.notifications import (
     EmailMessage,
     EmailSendError,
@@ -87,7 +88,7 @@ def test_invite_sends_email_when_member_has_address(
     assert len(fake_backend.sent) == 1
     sent = fake_backend.sent[0]
     assert sent.to == "scout@example.com"
-    assert f"http://troop42.localhost/claim?token={data['token']}" in sent.html_body
+    assert build_claim_url("troop42", data["token"]) in sent.html_body
 
 
 def test_invite_skips_send_for_opted_out_member(client: TestClient, db_session: Session) -> None:
