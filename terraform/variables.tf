@@ -145,6 +145,25 @@ variable "clerk_frontend_api" {
   default     = null
 }
 
+variable "email_backend" {
+  description = "Email delivery backend used by the API (\"fake\" or \"resend\"). See docs/resend-setup.md."
+  type        = string
+  default     = "fake"
+}
+
+variable "resend_api_key" {
+  description = "Resend API key for email delivery. Required when email_backend = \"resend\"."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "email_from_address" {
+  description = "From address for outgoing email, e.g. noreply@opentroop.dev. Must be on a domain verified in Resend."
+  type        = string
+  default     = null
+}
+
 variable "clerk_publishable_key" {
   description = "Clerk publishable key exposed to the web app."
   type        = string

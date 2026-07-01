@@ -122,6 +122,16 @@ resource "google_cloud_run_v2_service" "api" {
         value = var.environment
       }
 
+      env {
+        name  = "EMAIL_BACKEND"
+        value = var.email_backend
+      }
+
+      env {
+        name  = "EMAIL_FROM_ADDRESS"
+        value = coalesce(var.email_from_address, "")
+      }
+
       dynamic "env" {
         for_each = local.api_secret_env_names
 

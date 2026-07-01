@@ -92,6 +92,20 @@ gcloud run deploy opentroop-backend \
   --allow-unauthenticated
 ```
 
+### If deploying via `terraform/` (Scalr)
+
+The repo's Terraform config (`terraform/gcp.tf`, `terraform/variables.tf`)
+provisions the Cloud Run services directly and manages this the same way it
+manages `clerk_secret_key` — as Terraform variables, not raw `gcloud` calls.
+Set these in your Scalr workspace (mirroring the pattern in
+[`docs/clerk-setup.md`](clerk-setup.md)):
+
+* `email_backend` = `"resend"` (defaults to `"fake"` — no vendor call — if unset)
+* `resend_api_key` = `re_...` (sensitive; stored in Secret Manager, injected
+  into the API container as `RESEND_API_KEY`)
+* `email_from_address` = `noreply@opentroop.app` (must be on a domain verified
+  in step 2)
+
 ## 5. Verify it works
 
 With `EMAIL_BACKEND=resend` set and the backend running, invite a member with
