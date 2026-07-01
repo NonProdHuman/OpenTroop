@@ -1,32 +1,25 @@
-export function getRootDomain(hostname?: string): string {
-  // Try to use provided hostname, fallback to window.location if in browser
-  const host = hostname || (typeof window !== "undefined" ? window.location.hostname : "opentroop.dev")
+// Single source of truth for the app's root domain — the frontend mirror of the
+// backend's APP_DOMAIN. Local dev: "localhost:3000". Production: e.g. "opentroop.dev".
+// Tenants are subdomains of this (troop123.<root>), and the platform console is
+// admin.<root>. Nothing else should hardcode the domain.
+export const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "localhost:3000"
 
-  if (host.includes("localhost") || host.includes("127.0.0.1")) {
-    // Determine the port if running locally
-    const port = typeof window !== "undefined" && window.location.port ? `:${window.location.port}` : ":3000"
-    return `opentroop.localhost${port}`
-  }
+export function getRootDomain(): string {
+  return APP_DOMAIN
+}
 
-  // If we are on vercel preview URLs or similar, this might need expanding,
-  // but for production it's opentroop.dev
-  return "opentroop.dev"
+function protocol(): string {
+  return typeof window !== "undefined" ? window.location.protocol : "https:"
 }
 
 export function getAdminUrl(path: string = ""): string {
-  const root = getRootDomain()
-  const protocol = typeof window !== "undefined" ? window.location.protocol : "https:"
-  return `${protocol}//admin.${root}${path}`
+  return `${protocol()}//admin.${APP_DOMAIN}${path}`
 }
 
 export function getLandingUrl(path: string = ""): string {
-  const root = getRootDomain()
-  const protocol = typeof window !== "undefined" ? window.location.protocol : "https:"
-  return `${protocol}//${root}${path}`
+  return `${protocol()}//${APP_DOMAIN}${path}`
 }
 
 export function getTenantUrl(slug: string, path: string = ""): string {
-  const root = getRootDomain()
-  const protocol = typeof window !== "undefined" ? window.location.protocol : "https:"
-  return `${protocol}//${slug}.${root}${path}`
+  return `${protocol()}//${slug}.${APP_DOMAIN}${path}`
 }

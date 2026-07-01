@@ -14,7 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { useInviteTenantAdmin } from "@/hooks/use-platform"
+import { useInviteTenantAdmin, useTenant } from "@/hooks/use-platform"
 import type { TenantAdminInviteResult } from "@/types/api"
 import { InviteTokenDisplay } from "../../_components/invite-token-display"
 
@@ -25,6 +25,7 @@ export function InviteAdminDialog({ tenantId }: { tenantId: string }) {
   const [form, setForm] = useState(EMPTY)
   const [result, setResult] = useState<TenantAdminInviteResult | null>(null)
   const invite = useInviteTenantAdmin(tenantId)
+  const { data: tenant } = useTenant(tenantId)
 
   function set(field: keyof typeof EMPTY, value: string) {
     setForm((f) => ({ ...f, [field]: value }))
@@ -72,7 +73,11 @@ export function InviteAdminDialog({ tenantId }: { tenantId: string }) {
                 Send {form.first_name} {form.last_name} this token to claim their account.
               </DialogDescription>
             </DialogHeader>
-            <InviteTokenDisplay token={result.token} expiresAt={result.expires_at} />
+            <InviteTokenDisplay
+              token={result.token}
+              slug={tenant?.slug ?? ""}
+              expiresAt={result.expires_at}
+            />
             <DialogFooter>
               <Button onClick={() => handleOpenChange(false)}>Done</Button>
             </DialogFooter>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useClaimMembership } from "@/hooks/use-auth"
 import { useActiveTenant } from "@/lib/tenant-context"
+import { getTenantUrl } from "@/lib/domains"
 
 function ClaimForm() {
   const router = useRouter()
@@ -39,10 +40,7 @@ function ClaimForm() {
         const membership = memberships.find((m: { tenant_id: string; tenant_slug: string }) => m.tenant_id === member.tenant_id)
         if (membership && membership.tenant_slug) {
           toast.success("Account claimed successfully")
-
-          const isLocal = window.location.hostname.includes("localhost")
-          const rootDomain = isLocal ? "opentroop.localhost:3000" : "opentroop.dev"
-          window.location.href = `${window.location.protocol}//${membership.tenant_slug}.${rootDomain}/`
+          window.location.href = getTenantUrl(membership.tenant_slug, "/")
           return
         }
       }

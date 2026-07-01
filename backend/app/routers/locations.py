@@ -13,14 +13,14 @@ router = APIRouter(prefix="/locations", tags=["locations"])
 
 
 @router.get(
-    "/", response_model=list[LocationRead], dependencies=[Depends(require(Permission.EVENT_READ))]
+    "", response_model=list[LocationRead], dependencies=[Depends(require(Permission.EVENT_READ))]
 )
 def list_locations(tenant_id: TenantDep, db: DbDep) -> Sequence[Location]:
     return db.scalars(select(Location).where(Location.is_deleted.is_(False))).all()
 
 
 @router.post(
-    "/",
+    "",
     response_model=LocationRead,
     status_code=201,
     dependencies=[Depends(require(Permission.EVENT_WRITE))],

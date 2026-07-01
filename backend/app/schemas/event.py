@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel
 
-from app.models.enums import RsvpStatus
+from app.models.enums import PermissionSlipStatus, RsvpStatus
 from app.schemas.base import TrackedRead
 from app.schemas.event_type import EventTypeRead
 from app.schemas.location import LocationRead
@@ -94,6 +94,8 @@ class EventParticipantBase(BaseModel):
     rsvp_status: RsvpStatus = RsvpStatus.NO_RESPONSE
     guest_count: int = 0
     driver: bool = False
+    drives_to: bool = False
+    drives_from: bool = False
     seat_count: int | None = None
     comment: str | None = None
     signed_up_at: UtcDateTime | None = None
@@ -105,11 +107,9 @@ class EventParticipantBase(BaseModel):
     conservation_hours_override: Decimal | None = None
     water_hours_override: Decimal | None = None
     camping_nights_override: int | None = None
+    # Paper-slip tracking flag (manager-editable). The *electronic* parental permission
+    # is granted only via POST .../permission and is read-only here.
     permission_slip_submitted: bool = False
-    electronic_permission: bool = False
-    electronic_permission_at: UtcDateTime | None = None
-    electronic_permission_by_id: uuid.UUID | None = None
-    electronic_permission_signature: str | None = None
 
 
 class EventParticipantUpdate(BaseModel):
@@ -118,6 +118,8 @@ class EventParticipantUpdate(BaseModel):
     attended: bool | None = None
     guest_count: int | None = None
     driver: bool | None = None
+    drives_to: bool | None = None
+    drives_from: bool | None = None
     seat_count: int | None = None
     comment: str | None = None
     hiking_miles_override: Decimal | None = None
@@ -129,15 +131,40 @@ class EventParticipantUpdate(BaseModel):
     water_hours_override: Decimal | None = None
     camping_nights_override: int | None = None
     permission_slip_submitted: bool | None = None
-    electronic_permission: bool | None = None
-    electronic_permission_at: UtcDateTime | None = None
-    electronic_permission_by_id: uuid.UUID | None = None
-    electronic_permission_signature: str | None = None
+
+
+class EventParticipantPermission(BaseModel):
+    """Body for POST .../permission — a parent/guardian signing a scout's slip."""
+
+    signature: str
 
 
 class EventParticipantRead(EventParticipantBase, TrackedRead):
     event_id: uuid.UUID
     attended: bool | None = None
+    # Electronic parental permission — read-only; set via the permission endpoint.
+    electronic_permission: bool = False
+    electronic_permission_at: UtcDateTime | None = None
+    electronic_permission_by_id: uuid.UUID | None = None
+    electronic_permission_signature: str | None = None
+    permission_message_snapshot: str | None = None
+    # Derived per-request (see app.core.permission_slip). Defaults to NOT_REQUIRED if
+    # the router did not attach it (e.g. unknown event/member context).
+    permission_status: PermissionSlipStatus = PermissionSlipStatus.NOT_REQUIRED
+
+
+class EventParticipantCounts(BaseModel):
+    """Headcount summary for an event (see docs/spec/event-rsvp-permission.md).
+
+    scouts/adults count members with rsvp_status=going; drivers counts any driver=true
+    regardless of attending (an attending adult driver appears in both adults and
+    drivers); guests sums guest_count.
+    """
+
+    scouts: int
+    adults: int
+    drivers: int
+    guests: int
 
 
 class EventAudienceCreate(BaseModel):

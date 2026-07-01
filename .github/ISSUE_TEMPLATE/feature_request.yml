@@ -1,0 +1,42 @@
+name: Feature / task
+description: Propose a feature or track a unit of work
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: pillar
+    attributes:
+      label: Pillar
+      description: Which roadmap pillar does this belong to? (see ROADMAP.md)
+      options:
+        - "Pillar 1 — Roster & Relationships"
+        - "Pillar 2 — Multi-Tenant Isolation"
+        - "Pillar 3 — Events & Calendar"
+        - "Pillar 4 — Advancement"
+        - "Pillar 5 — Communications & Reports"
+        - "Pillar 6 — Web App Shell"
+        - "Future Domains"
+        - "Mobile"
+        - "Cross-cutting / infra"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: The domain problem
+      description: Describe the troop/leader problem first. For data-model or sync changes, describe the domain before the implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed approach
+      description: Optional. Sketch the model/API/UI. Non-trivial features need a docs/spec/ spec before implementation.
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Done when
+      description: What does "finished" look like?
+    validations:
+      required: false

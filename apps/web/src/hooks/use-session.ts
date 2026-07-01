@@ -5,18 +5,20 @@ import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
 import type { Permission, Session } from "@/types/api"
 
-export function useSession() {
+export function useSession(enabled = true) {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
     queryKey: ["session", activeTenantId],
     queryFn: () => request<Session>("/auth/session"),
-    enabled: Boolean(activeTenantId),
+    // /auth/session is tenant-scoped. Callers on a non-tenant surface (the platform
+    // console) pass enabled=false so it isn't fetched where there is no tenant.
+    enabled: enabled && Boolean(activeTenantId),
   })
 }
 
-export function usePermissions() {
-  const { data, isLoading } = useSession()
+export function usePermissions(enabled = true) {
+  const { data, isLoading } = useSession(enabled)
   const set = new Set(data?.permissions ?? [])
   return {
     has: (p: Permission) => set.has(p),

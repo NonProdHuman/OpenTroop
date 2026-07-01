@@ -19,7 +19,7 @@ router = APIRouter(prefix="/positions", tags=["positions"])
 
 
 @router.get(
-    "/",
+    "",
     response_model=list[PositionRead],
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
@@ -30,7 +30,7 @@ def list_positions(tenant_id: TenantDep, db: DbDep) -> Sequence[Position]:
 
 
 @router.post(
-    "/",
+    "",
     response_model=PositionRead,
     status_code=201,
     dependencies=[Depends(require(Permission.ROLE_MANAGE))],

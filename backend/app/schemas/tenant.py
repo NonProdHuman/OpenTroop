@@ -29,6 +29,20 @@ class TenantRead(PlatformRead):
     name: str
     slug: str
     suspended_at: datetime | None = None
+    permission_message: str | None = None
+
+
+class TenantSettingsRead(BaseModel):
+    """Tenant-scoped, member-readable settings (the troop's configurable text/options)."""
+
+    # The effective permission language shown to parents — the troop's text or the
+    # built-in default when unset. Always populated.
+    permission_message: str
+
+
+class TenantSettingsUpdate(BaseModel):
+    # Set to null to fall back to the built-in default permission language.
+    permission_message: str | None = None
 
 
 class TenantProvisioned(TenantRead):

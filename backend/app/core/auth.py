@@ -68,11 +68,26 @@ def get_or_create_user(claims: dict[str, Any], session: Session) -> User:
             Identity.is_deleted.is_(False),
         )
     )
-    if identity is not None:
-        return identity.user
-
     email: str | None = claims.get("email")
     display_name: str | None = claims.get("name")
+
+    if identity is not None:
+        # Backfill profile fields that were absent at first login — e.g. the Clerk JWT
+        # only began including the email/name claims later. Fill only when missing so we
+        # never clobber an existing value. This is what lets grant-by-email find a user
+        # who signed in before email was in the token.
+        user = identity.user
+        changed = False
+        if email and not user.email:
+            user.email = email
+            changed = True
+        if display_name and not user.display_name:
+            user.display_name = display_name
+            changed = True
+        if changed:
+            session.commit()
+            session.refresh(user)
+        return user
 
     from app.models.enums import PlatformRole
 

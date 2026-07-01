@@ -90,6 +90,7 @@ function evt(over: Partial<Event>): Event {
       tracks_mileage: true,
       allow_signups: true,
       require_permission_slip: true,
+      allow_guests: false,
       is_online: false,
     },
     location: null,

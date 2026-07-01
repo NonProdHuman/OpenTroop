@@ -7,12 +7,15 @@ authenticated, tenant-scoped routes.
 """
 
 import secrets
+import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 
 from app.core.deps import CurrentMemberDep, DbDep
 from app.core.ical import member_calendar_ics
+from app.core.tenant import scope_calendar_feed_tenant
 from app.models.member import Member
 from app.models.tenant import Tenant
 from app.schemas.calendar import CalendarSubscriptionRead
@@ -29,11 +32,18 @@ def _new_token() -> str:
 
 
 @router.get("/{token}.ics")
-def get_calendar_feed(token: str, db: DbDep) -> Response:
+def get_calendar_feed(
+    token: str,
+    db: DbDep,
+    tenant_id: Annotated[uuid.UUID, Depends(scope_calendar_feed_tenant)],
+) -> Response:
     """Serve a member's personal iCal feed. Token-authenticated; no session.
 
-    404s for an unknown/rotated token or a member in a suspended/deleted tenant,
-    so the same response covers every "you can't see this" case.
+    ``scope_calendar_feed_tenant`` resolves the tenant (subdomain / X-Tenant-ID) and
+    publishes it to the tenant context, so the token lookup below is tenant-scoped and
+    survives Postgres RLS. 404s for an unknown/rotated token or a member in a
+    suspended/deleted tenant, so the same response covers every "you can't see this"
+    case (the suspended/deleted tenant is already rejected by the dependency).
     """
     member = db.scalar(
         select(Member).where(
@@ -44,11 +54,12 @@ def get_calendar_feed(token: str, db: DbDep) -> Response:
     if member is None:
         raise HTTPException(status_code=404, detail="Calendar not found")
 
-    tenant = db.get(Tenant, member.tenant_id)
-    if tenant is None or tenant.is_deleted or tenant.suspended_at is not None:
-        raise HTTPException(status_code=404, detail="Calendar not found")
-
-    calendar_name = f"{tenant.name} — {member.first_name} {member.last_name}".strip()
+    tenant = db.get(Tenant, tenant_id)
+    calendar_name = (
+        f"{tenant.name} — {member.first_name} {member.last_name}".strip()
+        if tenant is not None
+        else f"{member.first_name} {member.last_name}".strip()
+    )
     body = member_calendar_ics(member, db, calendar_name=calendar_name)
     return Response(
         content=body,

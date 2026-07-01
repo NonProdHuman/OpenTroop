@@ -9,10 +9,12 @@ export default clerkMiddleware(async (auth, request) => {
 
   // Read X-Forwarded-Host since Cloud Run sits behind Cloudflare proxy
   const hostname = request.headers.get("x-forwarded-host") || request.headers.get("host") || ""
-  const isLocal = hostname.includes("localhost") || hostname.includes("127.0.0.1")
-  const isLanding = isLocal
-    ? (hostname === "localhost:3000" || hostname === "opentroop.localhost:3000")
-    : (hostname === "opentroop.dev" || hostname === "www.opentroop.dev" || hostname === "opentroop.app")
+  // Single source of truth for the root domain (mirrors backend APP_DOMAIN).
+  // Local: "localhost:3000". Production: e.g. "opentroop.dev".
+  const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || "localhost:3000"
+  // The bare root host (and its www alias) is the marketing landing page; tenants
+  // live on subdomains of it and the console on admin.<root>.
+  const isLanding = hostname === appDomain || hostname === `www.${appDomain}`
 
   // Treat landing domain's root as public, otherwise protect
   if (isLanding && url.pathname === "/") {

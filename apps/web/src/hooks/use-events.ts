@@ -3,7 +3,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
-import type { Event, EventType, Location } from "@/types/api"
+import type {
+  Event,
+  EventAudience,
+  EventOrganizer,
+  EventParticipant,
+  EventParticipantCounts,
+  EventType,
+  Location,
+  RsvpStatus,
+  TenantSettings,
+} from "@/types/api"
 
 export function useEvents() {
   const { request } = useApi()
@@ -12,6 +22,16 @@ export function useEvents() {
     queryKey: [activeTenantId, "events"],
     queryFn: () => request<Event[]>("/events/"),
     enabled: Boolean(activeTenantId),
+  })
+}
+
+export function useEvent(id: string | null) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  return useQuery({
+    queryKey: [activeTenantId, "events", id],
+    queryFn: () => request<Event>(`/events/${id}`),
+    enabled: id !== null && Boolean(activeTenantId),
   })
 }
 
@@ -35,6 +55,98 @@ export function useLocations() {
   })
 }
 
+export function useEventParticipants(eventId: string | null) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  return useQuery({
+    queryKey: [activeTenantId, "event-participants", eventId],
+    queryFn: () => request<EventParticipant[]>(`/events/${eventId}/participants`),
+    enabled: eventId !== null && Boolean(activeTenantId),
+  })
+}
+
+export function useEventCounts(eventId: string | null) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  return useQuery({
+    queryKey: [activeTenantId, "event-counts", eventId],
+    queryFn: () => request<EventParticipantCounts>(`/events/${eventId}/counts`),
+    enabled: eventId !== null && Boolean(activeTenantId),
+  })
+}
+
+type ParticipantBody = {
+  rsvp_status?: RsvpStatus
+  driver?: boolean
+  drives_to?: boolean
+  drives_from?: boolean
+  seat_count?: number | null
+  guest_count?: number
+  comment?: string | null
+}
+
+export function useAddParticipant(eventId: string) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: [activeTenantId, "event-participants", eventId] })
+    queryClient.invalidateQueries({ queryKey: [activeTenantId, "event-counts", eventId] })
+  }
+  return useMutation({
+    mutationFn: (body: ParticipantBody & { member_id: string }) =>
+      request<EventParticipant>(`/events/${eventId}/participants`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: invalidate,
+  })
+}
+
+export function useUpdateParticipant(eventId: string) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: [activeTenantId, "event-participants", eventId] })
+    queryClient.invalidateQueries({ queryKey: [activeTenantId, "event-counts", eventId] })
+  }
+  return useMutation({
+    mutationFn: ({ memberId, ...body }: ParticipantBody & { memberId: string }) =>
+      request<EventParticipant>(`/events/${eventId}/participants/${memberId}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: invalidate,
+  })
+}
+
+export function useGrantPermission(eventId: string) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ memberId, signature }: { memberId: string; signature: string }) =>
+      request<EventParticipant>(
+        `/events/${eventId}/participants/${memberId}/permission`,
+        { method: "POST", body: JSON.stringify({ signature }) },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "event-participants", eventId] })
+    },
+  })
+}
+
+export function useTenantSettings() {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  return useQuery({
+    queryKey: [activeTenantId, "tenant-settings"],
+    queryFn: () => request<TenantSettings>("/tenant/settings/"),
+    enabled: Boolean(activeTenantId),
+  })
+}
+
 export function useCreateEvent() {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
@@ -47,6 +159,105 @@ export function useCreateEvent() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "events"] })
+    },
+  })
+}
+
+export function useUpdateEvent() {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Event> }) =>
+      request<Event>(`/events/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (updated, { id }) => {
+      queryClient.setQueryData([activeTenantId, "events", id], updated)
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "events"] })
+    },
+  })
+}
+
+// ── Audiences (visibility groups) ─────────────────────────────────────────────
+
+export function useEventAudiences(eventId: string | null) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  return useQuery({
+    queryKey: [activeTenantId, "event-audiences", eventId],
+    queryFn: () => request<EventAudience[]>(`/events/${eventId}/audiences`),
+    enabled: eventId !== null && Boolean(activeTenantId),
+  })
+}
+
+export function useAddEventAudience(eventId: string) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (groupId: string) =>
+      request<EventAudience>(`/events/${eventId}/audiences`, {
+        method: "POST",
+        body: JSON.stringify({ group_id: groupId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "event-audiences", eventId] })
+    },
+  })
+}
+
+export function useRemoveEventAudience(eventId: string) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (groupId: string) =>
+      request(`/events/${eventId}/audiences/${groupId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "event-audiences", eventId] })
+    },
+  })
+}
+
+// ── Organizers ─────────────────────────────────────────────────────────────────
+
+export function useEventOrganizers(eventId: string | null) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  return useQuery({
+    queryKey: [activeTenantId, "event-organizers", eventId],
+    queryFn: () => request<EventOrganizer[]>(`/events/${eventId}/organizers`),
+    enabled: eventId !== null && Boolean(activeTenantId),
+  })
+}
+
+export function useAddEventOrganizer(eventId: string) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (memberId: string) =>
+      request<EventOrganizer>(`/events/${eventId}/organizers`, {
+        method: "POST",
+        body: JSON.stringify({ member_id: memberId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "event-organizers", eventId] })
+    },
+  })
+}
+
+export function useRemoveEventOrganizer(eventId: string) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (memberId: string) =>
+      request(`/events/${eventId}/organizers/${memberId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "event-organizers", eventId] })
     },
   })
 }

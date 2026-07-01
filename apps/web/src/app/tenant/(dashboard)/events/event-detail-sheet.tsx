@@ -1,5 +1,7 @@
 "use client"
 
+import { useRouter } from "next/navigation"
+import { Pencil } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -7,9 +9,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format"
+import { usePermissions } from "@/hooks/use-session"
 import type { Event } from "@/types/api"
+import { EventRsvpPanel } from "./event-rsvp-panel"
 import { EventTypeBadge } from "./event-type-badge"
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -40,7 +45,15 @@ interface EventDetailSheetProps {
 }
 
 export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheetProps) {
+  const router = useRouter()
+  const { has } = usePermissions()
+
   if (!event) return null
+
+  function handleEdit() {
+    onOpenChange(false)
+    router.push(`/events/${event!.id}/edit`)
+  }
 
   const loc = event.location
   const address = loc
@@ -75,6 +88,14 @@ export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheet
           <SheetDescription className="flex items-center gap-2">
             <EventTypeBadge type={event.event_type} />
           </SheetDescription>
+          {has("event:write") && (
+            <div className="flex items-center gap-2 pt-1">
+              <Button size="sm" variant="outline" onClick={handleEdit}>
+                <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                Edit
+              </Button>
+            </div>
+          )}
         </SheetHeader>
 
         <div className="space-y-6 px-4 pb-8">
@@ -157,6 +178,13 @@ export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheet
               </Section>
             </>
           ) : null}
+
+          {event.event_type.allow_signups && (
+            <>
+              <Separator />
+              <EventRsvpPanel event={event} />
+            </>
+          )}
 
           <Separator />
 

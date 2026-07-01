@@ -4,6 +4,8 @@ export type MemberType = "scout" | "adult"
 export type MemberStatus = "active" | "inactive" | "alumni"
 export type SwimClassification = "nonswimmer" | "beginner" | "swimmer"
 export type RelationshipType = "parent_of" | "guardian_of" | "sibling_of" | "other"
+export type RsvpStatus = "no_response" | "going" | "declined" | "maybe"
+export type PermissionSlipStatus = "not_required" | "pending" | "granted"
 
 export interface Member {
   id: string
@@ -217,7 +219,74 @@ export interface EventType {
   tracks_mileage: boolean
   allow_signups: boolean
   require_permission_slip: boolean
+  allow_guests: boolean
   is_online: boolean
+}
+
+export interface EventParticipant {
+  id: string
+  tenant_id: string
+  event_id: string
+  member_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  signed_up: boolean
+  rsvp_status: RsvpStatus
+  attended: boolean | null
+  guest_count: number
+  driver: boolean
+  drives_to: boolean
+  drives_from: boolean
+  seat_count: number | null
+  comment: string | null
+  signed_up_at: string | null
+  hiking_miles_override: string | null
+  backpacking_miles_override: string | null
+  paddling_miles_override: string | null
+  cycling_miles_override: string | null
+  community_service_hours_override: string | null
+  conservation_hours_override: string | null
+  water_hours_override: string | null
+  camping_nights_override: number | null
+  permission_slip_submitted: boolean
+  electronic_permission: boolean
+  electronic_permission_at: string | null
+  electronic_permission_by_id: string | null
+  electronic_permission_signature: string | null
+  permission_message_snapshot: string | null
+  permission_status: PermissionSlipStatus
+}
+
+export interface EventParticipantCounts {
+  scouts: number
+  adults: number
+  drivers: number
+  guests: number
+}
+
+export interface EventAudience {
+  id: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  event_id: string
+  group_id: string
+}
+
+export interface EventOrganizer {
+  id: string
+  tenant_id: string
+  created_at: string
+  updated_at: string
+  is_deleted: boolean
+  event_id: string
+  member_id: string
+}
+
+export interface TenantSettings {
+  permission_message: string
 }
 
 export interface Location {

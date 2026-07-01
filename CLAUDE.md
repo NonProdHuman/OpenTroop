@@ -47,6 +47,8 @@ For backend-only commands see `backend/CLAUDE.md`. For frontend-only commands se
 
 - **Bug fixes must include a test.** When fixing a bug, add a test that would have caught it before writing the fix.
 - **New features get a spec first.** For any non-trivial new feature, write a spec in `docs/spec/` before implementing. See [`docs/spec/members-screen.md`](docs/spec/members-screen.md) for the expected format and depth. Skip the spec for bug fixes, small UI tweaks, and cases where the user explicitly asks for a direct implementation.
+- **Work is tracked in GitHub Issues.** [`ROADMAP.md`](ROADMAP.md) is the strategic map (six pillars, sequencing); the actionable backlog lives in [GitHub Issues](../../issues), grouped by milestone (one per pillar). Do **not** re-add granular `[ ]` checklists to `ROADMAP.md` — file an issue instead. When starting non-trivial work, check for (or open) a tracking issue; reference it in the PR. `pillar-N` labels map issues to pillars.
+- **PRs target `develop`, not `main`** (`develop` is promoted to `main` on release). See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Pre-commit hooks
 
