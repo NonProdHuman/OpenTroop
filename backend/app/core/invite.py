@@ -7,6 +7,7 @@ import jwt
 from fastapi import HTTPException, status
 
 from app.core.config import settings
+from app.core.notifications import EmailMessage
 
 _CLAIM_DAYS = 7
 _ALGORITHM = "HS256"
@@ -45,3 +46,34 @@ def decode_invite_token(token: str) -> tuple[uuid.UUID, uuid.UUID]:
             detail="Invalid token type",
         )
     return uuid.UUID(payload["sub"]), uuid.UUID(payload["tid"])
+
+
+def build_claim_url(slug: str, token: str) -> str:
+    """Build the tenant-subdomain claim link an invitee opens to redeem a token.
+
+    Mirrors the frontend's ``getTenantUrl`` (apps/web/src/lib/domains.ts). Local
+    dev's APP_DOMAIN is "localhost:<port>", which has no valid TLS cert, hence
+    the http/https split.
+    """
+    scheme = "http" if "localhost" in settings.app_domain else "https"
+    return f"{scheme}://{slug}.{settings.app_domain}/claim?token={token}"
+
+
+def build_invite_email(
+    *, to: str, first_name: str, tenant_name: str, claim_url: str
+) -> EmailMessage:
+    subject = f"You're invited to join {tenant_name} on OpenTroop"
+    text_body = (
+        f"Hi {first_name},\n\n"
+        f"You've been invited to join {tenant_name} on OpenTroop. "
+        f"Click the link below to set up your account:\n\n"
+        f"{claim_url}\n\n"
+        f"This link expires in {_CLAIM_DAYS} days."
+    )
+    html_body = (
+        f"<p>Hi {first_name},</p>"
+        f"<p>You've been invited to join <strong>{tenant_name}</strong> on OpenTroop. "
+        f'Click the link below to set up your account:</p><p><a href="{claim_url}">{claim_url}</a></p>'
+        f"<p>This link expires in {_CLAIM_DAYS} days.</p>"
+    )
+    return EmailMessage(to=to, subject=subject, html_body=html_body, text_body=text_body)

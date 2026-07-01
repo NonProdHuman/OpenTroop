@@ -69,6 +69,10 @@ print(f'AUTH_JWKS_URI=https://{host}/.well-known/jwks.json')
 "
 ```
 
+Email defaults to `EMAIL_BACKEND=fake` (no real send, no signup needed) — see
+[`docs/resend-setup.md`](resend-setup.md) if you want invite emails to
+actually land in an inbox during local dev.
+
 ## 4. Sign in first, then provision your tenant
 
 > **Critical:** you must sign in before running `provision-tenant`. The script

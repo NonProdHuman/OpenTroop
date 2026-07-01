@@ -78,6 +78,10 @@ echo "https://<your>.clerk.accounts.dev/.well-known/jwks.json" \
 
 Repeat for `AUTH_ISSUER`, `AUTH_AUDIENCE`, `APP_DOMAIN`.
 
+For email delivery (invite links today; newsletters/event mail later), also
+create a `RESEND_API_KEY` secret — see [`docs/resend-setup.md`](resend-setup.md)
+for signing up and verifying a sending domain.
+
 ### Step 4 — Build and push the container
 
 ```bash
