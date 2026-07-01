@@ -19,4 +19,9 @@ RUN uv sync --frozen --no-dev
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "uv run --no-dev alembic upgrade head && uv run --no-dev uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+# --forwarded-allow-ips="*" makes uvicorn trust the Cloud Run proxy's X-Forwarded-Proto
+# header, so it knows requests are HTTPS. Without it, uvicorn assumes http and FastAPI's
+# trailing-slash redirects emit an http:// Location, which the browser blocks as mixed
+# content. Safe behind Cloud Run: the managed proxy sets these headers and clients can't
+# spoof them.
+CMD ["sh", "-c", "uv run --no-dev alembic upgrade head && uv run --no-dev uvicorn app.main:app --host 0.0.0.0 --port 8000 --forwarded-allow-ips='*'"]
