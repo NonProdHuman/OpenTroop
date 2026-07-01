@@ -131,6 +131,6 @@ def invite_member(
             notification_service.send_email(message)
             email_sent = True
         except EmailSendError:
-            logger.warning("Invite email failed to send for member %s", member_id)
+            logger.warning("Invite email failed to send for member %s", member_id.hex)
 
     return MemberInviteRead(token=token, expires_at=expires_at, email_sent=email_sent)
