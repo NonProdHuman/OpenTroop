@@ -9,12 +9,13 @@ from sqlalchemy.orm import Session
 from app.models.tenant import Tenant
 
 TENANT_A = uuid.UUID("10000000-0000-0000-0000-000000000001")
+TENANT_B = uuid.UUID("20000000-0000-0000-0000-000000000002")
 
 
-def _ensure_tenant(db: Session) -> Tenant:
-    tenant = db.get(Tenant, TENANT_A)
+def _ensure_tenant(db: Session, tenant_id: uuid.UUID = TENANT_A) -> Tenant:
+    tenant = db.get(Tenant, tenant_id)
     if tenant is None:
-        tenant = Tenant(id=TENANT_A, name="Test Troop", slug="test-troop")
+        tenant = Tenant(id=tenant_id, name=f"Troop {tenant_id}", slug=f"troop-{tenant_id.hex[:8]}")
         db.add(tenant)
         db.commit()
     return tenant
@@ -98,6 +99,28 @@ def test_feed_excludes_declined_event(client: TestClient, db_session: Session) -
 def test_feed_unknown_token_404(client: TestClient, db_session: Session) -> None:
     _ensure_tenant(db_session)
     assert client.get("/calendar/nope-not-a-token.ics").status_code == 404
+
+
+def test_feed_token_is_scoped_to_its_tenant(
+    client: TestClient, other_client: TestClient, db_session: Session
+) -> None:
+    """A feed token minted in one tenant must not resolve under another tenant's context.
+
+    Regression for the RLS bug: the feed used to look up the token with no tenant scope.
+    Under Postgres RLS that unset ``app.current_tenant`` GUC meant every feed 404'd; on a
+    non-RLS backend the same unscoped lookup would resolve a token across tenants. The
+    route now resolves + scopes the tenant first, so tenant B's context cannot serve
+    tenant A's token. Removing the scoping regresses this test to a 200.
+    """
+    _ensure_tenant(db_session, TENANT_A)
+    _ensure_tenant(db_session, TENANT_B)
+
+    # Mint a token for TENANT_A's admin member.
+    feed_path = client.post("/calendar/subscription").json()["feed_path"]
+
+    # Served under its own tenant, but not resolvable under TENANT_B's context.
+    assert client.get(feed_path).status_code == 200
+    assert other_client.get(feed_path).status_code == 404
 
 
 def test_feed_404_when_tenant_suspended(client: TestClient, db_session: Session) -> None:

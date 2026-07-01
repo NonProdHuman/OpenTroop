@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Roadmap (strategic map)
+    url: https://github.com/NonProdHuman/OpenTroop/blob/main/ROADMAP.md
+    about: The six capability pillars and their order. Granular work is tracked as issues under each pillar's milestone.
+  - name: Contributing guide
+    url: https://github.com/NonProdHuman/OpenTroop/blob/main/CONTRIBUTING.md
+    about: Dev setup, branch/PR conventions, and the schema rules for the offline-sync contract.

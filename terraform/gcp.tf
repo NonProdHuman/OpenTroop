@@ -181,6 +181,11 @@ resource "google_cloud_run_v2_service" "web" {
       }
 
       env {
+        name  = "NEXT_PUBLIC_APP_DOMAIN"
+        value = var.app_domain
+      }
+
+      env {
         name  = "NEXT_PUBLIC_CLERK_JWT_TEMPLATE"
         value = var.manage_clerk_jwt_template ? var.clerk_jwt_template_name : ""
       }

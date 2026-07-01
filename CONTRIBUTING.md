@@ -11,37 +11,51 @@ Thank you for helping build a better troop management tool for Scouting.
 
 ## Development Setup
 
+The toolchain is **`uv`** (Python) and **`pnpm`** (JS/TS) — do not use `pip` or `npm`
+directly. See [`README.md`](README.md) and [`docs/local-setup.md`](docs/local-setup.md)
+for the full first-time walkthrough.
+
 ```bash
 # Clone and enter the repo
 git clone https://github.com/nonprodhuman/opentroop.git
 cd opentroop
 
-# Backend — install with dev dependencies
+# Backend — install deps into .venv/ (from backend/)
 cd backend
-pip install -e ".[dev]"
+uv sync
 
 # Run the test suite (no database required — uses in-memory SQLite)
-pytest
+uv run pytest
 
 # Run a single test
-pytest tests/test_models.py::test_guardian_junction_graph
+uv run pytest tests/test_models.py::test_guardian_junction_graph
 
 # Full stack with Postgres (from repo root)
 docker compose up --build
 
-# Generate a migration after changing a model
-cd backend
-alembic revision --autogenerate -m "describe what changed"
-alembic upgrade head
+# Generate a migration after changing a model (from backend/)
+uv run alembic revision --autogenerate -m "describe what changed"
+uv run alembic upgrade head
 ```
+
+Frontend deps install from the repo root with `pnpm install`; run the web app with
+`pnpm dev`.
 
 ## Branch and PR Conventions
 
-- Branch from `main`: `git checkout -b feat/short-description` or `fix/short-description`
+- **PRs target `develop`, not `main`.** Branch from `develop`:
+  `git checkout -b feat/short-description` (or `fix/short-description`).
+  `develop` is promoted to `main` on release (enforced by a repo action).
 - Keep PRs focused. One logical change per PR.
-- All new models must subclass `TrackedBase` (see `app/models/base.py`).
-- Add or update tests in `backend/tests/` for any model or schema change.
-- Run `pytest` locally before opening a PR.
+- All new tenant-scoped models must subclass `TrackedBase` (see `app/models/base.py`);
+  cross-tenant platform entities subclass `PlatformBase`.
+- **Bug fixes must include a test** that would have caught the bug — add it before the fix.
+- **Non-trivial features get a spec first** in `docs/spec/` (see
+  [`docs/spec/members-screen.md`](docs/spec/members-screen.md) for the expected depth).
+  Skip the spec for bug fixes and small UI tweaks.
+- Install and run the pre-commit hooks (`ruff`, `mypy`, `tsc`, `eslint`, gitleaks) — see
+  the Pre-commit section in [`README.md`](README.md). Run `uv run pytest` locally before
+  opening a PR.
 
 ## Schema / Model Rules
 
