@@ -117,6 +117,13 @@ resource "google_cloud_run_v2_service" "api" {
         value = jsonencode(local.cors_origins)
       }
 
+      # The Cloudflare Worker overwrites X-Forwarded-Host on every proxied request, so
+      # the backend may trust it for tenant resolution only when the Worker is in front.
+      env {
+        name  = "TRUST_FORWARDED_HOST"
+        value = var.cloudflare_enabled ? "true" : "false"
+      }
+
       env {
         name  = "ENVIRONMENT"
         value = var.environment
