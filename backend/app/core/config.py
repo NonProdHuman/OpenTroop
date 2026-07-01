@@ -51,8 +51,10 @@ class Settings(BaseSettings):
     # deployment. When False (default), tenant resolution uses the Host header only.
     trust_forwarded_host: bool = False
 
-    # Secret used to sign member invite/claim tokens (HS256). Must be changed in production.
-    app_secret: str = Field(min_length=1)
+    # Secret used to sign member invite/claim tokens (HS256). A guessable secret means
+    # forgeable claim tokens → tenant admin takeover, so a minimum length is enforced
+    # at startup. Generate one with: python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+    app_secret: str = Field(min_length=32)
 
     # Email delivery backend: "fake" (default, no vendor call — for local dev/tests)
     # or "resend". See app/core/notifications.py.

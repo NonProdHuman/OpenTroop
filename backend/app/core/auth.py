@@ -70,6 +70,9 @@ def get_or_create_user(claims: dict[str, Any], session: Session) -> User:
     )
     email: str | None = claims.get("email")
     display_name: str | None = claims.get("name")
+    # Strict identity check: the provider must positively assert verification.
+    # An email claim without it is attacker-chosen and must never drive matching.
+    email_verified: bool = claims.get("email_verified") is True
 
     if identity is not None:
         # Backfill profile fields that were absent at first login — e.g. the Clerk JWT
@@ -81,8 +84,16 @@ def get_or_create_user(claims: dict[str, Any], session: Session) -> User:
         if email and not user.email:
             user.email = email
             changed = True
+        if email and email_verified and email == user.email and not user.email_verified:
+            user.email_verified = True
+            changed = True
         if display_name and not user.display_name:
             user.display_name = display_name
+            changed = True
+        if email and email_verified:
+            # A member invited before this user's first login (or before the email
+            # was verified) links up on the next verified sign-in.
+            _autolink_unclaimed_members(session, user, email)
             changed = True
         if changed:
             session.commit()
@@ -94,20 +105,18 @@ def get_or_create_user(claims: dict[str, Any], session: Session) -> User:
     user_count = session.scalar(select(func.count()).select_from(User))
     role = PlatformRole.SUPERADMIN if user_count == 0 else None
 
-    user = User(id=uuid7(), email=email, display_name=display_name, platform_role=role)
+    user = User(
+        id=uuid7(),
+        email=email,
+        email_verified=bool(email) and email_verified,
+        display_name=display_name,
+        platform_role=role,
+    )
     session.add(user)
     session.flush()  # populate user.id before referencing it in Identity
 
-    if email:
-        from sqlalchemy import update
-
-        from app.models.member import Member
-
-        session.execute(
-            update(Member)
-            .where(Member.email == email, Member.user_id.is_(None), Member.is_deleted.is_(False))
-            .values(user_id=user.id)
-        )
+    if email and email_verified:
+        _autolink_unclaimed_members(session, user, email)
 
     identity = Identity(
         id=uuid7(),
@@ -121,6 +130,25 @@ def get_or_create_user(claims: dict[str, Any], session: Session) -> User:
     session.commit()
     session.refresh(user)
     return user
+
+
+def _autolink_unclaimed_members(session: Session, user: User, email: str) -> None:
+    """Link unclaimed Member rows matching a *verified* email to *user*.
+
+    Callers must have established that the OIDC provider asserted
+    ``email_verified`` for *email* — tenant provisioning creates unclaimed admin
+    members, so matching an unverified claim here would hand a troop's admin seat
+    to anyone who can mint a token carrying the victim's address (GH-110).
+    """
+    from sqlalchemy import update
+
+    from app.models.member import Member
+
+    session.execute(
+        update(Member)
+        .where(Member.email == email, Member.user_id.is_(None), Member.is_deleted.is_(False))
+        .values(user_id=user.id)
+    )
 
 
 def _provider_label(issuer: str) -> str:

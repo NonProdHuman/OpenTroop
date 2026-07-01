@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import uuid
 
+from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import PlatformBase
@@ -24,6 +24,12 @@ class User(PlatformBase):
 
     email: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # True only when the OIDC provider asserted ``email_verified`` for the stored
+    # email. Every email-based matching path (Member auto-link, admin-invite
+    # pre-link, platform grant-by-email) must require this — an unverified email
+    # claim is attacker-chosen.
+    email_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Global SaaS control-plane role. None for ordinary users; set only on the
     # handful of platform operators who manage tenants and tenant admins.

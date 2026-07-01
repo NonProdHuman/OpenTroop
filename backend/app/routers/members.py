@@ -174,7 +174,8 @@ def invite_member(
             status_code=status.HTTP_409_CONFLICT,
             detail="Member already has a linked user account",
         )
-    token, expires_at = create_invite_token(member_id, tenant_id)
+    token, expires_at = create_invite_token(member)
+    db.commit()  # persist the token's jti; re-inviting revokes any earlier token
 
     email_sent = False
     if member.email and not member.email_opt_out and not member.email_bounced:

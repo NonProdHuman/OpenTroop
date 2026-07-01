@@ -97,6 +97,11 @@ class Member(SourceTracked, TrackedBase):
         String(64), nullable=True, unique=True, index=True
     )
 
+    # jti of the currently valid invite/claim token. A claim token is honored only
+    # while its jti matches this value, which makes tokens single-use (cleared on
+    # claim) and revocable (overwritten when a new invite is minted).
+    invite_token_jti: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
     # Patrol membership is folded into the general Group model: a member's patrol
     # is a GroupMember row whose Group is of type PATROL. See app.models.group.
 

@@ -385,8 +385,14 @@ def invite_admin_member(
         if email:
             from app.models.user import User
 
+            # Pre-link only to a user whose provider verified this email — an
+            # unverified User.email is attacker-chosen at signup (GH-110).
             existing_user = db.scalar(
-                select(User).where(User.email == email, User.is_deleted.is_(False))
+                select(User).where(
+                    User.email == email,
+                    User.email_verified.is_(True),
+                    User.is_deleted.is_(False),
+                )
             )
             if existing_user:
                 user_id = existing_user.id
@@ -412,7 +418,7 @@ def invite_admin_member(
                 tenant_id=tenant_id, member_id=member.id, position_id=member_pos.id
             )
         )
-    token, expires_at = create_invite_token(member.id, tenant_id)
+    token, expires_at = create_invite_token(member)
     return member, token, expires_at
 
 
