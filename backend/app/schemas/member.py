@@ -114,3 +114,7 @@ class MemberInviteRead(BaseModel):
 
     token: str
     expires_at: datetime
+    # True if an invite email was sent automatically. False if the member has no
+    # usable email address (missing, opted out, or previously bounced) or the
+    # send failed — the token/link is still valid and can be shared manually.
+    email_sent: bool

@@ -1,15 +1,20 @@
+import logging
 import uuid
 from collections.abc import Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
-from app.core.deps import DbDep, TenantDep, get_or_404, require
-from app.core.invite import create_invite_token
+from app.core.deps import DbDep, NotificationServiceDep, TenantDep, get_or_404, require
+from app.core.invite import build_claim_url, build_invite_email, create_invite_token
+from app.core.notifications import EmailSendError
 from app.models.enums import GroupType, MemberType, Permission
 from app.models.group import Group, GroupMember
 from app.models.member import Member
+from app.models.tenant import Tenant
 from app.schemas.member import MemberBase, MemberInviteRead, MemberRead, MemberUpdate
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/members", tags=["members"])
 
@@ -89,11 +94,18 @@ def delete_member(member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None
     response_model=MemberInviteRead,
     dependencies=[Depends(require(Permission.ROLE_ASSIGN))],
 )
-def invite_member(member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> MemberInviteRead:
+def invite_member(
+    member_id: uuid.UUID,
+    tenant_id: TenantDep,
+    db: DbDep,
+    notification_service: NotificationServiceDep,
+) -> MemberInviteRead:
     """Generate a signed claim token so a member can link their login account.
 
     The token is valid for 7 days. Returns 409 if the member already has a
-    linked user account.
+    linked user account. If the member has a usable email address, also sends
+    an invite email; the token is still returned (and still valid) even if no
+    email was sent, so an admin can share the link manually.
     """
     member = get_or_404(db, Member, member_id, tenant_id, "Member not found")
     if member.user_id is not None:
@@ -102,4 +114,23 @@ def invite_member(member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Memb
             detail="Member already has a linked user account",
         )
     token, expires_at = create_invite_token(member_id, tenant_id)
-    return MemberInviteRead(token=token, expires_at=expires_at)
+
+    email_sent = False
+    if member.email and not member.email_opt_out and not member.email_bounced:
+        tenant = db.get(Tenant, tenant_id)
+        if tenant is None:
+            raise RuntimeError(f"Tenant {tenant_id} resolved for request but missing from DB")
+        claim_url = build_claim_url(tenant.slug, token)
+        message = build_invite_email(
+            to=member.email,
+            first_name=member.first_name,
+            tenant_name=tenant.name,
+            claim_url=claim_url,
+        )
+        try:
+            notification_service.send_email(message)
+            email_sent = True
+        except EmailSendError:
+            logger.warning("Invite email failed to send for member %s", member_id)
+
+    return MemberInviteRead(token=token, expires_at=expires_at, email_sent=email_sent)
