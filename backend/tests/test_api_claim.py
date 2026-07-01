@@ -5,8 +5,19 @@ POST /auth/claim           — new user links their account to a Member record
 
 import jwt
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.deps import get_notification_service
+from app.core.invite import build_claim_url
+from app.core.notifications import (
+    EmailMessage,
+    EmailSendError,
+    FakeEmailBackend,
+    NotificationService,
+)
+from app.main import app
+from app.models.tenant import Tenant
 from tests.conftest import NEW_USER_ID, TENANT_A
 
 
@@ -52,6 +63,69 @@ def test_invite_already_claimed_returns_409(client: TestClient) -> None:
     admin_member_id = str(_ADMIN_MEMBER_IDS[TENANT_A])
     r = client.post(f"/members/{admin_member_id}/invite")
     assert r.status_code == 409
+
+
+def test_invite_without_email_does_not_send(client: TestClient) -> None:
+    member = _create_member(client)
+    data = _invite(client, member["id"])
+    assert data["email_sent"] is False
+
+
+def test_invite_sends_email_when_member_has_address(
+    client: TestClient, db_session: Session
+) -> None:
+    db_session.add(Tenant(id=TENANT_A, name="Troop 42", slug="troop42"))
+    db_session.commit()
+    fake_backend = FakeEmailBackend()
+    app.dependency_overrides[get_notification_service] = lambda: NotificationService(
+        email_backend=fake_backend
+    )
+
+    member = _create_member(client, email="scout@example.com")
+    data = _invite(client, member["id"])
+
+    assert data["email_sent"] is True
+    assert len(fake_backend.sent) == 1
+    sent = fake_backend.sent[0]
+    assert sent.to == "scout@example.com"
+    assert build_claim_url("troop42", data["token"]) in sent.html_body
+
+
+def test_invite_skips_send_for_opted_out_member(client: TestClient, db_session: Session) -> None:
+    db_session.add(Tenant(id=TENANT_A, name="Troop 42", slug="troop42"))
+    db_session.commit()
+    fake_backend = FakeEmailBackend()
+    app.dependency_overrides[get_notification_service] = lambda: NotificationService(
+        email_backend=fake_backend
+    )
+
+    member = _create_member(client, email="scout@example.com")
+    patch = client.patch(f"/members/{member['id']}", json={"email_opt_out": True})
+    assert patch.status_code == 200
+
+    data = _invite(client, member["id"])
+
+    assert data["email_sent"] is False
+    assert fake_backend.sent == []
+
+
+def test_invite_send_failure_still_returns_token(client: TestClient, db_session: Session) -> None:
+    db_session.add(Tenant(id=TENANT_A, name="Troop 42", slug="troop42"))
+    db_session.commit()
+
+    class FailingBackend:
+        def send(self, message: EmailMessage) -> None:
+            raise EmailSendError("boom")
+
+    app.dependency_overrides[get_notification_service] = lambda: NotificationService(
+        email_backend=FailingBackend()
+    )
+
+    member = _create_member(client, email="scout@example.com")
+    data = _invite(client, member["id"])
+
+    assert data["email_sent"] is False
+    assert "token" in data
 
 
 # ---------------------------------------------------------------------------

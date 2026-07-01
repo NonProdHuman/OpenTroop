@@ -84,6 +84,7 @@ export interface Position {
   applies_to: PositionScope
   sort_order: number
   is_system: boolean
+  is_default: boolean
 }
 
 export interface FunctionalRole {

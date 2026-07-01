@@ -18,12 +18,13 @@ dependencies = [
     # Provides the IANA tz database for zoneinfo (TWH import timezone conversion)
     # on slim containers that lack a system tzdata package.
     "tzdata>=2024.1",
+    # HTTP client used by ResendEmailBackend (app/core/notifications.py).
+    "httpx2>=0.28",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.0",
-    "httpx2>=0.28",
     "ruff>=0.4",
     "mypy>=1.10",
     "sqlalchemy[mypy]>=2.0",

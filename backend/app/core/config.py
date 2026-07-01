@@ -48,5 +48,11 @@ class Settings(BaseSettings):
     # Secret used to sign member invite/claim tokens (HS256). Must be changed in production.
     app_secret: str = Field(min_length=1)
 
+    # Email delivery backend: "fake" (default, no vendor call — for local dev/tests)
+    # or "resend". See app/core/notifications.py.
+    email_backend: str = "fake"
+    resend_api_key: str = ""
+    email_from_address: str = ""
+
 
 settings = Settings()  # type: ignore[call-arg]

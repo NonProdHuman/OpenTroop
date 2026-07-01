@@ -65,6 +65,11 @@ ADMINISTRATOR_POSITION_SLUG = "administrator"
 DEFAULT_FUNCTIONAL_ROLES: list[dict[str, object]] = [
     {"slug": ADMINISTRATORS_ROLE_SLUG, "name": "Administrators", "is_admin": True, "perms": []},
     {
+        "slug": "members",
+        "name": "Members",
+        "perms": [P.MEMBER_READ, P.EVENT_READ],
+    },
+    {
         "slug": "member-admins",
         "name": "Member Admins",
         "perms": [
@@ -236,6 +241,13 @@ DEFAULT_POSITIONS: list[dict[str, object]] = [
         "scope": PositionScope.SCOUT,
         "roles": [],
     },
+    {
+        "slug": "member",
+        "name": "Member",
+        "scope": PositionScope.ANY,
+        "is_default": True,
+        "roles": ["members"],
+    },
 ]
 
 
@@ -288,6 +300,7 @@ def seed_default_rbac(db: Session, tenant_id: uuid.UUID) -> None:
                 slug=spec["slug"],
                 applies_to=spec["scope"],
                 is_system=True,
+                is_default=bool(spec.get("is_default", False)),
                 sort_order=order,
             )
             db.add(position)
@@ -324,6 +337,30 @@ def get_administrator_position(db: Session, tenant_id: uuid.UUID) -> Position:
             )
         if position is None:  # seed_default_rbac always creates it; defensive
             raise RuntimeError("Administrator position missing after RBAC seed")
+    return position
+
+
+def get_or_create_member_position(db: Session, tenant_id: uuid.UUID) -> Position:
+    """Return the tenant's seeded Member position, seeding RBAC if needed."""
+    with unscoped():
+        position = db.scalar(
+            select(Position).where(
+                Position.tenant_id == tenant_id,
+                Position.slug == "member",
+                Position.is_deleted.is_(False),
+            )
+        )
+        if position is None:
+            seed_default_rbac(db, tenant_id)
+            position = db.scalar(
+                select(Position).where(
+                    Position.tenant_id == tenant_id,
+                    Position.slug == "member",
+                    Position.is_deleted.is_(False),
+                )
+            )
+        if position is None:
+            raise RuntimeError("Member position missing after RBAC seed")
     return position
 
 
@@ -367,6 +404,12 @@ def invite_admin_member(
         db.add(
             MemberPositionAssignment(
                 tenant_id=tenant_id, member_id=member.id, position_id=admin_position.id
+            )
+        )
+        member_pos = get_or_create_member_position(db, tenant_id)
+        db.add(
+            MemberPositionAssignment(
+                tenant_id=tenant_id, member_id=member.id, position_id=member_pos.id
             )
         )
     token, expires_at = create_invite_token(member.id, tenant_id)

@@ -1,6 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import {
   Sheet,
   SheetContent,
@@ -16,7 +18,7 @@ import { formatDate } from "@/lib/format"
 import { useMemberPositions } from "@/hooks/use-member-positions"
 import { usePositions } from "@/hooks/use-positions"
 import { useUpdateMember, useInviteMember } from "@/hooks/use-members"
-import { Pencil, UserCheck, UserMinus, Mail } from "lucide-react"
+import { Pencil, UserCheck, UserMinus, Mail, Copy, Check } from "lucide-react"
 
 interface MemberDetailSheetProps {
   member: Member | null
@@ -52,6 +54,7 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
   const positionById = new Map(positions.map((p) => [p.id, p.name]))
   const updateMember = useUpdateMember()
   const inviteMember = useInviteMember()
+  const [copied, setCopied] = useState(false)
 
   if (!member) return null
 
@@ -85,7 +88,20 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
   }
 
   function handleInvite() {
+    setCopied(false)
     inviteMember.mutate(member!.id)
+  }
+
+  async function handleCopyClaimLink() {
+    if (!inviteMember.data) return
+    const claimUrl = `${window.location.origin}/claim?token=${inviteMember.data.token}`
+    try {
+      await navigator.clipboard.writeText(claimUrl)
+      setCopied(true)
+      toast.success("Invite link copied")
+    } catch {
+      toast.error("Couldn't copy — select and copy manually")
+    }
   }
 
   const isActive = member.membership_status === "active"
@@ -145,10 +161,25 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
               </Button>
             )}
           </div>
-          {inviteMember.isSuccess && (
+          {inviteMember.isSuccess && inviteMember.data.email_sent && (
             <p className="text-xs text-muted-foreground pt-1">
-              Invite token copied — share with member to claim their account.
+              Invite email sent to {member.email} — they can use it to claim their account.
             </p>
+          )}
+          {inviteMember.isSuccess && !inviteMember.data.email_sent && (
+            <div className="flex items-center gap-2 pt-1">
+              <p className="text-xs text-muted-foreground">
+                Couldn&apos;t email this invite — copy the link and share it manually.
+              </p>
+              <Button size="sm" variant="outline" onClick={handleCopyClaimLink}>
+                {copied ? (
+                  <Check className="h-3.5 w-3.5 mr-1.5" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                {copied ? "Copied" : "Copy link"}
+              </Button>
+            </div>
           )}
         </SheetHeader>
 

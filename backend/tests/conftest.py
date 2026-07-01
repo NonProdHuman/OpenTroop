@@ -142,6 +142,15 @@ def _seed_admin(session: Session, tenant_id: uuid.UUID) -> None:
                 tenant_id=tenant_id, member_id=member_id, position_id=position.id
             )
         )
+        position_member = Position(
+            tenant_id=tenant_id,
+            name="Member",
+            slug="member",
+            applies_to=PositionScope.ANY,
+            is_system=True,
+            is_default=True,
+        )
+        session.add(position_member)
         session.flush()
 
 

@@ -34,6 +34,7 @@ const makePosition = (overrides: Partial<Position>): Position => ({
   applies_to: "scout",
   sort_order: 10,
   is_system: false,
+  is_default: false,
   ...overrides,
 })
 

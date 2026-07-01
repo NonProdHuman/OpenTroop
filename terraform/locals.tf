@@ -67,6 +67,7 @@ locals {
     DATABASE_URL         = local.database_url
     DATABASE_URL_ADMIN   = local.database_url_admin
     DATABASE_URL_MIGRATE = local.database_url_migrate
+    RESEND_API_KEY       = var.resend_api_key
   }
 
   runtime_secret_names = nonsensitive(toset(concat(
@@ -78,6 +79,7 @@ locals {
     var.database_url != null || var.manage_neon ? ["DATABASE_URL"] : [],
     var.database_url_admin != null || var.manage_neon || var.database_url != null ? ["DATABASE_URL_ADMIN"] : [],
     var.database_url_migrate != null || var.manage_neon || var.database_url != null ? ["DATABASE_URL_MIGRATE"] : [],
+    var.resend_api_key != null ? ["RESEND_API_KEY"] : [],
   )))
 
   api_secret_env_names = nonsensitive(compact([
@@ -88,6 +90,7 @@ locals {
     var.database_url != null || var.manage_neon ? "DATABASE_URL" : "",
     var.database_url_admin != null || var.manage_neon || var.database_url != null ? "DATABASE_URL_ADMIN" : "",
     var.database_url_migrate != null || var.manage_neon || var.database_url != null ? "DATABASE_URL_MIGRATE" : "",
+    var.resend_api_key != null ? "RESEND_API_KEY" : "",
   ]))
 
   web_secret_env_names = nonsensitive(compact([

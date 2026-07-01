@@ -3,6 +3,9 @@
 **Status:** Draft
 **Routes:** `/members` (list) · `/members/{id}` (detail) · `/members/{id}/edit` (edit)
 **Pillar:** Roster & Relationships (Pillar 1)
+**Related:** [`baseline-member-access.md`](baseline-member-access.md) — the "Basic" tier
+below assumes every member has read access by default, which isn't true today; that spec
+closes the gap
 
 ---
 

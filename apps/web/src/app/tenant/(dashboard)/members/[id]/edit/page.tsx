@@ -108,10 +108,16 @@ function toFormState(m: Member): FormState {
   }
 }
 
+const EDIT_ALLOWLIST = new Set([
+  "phone", "email", "address_line1", "address_line2", "city", "state", "postal_code", "country",
+  "emergency_contact_1_name", "emergency_contact_1_phone", "emergency_contact_2_name", "emergency_contact_2_phone",
+  "medical_form_ab_date", "medical_form_c_date", "allergies", "dietary_restrictions"
+])
+
 // Convert empty strings back to null for nullable fields before sending to API
-function toApiPayload(form: FormState): Partial<Member> {
+function toApiPayload(form: FormState, canFullEdit: boolean): Partial<Member> {
   const nullify = (v: string) => v.trim() || null
-  return {
+  const payload: Partial<Member> = {
     first_name: form.first_name,
     middle_name: nullify(form.middle_name),
     last_name: form.last_name,
@@ -150,6 +156,15 @@ function toApiPayload(form: FormState): Partial<Member> {
     oa_vigil_name: nullify(form.oa_vigil_name),
     oa_notes: nullify(form.oa_notes),
   }
+
+  if (!canFullEdit) {
+    for (const key of Object.keys(payload) as Array<keyof Member>) {
+      if (!EDIT_ALLOWLIST.has(key)) {
+        delete payload[key]
+      }
+    }
+  }
+  return payload
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -196,6 +211,7 @@ export default function MemberEditPage() {
 function MemberEditForm({ id, member }: { id: string; member: Member }) {
   const router = useRouter()
   const { has } = usePermissions()
+  const canFullEdit = has("member:write")
   const { data: groups = [] } = useGroups()
   const memberGroups = useMemberGroups(id)
   const { data: assignments = [] } = useMemberPositions(id)
@@ -223,7 +239,7 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
     }
     setError(null)
     updateMember.mutate(
-      { id, data: toApiPayload(form) },
+      { id, data: toApiPayload(form, canFullEdit) },
       { onSuccess: () => router.push("/members") },
     )
   }
@@ -255,27 +271,28 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
         <SectionTitle>Identity</SectionTitle>
         <div className="grid grid-cols-2 gap-4">
           <FormField label="First name" required>
-            <Input value={form.first_name} onChange={handleText("first_name")} />
+            <Input value={form.first_name} onChange={handleText("first_name")} disabled={!canFullEdit} />
           </FormField>
           <FormField label="Last name" required>
-            <Input value={form.last_name} onChange={handleText("last_name")} />
+            <Input value={form.last_name} onChange={handleText("last_name")} disabled={!canFullEdit} />
           </FormField>
           <FormField label="Middle name">
-            <Input value={form.middle_name} onChange={handleText("middle_name")} />
+            <Input value={form.middle_name} onChange={handleText("middle_name")} disabled={!canFullEdit} />
           </FormField>
           <FormField label="Suffix">
-            <Input value={form.name_suffix} onChange={handleText("name_suffix")} placeholder="Jr., Sr., III…" />
+            <Input value={form.name_suffix} onChange={handleText("name_suffix")} placeholder="Jr., Sr., III…" disabled={!canFullEdit} />
           </FormField>
           <FormField label="Nickname / preferred name">
-            <Input value={form.nickname} onChange={handleText("nickname")} />
+            <Input value={form.nickname} onChange={handleText("nickname")} disabled={!canFullEdit} />
           </FormField>
           <FormField label="Date of birth">
-            <Input type="date" value={form.date_of_birth} onChange={handleText("date_of_birth")} />
+            <Input type="date" value={form.date_of_birth} onChange={handleText("date_of_birth")} disabled={!canFullEdit} />
           </FormField>
           <FormField label="Member type" required>
             <Select
               value={form.member_type}
               onValueChange={(v) => set("member_type", v as MemberType)}
+              disabled={!canFullEdit}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -288,6 +305,7 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
             <Select
               value={form.membership_status}
               onValueChange={(v) => set("membership_status", v as MemberStatus)}
+              disabled={!canFullEdit}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -298,7 +316,7 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
             </Select>
           </FormField>
           <FormField label="BSA ID">
-            <Input value={form.bsa_id} onChange={handleText("bsa_id")} />
+            <Input value={form.bsa_id} onChange={handleText("bsa_id")} disabled={!canFullEdit} />
           </FormField>
         </div>
 
@@ -365,6 +383,7 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
             <Select
               value={form.swim_classification}
               onValueChange={(v) => set("swim_classification", v as SwimClassification)}
+              disabled={!canFullEdit}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -375,7 +394,7 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
             </Select>
           </FormField>
           <FormField label="Swim eval date">
-            <Input type="date" value={form.swim_date} onChange={handleText("swim_date")} />
+            <Input type="date" value={form.swim_date} onChange={handleText("swim_date")} disabled={!canFullEdit} />
           </FormField>
           <FormField label="Health form A/B date">
             <Input type="date" value={form.medical_form_ab_date} onChange={handleText("medical_form_ab_date")} />
@@ -406,6 +425,7 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
               checked={form.oa_member}
               onChange={(e) => set("oa_member", e.target.checked)}
               className="rounded"
+              disabled={!canFullEdit}
             />
             OA member
           </label>
@@ -418,30 +438,31 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
                 checked={form.oa_active}
                 onChange={(e) => set("oa_active", e.target.checked)}
                 className="rounded"
+                disabled={!canFullEdit}
               />
               Active OA member
             </label>
             <FormField label="Election date">
-              <Input type="date" value={form.oa_election_date} onChange={handleText("oa_election_date")} />
+              <Input type="date" value={form.oa_election_date} onChange={handleText("oa_election_date")} disabled={!canFullEdit} />
             </FormField>
             <FormField label="Call-out date">
-              <Input type="date" value={form.oa_call_out_date} onChange={handleText("oa_call_out_date")} />
+              <Input type="date" value={form.oa_call_out_date} onChange={handleText("oa_call_out_date")} disabled={!canFullEdit} />
             </FormField>
             <FormField label="Ordeal date">
-              <Input type="date" value={form.oa_ordeal_date} onChange={handleText("oa_ordeal_date")} />
+              <Input type="date" value={form.oa_ordeal_date} onChange={handleText("oa_ordeal_date")} disabled={!canFullEdit} />
             </FormField>
             <FormField label="Brotherhood date">
-              <Input type="date" value={form.oa_brotherhood_date} onChange={handleText("oa_brotherhood_date")} />
+              <Input type="date" value={form.oa_brotherhood_date} onChange={handleText("oa_brotherhood_date")} disabled={!canFullEdit} />
             </FormField>
             <FormField label="Vigil date">
-              <Input type="date" value={form.oa_vigil_date} onChange={handleText("oa_vigil_date")} />
+              <Input type="date" value={form.oa_vigil_date} onChange={handleText("oa_vigil_date")} disabled={!canFullEdit} />
             </FormField>
             <FormField label="Vigil name">
-              <Input value={form.oa_vigil_name} onChange={handleText("oa_vigil_name")} />
+              <Input value={form.oa_vigil_name} onChange={handleText("oa_vigil_name")} disabled={!canFullEdit} />
             </FormField>
             <div className="col-span-2">
               <FormField label="OA notes">
-                <Textarea value={form.oa_notes} onChange={handleText("oa_notes")} rows={2} />
+                <Textarea value={form.oa_notes} onChange={handleText("oa_notes")} rows={2} disabled={!canFullEdit} />
               </FormField>
             </div>
           </div>
@@ -483,7 +504,7 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
         {/* ── Notes ────────────────────────────────────────── */}
         <SectionTitle>Notes</SectionTitle>
         <FormField label="Internal notes">
-          <Textarea value={form.notes} onChange={handleText("notes")} rows={3} />
+          <Textarea value={form.notes} onChange={handleText("notes")} rows={3} disabled={!canFullEdit} />
         </FormField>
 
         <div className="flex justify-end gap-3 pt-2">
