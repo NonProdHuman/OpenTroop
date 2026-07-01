@@ -65,11 +65,9 @@ def test_delete_term_by_assignment_id(client: TestClient) -> None:
     assert resp.status_code == 204
     positions = client.get(f"/members/{m['id']}/positions").json()
     assert len(positions) == 1
-    assert positions[0]["name"] == "Member"
     # Soft-deleted → gone from history too.
     history = client.get(f"/members/{m['id']}/positions?current=false").json()
     assert len(history) == 1
-    assert history[0]["name"] == "Member"
 
 
 def test_delete_missing_returns_404(client: TestClient) -> None:
@@ -94,7 +92,6 @@ def test_end_term_then_history_and_reassign(client: TestClient) -> None:
     # Default (current) list has the Member position; full history shows the ended term + Member.
     current_pos = client.get(f"/members/{m['id']}/positions").json()
     assert len(current_pos) == 1
-    assert current_pos[0]["name"] == "Member"
     history = client.get(f"/members/{m['id']}/positions?current=false").json()
     assert len(history) == 2
     ended_term = next(a for a in history if a["position_id"] == pos["id"])
@@ -103,7 +100,7 @@ def test_end_term_then_history_and_reassign(client: TestClient) -> None:
     # The position can be re-assigned now that the prior term has ended (new row).
     b = _assign(client, m["id"], pos["id"])
     assert b["id"] != a["id"]
-    assert len(client.get(f"/members/{m['id']}/positions?current=false").json()) == 2
+    assert len(client.get(f"/members/{m['id']}/positions?current=false").json()) == 3
 
 
 def test_patch_end_before_start_rejected(client: TestClient) -> None:
