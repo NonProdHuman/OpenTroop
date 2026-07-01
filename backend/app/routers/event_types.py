@@ -16,8 +16,8 @@ def _validate_permission_slip_config(allow_signups: bool, require_permission_sli
     """A permission slip only makes sense on a type that collects RSVPs."""
     if require_permission_slip and not allow_signups:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="require_permission_slip requires allow_signups",
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Cannot require permission slips if signups are disabled.",
         )
 
 
