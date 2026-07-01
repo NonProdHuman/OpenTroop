@@ -50,7 +50,7 @@ def import_twh(
         source_tz = resolve_source_tz(timezone)
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
 
@@ -65,7 +65,7 @@ def import_twh(
                 xml_files = [name for name in z.namelist() if name.lower().endswith(".xml")]
                 if not xml_files:
                     raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                         detail="No XML file found inside ZIP archive.",
                     )
                 content = z.read(xml_files[0])
@@ -76,13 +76,13 @@ def import_twh(
                 content = gzip.decompress(content)
             except Exception as exc:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail=f"Invalid GZIP compression: {exc}",
                 ) from exc
         root = ET.fromstring(content)  # noqa: S314 — admin-supplied file upload
     except ET.ParseError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Invalid XML: {exc}",
         ) from exc
 

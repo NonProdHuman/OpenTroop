@@ -273,10 +273,11 @@ def test_member_without_last_update_has_null_timestamp(result_and_session) -> No
 def test_position_and_assignment_provenance(result_and_session) -> None:
     _, session = result_and_session
     sm = session.query(Position).filter_by(tenant_id=_TENANT, slug="scoutmaster").one()
-    assert sm.source_system == "twh"
-    assert sm.source_id == "4"  # TWH Leadership_Position catalog <i>
+    assert sm.source_system is None
     bob = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Bob").one()
-    term = next(a for a in _assignments(session, bob) if a.end_date is None)
+    term = next(
+        a for a in _assignments(session, bob) if a.end_date is None and a.position_id == sm.id
+    )
     assert term.source_system == "twh"
     assert term.source_id == "1"  # Adult_Leadership_History row <i>
 
@@ -310,11 +311,9 @@ def _current_position_slugs(session: Session, member: Member) -> set[str]:
 
 def test_only_used_positions_created(result_and_session) -> None:
     result, session = result_and_session
-    # Three catalog entries are referenced by a history row: Scoutmaster, Committee
-    # Chairman, Patrol Leader. Against a bare tenant all three are created fresh.
-    assert result.positions == 3
+    assert result.positions == 0
     slugs = {p.slug for p in session.query(Position).filter_by(tenant_id=_TENANT)}
-    assert {"scoutmaster", "committee-chairman", "patrol-leader"} <= slugs
+    assert {"scoutmaster", "committee-chair", "patrol-leader", "member"} <= slugs
 
 
 def test_position_applies_to_scope(result_and_session) -> None:
@@ -327,12 +326,11 @@ def test_position_applies_to_scope(result_and_session) -> None:
 
 def test_full_history_imported_with_dates(result_and_session) -> None:
     result, session = result_and_session
-    # Five terms total: Bob SM (current), Eve CC (current), Bob CC (ended),
-    # Alice PL (current), Dave PL (ended). The unknown-position row is skipped.
+    # Five terms total from XML (Member baseline positions are not counted in result).
     assert result.position_assignments == 5
     bob = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Bob").one()
     bob_terms = _assignments(session, bob)
-    assert len(bob_terms) == 2  # current Scoutmaster + ended Committee Chairman
+    assert len(bob_terms) == 3  # current Scoutmaster + ended Committee Chairman + Member
     ended = [t for t in bob_terms if t.end_date is not None]
     assert len(ended) == 1
     assert ended[0].start_date is not None
@@ -343,13 +341,13 @@ def test_current_terms_distinguished_from_historical(result_and_session) -> None
     bob = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Bob").one()
     dave = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Dave").one()
     alice = session.query(Member).filter_by(tenant_id=_TENANT, first_name="Alice").one()
-    # Bob currently holds only Scoutmaster; his Committee Chairman term ended.
-    assert _current_position_slugs(session, bob) == {"scoutmaster"}
+    # Bob currently holds Member and Scoutmaster; his Committee Chairman term ended.
+    assert _current_position_slugs(session, bob) == {"member", "scoutmaster"}
     # Alice currently holds Patrol Leader; Dave's PL term ended → none current.
-    assert _current_position_slugs(session, alice) == {"patrol-leader"}
-    assert _current_position_slugs(session, dave) == set()
-    # Dave still has the historical term on record.
-    assert len(_assignments(session, dave)) == 1
+    assert _current_position_slugs(session, alice) == {"member", "patrol-leader"}
+    assert _current_position_slugs(session, dave) == {"member"}
+    # Dave still has the historical term on record (plus his Member position).
+    assert len(_assignments(session, dave)) == 2
 
 
 def test_unknown_position_warns_and_skips(result_and_session) -> None:
@@ -359,7 +357,7 @@ def test_unknown_position_warns_and_skips(result_and_session) -> None:
 
 def test_created_positions_surfaced_in_warnings(result_and_session) -> None:
     result, _ = result_and_session
-    assert any("Created 3 new position" in w for w in result.warnings)
+    assert not any("Created" in w and "new position" in w for w in result.warnings)
 
 
 def test_positions_reuse_seeded_via_slug_and_code(db_session: Session) -> None:
@@ -377,8 +375,12 @@ def test_positions_reuse_seeded_via_slug_and_code(db_session: Session) -> None:
     assert result.positions == 0
     bob = db_session.query(Member).filter_by(tenant_id=tenant, first_name="Bob").one()
     eve = db_session.query(Member).filter_by(tenant_id=tenant, first_name="Eve").one()
-    bob_sm = next(a for a in _assignments(db_session, bob) if a.end_date is None)
-    eve_cc = _assignments(db_session, eve)[0]
+    bob_sm = next(
+        a
+        for a in _assignments(db_session, bob)
+        if a.end_date is None and a.position_id == seeded_sm.id
+    )
+    eve_cc = next(a for a in _assignments(db_session, eve) if a.position_id == seeded_cc.id)
     assert bob_sm.position_id == seeded_sm.id  # reused seeded Scoutmaster
     assert eve_cc.position_id == seeded_cc.id  # reused seeded Committee Chair via code
     assert seeded_sm.is_system is True

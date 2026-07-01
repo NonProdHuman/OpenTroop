@@ -17,7 +17,7 @@ from datetime import UTC, date, datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 
-from app.core.deps import CurrentMemberDep, DbDep, TenantDep, get_or_404, require, require_tenant_fk
+from app.core.deps import CurrentMemberDep, DbDep, TenantDep, get_or_404, require
 from app.core.permissions import current_assignment_clause
 from app.models.enums import Permission
 from app.models.member import Member
@@ -101,7 +101,10 @@ def assign_position(
     (ended terms don't block re-assignment). ``start_date`` defaults to today.
     """
     get_or_404(db, Member, member_id, tenant_id, "Member not found")
-    require_tenant_fk(db, Position, body.position_id, tenant_id, "position_id")
+    position = get_or_404(db, Position, body.position_id, tenant_id, "position_id")
+    if position.is_default:
+        raise HTTPException(status_code=409, detail="Default positions cannot be manually assigned")
+
     _validate_dates(body.start_date, body.end_date)
 
     current_term = db.scalar(
@@ -171,5 +174,8 @@ def delete_position_term(
     distinct from *ending* a term (PATCH ``end_date``), which preserves it."""
     get_or_404(db, Member, member_id, tenant_id, "Member not found")
     assignment = _get_assignment(db, member_id, assignment_id)
+    position = db.get(Position, assignment.position_id)
+    if position and position.is_default:
+        raise HTTPException(status_code=409, detail="Default positions cannot be deleted")
     assignment.is_deleted = True
     db.commit()

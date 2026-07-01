@@ -63,9 +63,11 @@ def test_delete_term_by_assignment_id(client: TestClient) -> None:
     a = _assign(client, m["id"], pos["id"])
     resp = client.delete(f"/members/{m['id']}/positions/{a['id']}")
     assert resp.status_code == 204
-    assert client.get(f"/members/{m['id']}/positions").json() == []
+    positions = client.get(f"/members/{m['id']}/positions").json()
+    assert len(positions) == 1
     # Soft-deleted → gone from history too.
-    assert client.get(f"/members/{m['id']}/positions?current=false").json() == []
+    history = client.get(f"/members/{m['id']}/positions?current=false").json()
+    assert len(history) == 1
 
 
 def test_delete_missing_returns_404(client: TestClient) -> None:
@@ -87,16 +89,18 @@ def test_end_term_then_history_and_reassign(client: TestClient) -> None:
     assert r.status_code == 200
     assert r.json()["is_current"] is False
 
-    # Default (current) list is empty; full history still shows the ended term.
-    assert client.get(f"/members/{m['id']}/positions").json() == []
+    # Default (current) list has the Member position; full history shows the ended term + Member.
+    current_pos = client.get(f"/members/{m['id']}/positions").json()
+    assert len(current_pos) == 1
     history = client.get(f"/members/{m['id']}/positions?current=false").json()
-    assert len(history) == 1
-    assert history[0]["end_date"] == "2025-06-01"
+    assert len(history) == 2
+    ended_term = next(a for a in history if a["position_id"] == pos["id"])
+    assert ended_term["end_date"] == "2025-06-01"
 
     # The position can be re-assigned now that the prior term has ended (new row).
     b = _assign(client, m["id"], pos["id"])
     assert b["id"] != a["id"]
-    assert len(client.get(f"/members/{m['id']}/positions?current=false").json()) == 2
+    assert len(client.get(f"/members/{m['id']}/positions?current=false").json()) == 3
 
 
 def test_patch_end_before_start_rejected(client: TestClient) -> None:
@@ -111,7 +115,7 @@ def test_assign_position_wrong_tenant(client: TestClient, other_client: TestClie
     m = _create_member(client)
     foreign_pos = _create_position(other_client, "foreign")
     r = client.post(f"/members/{m['id']}/positions", json={"position_id": foreign_pos["id"]})
-    assert r.status_code == 422
+    assert r.status_code == 404
 
 
 def test_assign_to_member_wrong_tenant(client: TestClient, other_client: TestClient) -> None:
@@ -126,3 +130,14 @@ def test_tenant_isolation(client: TestClient, other_client: TestClient) -> None:
     pos = _create_position(client)
     _assign(client, m["id"], pos["id"])
     assert other_client.get(f"/members/{m['id']}/positions").status_code == 404
+
+
+def test_cannot_delete_default_member_assignment(client: TestClient) -> None:
+    m = _create_member(client)
+    positions = client.get(f"/members/{m['id']}/positions").json()
+    assert len(positions) == 1
+    default_assignment_id = positions[0]["id"]
+
+    resp = client.delete(f"/members/{m['id']}/positions/{default_assignment_id}")
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "Default positions cannot be deleted"

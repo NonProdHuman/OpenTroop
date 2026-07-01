@@ -5,9 +5,18 @@ from collections.abc import Sequence
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
-from app.core.deps import DbDep, NotificationServiceDep, TenantDep, get_or_404, require
+from app.core.deps import (
+    CurrentMemberDep,
+    DbDep,
+    NotificationServiceDep,
+    TenantDep,
+    get_or_404,
+    require,
+)
 from app.core.invite import build_claim_url, build_invite_email, create_invite_token
 from app.core.notifications import EmailSendError
+from app.core.permissions import resolve_permissions
+from app.core.relationships import family_member_ids
 from app.models.enums import GroupType, MemberType, Permission
 from app.models.group import Group, GroupMember
 from app.models.member import Member
@@ -35,6 +44,18 @@ def list_members(tenant_id: TenantDep, db: DbDep) -> Sequence[Member]:
 def create_member(body: MemberBase, tenant_id: TenantDep, db: DbDep) -> Member:
     member = Member(tenant_id=tenant_id, **body.model_dump())
     db.add(member)
+    db.flush()
+
+    from app.core.provisioning import get_or_create_member_position
+    from app.models.rbac import MemberPositionAssignment
+
+    member_pos = get_or_create_member_position(db, tenant_id)
+    db.add(
+        MemberPositionAssignment(
+            tenant_id=tenant_id, member_id=member.id, position_id=member_pos.id
+        )
+    )
+
     db.commit()
     db.refresh(member)
     return member
@@ -52,13 +73,53 @@ def get_member(member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Member:
 @router.patch(
     "/{member_id}",
     response_model=MemberRead,
-    dependencies=[Depends(require(Permission.MEMBER_WRITE))],
 )
 def update_member(
-    member_id: uuid.UUID, body: MemberUpdate, tenant_id: TenantDep, db: DbDep
+    member_id: uuid.UUID,
+    body: MemberUpdate,
+    tenant_id: TenantDep,
+    db: DbDep,
+    caller: CurrentMemberDep,
 ) -> Member:
     member = get_or_404(db, Member, member_id, tenant_id, "Member not found")
+
+    perms = resolve_permissions(caller.id, db)
+    can_full_edit = Permission.MEMBER_WRITE in perms
+
+    if not can_full_edit:
+        family_ids = family_member_ids(caller.id, db)
+        if member_id != caller.id and member_id not in family_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to edit this member"
+            )
+
     updates = body.model_dump(exclude_unset=True)
+
+    if not can_full_edit:
+        allowlist = {
+            "phone",
+            "email",
+            "address_line1",
+            "address_line2",
+            "city",
+            "state",
+            "postal_code",
+            "country",
+            "emergency_contact_1_name",
+            "emergency_contact_1_phone",
+            "emergency_contact_2_name",
+            "emergency_contact_2_phone",
+            "medical_form_ab_date",
+            "medical_form_c_date",
+            "allergies",
+            "dietary_restrictions",
+        }
+        for k in updates:
+            if k not in allowlist:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Not authorized to edit field: {k}",
+                )
 
     if updates.get("member_type") == MemberType.ADULT:
         patrol_memberships = db.scalars(

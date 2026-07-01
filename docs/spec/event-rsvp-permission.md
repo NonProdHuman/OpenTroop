@@ -5,6 +5,8 @@
 **Routes (frontend):** `/events/{id}` (RSVP surface) · `/members/{id}/edit` (relationship editor)
 **Depends on:** `MemberRelationship` (backend CRUD exists), `EventType`, `EventParticipant`,
 event visibility (`app/core/event_visibility.py`)
+**Related:** [`baseline-member-access.md`](baseline-member-access.md) resolves the
+"members still can't `GET /events`" gap noted below
 
 ---
 
