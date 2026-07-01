@@ -213,6 +213,35 @@ def test_invite_and_revoke_admin(
     assert [a["member_id"] for a in remaining] == [new_admin_id]
 
 
+def test_invite_admin_prelinks_only_verified_users(
+    platform_admin_client: TestClient, db_session: Session
+) -> None:
+    """Inviting an admin pre-links an existing user only if their email is verified."""
+    from sqlalchemy import select
+
+    from app.models.member import Member
+
+    _make_user(db_session, "unverified@test.com", None, email_verified=False)
+    verified = _make_user(db_session, "verified@test.com", None, email_verified=True)
+    tenant = _provision(platform_admin_client, "troop-prelink")
+
+    for email in ("unverified@test.com", "verified@test.com"):
+        r = platform_admin_client.post(
+            f"/platform/tenants/{tenant['id']}/admins",
+            json={"first_name": "P", "last_name": "L", "email": email},
+        )
+        assert r.status_code == 201, r.text
+
+    members = {
+        m.email: m
+        for m in db_session.scalars(
+            select(Member).where(Member.tenant_id == uuid.UUID(tenant["id"]))
+        )
+    }
+    assert members["unverified@test.com"].user_id is None  # must claim via token
+    assert members["verified@test.com"].user_id == verified.id
+
+
 def test_cannot_revoke_last_admin(platform_admin_client: TestClient) -> None:
     tenant = _provision(platform_admin_client, "troop-last")
     r = platform_admin_client.delete(
@@ -240,8 +269,16 @@ def test_admin_endpoints_require_platform_admin(
 # ---------------------------------------------------------------------------
 
 
-def _make_user(db: Session, email: str, role: PlatformRole | None = None) -> User:
-    user = User(id=uuid.uuid4(), email=email, display_name=email, platform_role=role)
+def _make_user(
+    db: Session, email: str, role: PlatformRole | None = None, *, email_verified: bool = True
+) -> User:
+    user = User(
+        id=uuid.uuid4(),
+        email=email,
+        email_verified=email_verified,
+        display_name=email,
+        platform_role=role,
+    )
     db.add(user)
     db.commit()
     return user
@@ -266,6 +303,21 @@ def test_grant_platform_admin(platform_admin_client: TestClient, db_session: Ses
     assert r.status_code == 201, r.text
     assert r.json()["platform_role"] == "support"
     assert r.json()["email"] == "grantme@test.com"
+
+
+def test_grant_unverified_email_returns_404(
+    platform_admin_client: TestClient, db_session: Session
+) -> None:
+    """A user whose email was never provider-verified cannot receive a platform role.
+
+    User.email is attacker-chosen at signup unless verified — matching it would let
+    an email squatter receive a role a superadmin meant for the real owner (GH-110).
+    """
+    _make_user(db_session, "squatter@test.com", None, email_verified=False)
+    r = platform_admin_client.post(
+        "/platform/admins", json={"email": "squatter@test.com", "role": "support"}
+    )
+    assert r.status_code == 404
 
 
 def test_grant_unknown_email_returns_404(platform_admin_client: TestClient) -> None:

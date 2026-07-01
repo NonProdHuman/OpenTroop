@@ -267,16 +267,22 @@ def list_platform_admins(db: AdminDbDep) -> list[PlatformAdminRead]:
 def grant_platform_admin(body: PlatformAdminGrant, db: AdminDbDep) -> PlatformAdminRead:
     """Grant a platform role to an existing user (superadmin only).
 
-    The target user must already exist — i.e. have signed in at least once.
+    The target user must already exist — i.e. have signed in at least once — and
+    their provider must have verified the email (an unverified User.email is
+    attacker-chosen at signup; matching it would let a squatter receive the role).
     Returns 404 if no user matches the email, 409 if the email is ambiguous.
     """
     users = db.scalars(
-        select(User).where(User.email == body.email, User.is_deleted.is_(False))
+        select(User).where(
+            User.email == body.email,
+            User.email_verified.is_(True),
+            User.is_deleted.is_(False),
+        )
     ).all()
     if not users:
         raise HTTPException(
             status_code=404,
-            detail="No user with that email — they must sign in at least once first",
+            detail="No user with that verified email — they must sign in at least once first",
         )
     if len(users) > 1:
         raise HTTPException(status_code=409, detail="Multiple users share that email")

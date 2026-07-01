@@ -268,7 +268,11 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   `AUTH_JWKS_URI`, validates RS256/ES256 signatures, and checks `aud` only when
   `AUTH_AUDIENCE` is set (omit for providers that don't use `aud`).
 - **User provisioning**: `get_or_create_user` maps validated `(iss, sub)` claims to a
-  `User` + `Identity` row pair, creating both atomically on first login.
+  `User` + `Identity` row pair, creating both atomically on first login. Email-based
+  matching (auto-linking unclaimed `Member` rows, admin-invite pre-linking, platform
+  grant-by-email) runs **only** when the provider asserted `email_verified: true` —
+  an unverified email claim is attacker-chosen (`User.email_verified` records this;
+  the Clerk JWT template must include the `email_verified` shortcode).
 - **Tenant resolution** (`app/core/tenant.py`): `get_tenant_id` resolves the tenant
   from the request subdomain first (`troop123.opentroop.app` → slug lookup), then
   falls back to the `X-Tenant-ID` header (raw UUID → DB validation). The subdomain
@@ -314,10 +318,13 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   writes the DB directly, bypassing the API gate, and auto-links the single signed-in `User`
   as founder.
 - **Invite/claim flow** (`app/core/invite.py`): `create_invite_token` / `decode_invite_token`
-  use HS256 (signed with `APP_SECRET`) to produce 7-day claim tokens. Tokens are minted
-  either by tenant provisioning (for the founder) or by an admin calling
+  use HS256 (signed with `APP_SECRET`, enforced ≥32 chars) to produce 7-day claim tokens.
+  Tokens are minted either by tenant provisioning (for the founder) or by an admin calling
   `POST /members/{id}/invite`; the invitee signs in via OIDC then calls `POST /auth/claim`
-  with the token to link their `User.id` to the `Member` row.
+  with the token to link their `User.id` to the `Member` row. Tokens are **single-use and
+  revocable**: each carries a `jti` stored on `Member.invite_token_jti`; the claim endpoint
+  honors a token only while the jti matches, clears it on success, and re-inviting rotates
+  it (revoking any earlier token).
 - **iCal calendar feed** (`app/routers/calendar.py`, `app/core/ical.py`): a member's
   personal calendar. `GET /calendar/{token}.ics` is **unauthenticated by design** — the
   unguessable `Member.calendar_token` is the credential (calendar apps can't do OAuth);

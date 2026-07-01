@@ -190,8 +190,11 @@ variable "clerk_jwt_template_name" {
 variable "clerk_jwt_claims" {
   description = "Claims JSON for the Clerk custom JWT template."
   type        = map(string)
+  # email_verified must accompany email: the backend only honors email-based
+  # account matching when the provider positively asserts verification.
   default = {
-    email = "{{user.primary_email_address}}"
+    email          = "{{user.primary_email_address}}"
+    email_verified = "{{user.email_verified}}"
   }
 }
 

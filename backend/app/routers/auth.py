@@ -135,11 +135,14 @@ def claim_member(body: _ClaimRequest, user: CurrentUserDep, db: DbDep) -> Member
     """Link the authenticated user's account to an existing Member record.
 
     The token is obtained from POST /members/{id}/invite (requires ROLE_ASSIGN).
+    Tokens are single-use: the jti embedded in the token must match the one
+    stored on the member, and it is cleared on success. Re-inviting rotates the
+    stored jti, revoking any previously issued token.
     Idempotent if the calling user already claimed this member. Returns 409 if
     the member was claimed by a different account, or if this user already holds
     a member record in the same tenant.
     """
-    member_id, tenant_id = decode_invite_token(body.token)
+    member_id, tenant_id, jti = decode_invite_token(body.token)
 
     with unscoped():
         member = db.get(Member, member_id)
@@ -152,6 +155,12 @@ def claim_member(body: _ClaimRequest, user: CurrentUserDep, db: DbDep) -> Member
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Member already claimed by another account",
+            )
+
+        if member.invite_token_jti is None or member.invite_token_jti != jti:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invite token has been revoked or already used",
             )
 
         existing = db.scalar(
@@ -168,6 +177,7 @@ def claim_member(body: _ClaimRequest, user: CurrentUserDep, db: DbDep) -> Member
             )
 
         member.user_id = user.id
+        member.invite_token_jti = None  # single-use: the token cannot be redeemed again
         db.commit()
         db.refresh(member)
     return member
