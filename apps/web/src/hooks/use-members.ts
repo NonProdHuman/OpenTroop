@@ -10,7 +10,7 @@ export function useMembers() {
   const { activeTenantId } = useActiveTenant()
   return useQuery({
     queryKey: [activeTenantId, "members"],
-    queryFn: () => request<Member[]>("/members/"),
+    queryFn: () => request<Member[]>("/members"),
     enabled: Boolean(activeTenantId),
   })
 }
@@ -31,7 +31,7 @@ export function useCreateMember() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: Partial<Member>) =>
-      request<Member>("/members/", {
+      request<Member>("/members", {
         method: "POST",
         body: JSON.stringify(body),
       }),

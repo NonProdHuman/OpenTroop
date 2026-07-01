@@ -11,7 +11,7 @@ export function useGroups() {
   const { activeTenantId } = useActiveTenant()
   return useQuery({
     queryKey: [activeTenantId, "groups"],
-    queryFn: () => request<Group[]>("/groups/"),
+    queryFn: () => request<Group[]>("/groups"),
     enabled: Boolean(activeTenantId),
   })
 }
@@ -153,7 +153,7 @@ export function useCreateGroup() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: { name: string; group_type: string; color: string | null; description: string | null; rule_logic?: string; include_parents?: boolean; cc_parents_on_messages?: boolean }) =>
-      request<Group>("/groups/", { method: "POST", body: JSON.stringify(body) }),
+      request<Group>("/groups", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups"] })
     },

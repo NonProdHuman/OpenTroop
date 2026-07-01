@@ -53,12 +53,18 @@ export function useFoo() {
   const { request } = useApi()
   return useQuery({
     queryKey: ["foo"],
-    queryFn: () => request<Foo[]>("/foo/"),
+    queryFn: () => request<Foo[]>("/foo"),
   })
 }
 ```
 
 Add the corresponding type(s) to `src/types/api.ts`.
+
+> **No trailing slash on collection paths.** Backend collection routes are declared
+> at `""` (canonical `/foo`, not `/foo/`). Requesting `/foo/` makes the backend
+> 307-redirect to `/foo`, and because `/api/*` is proxied to a *cross-origin* backend
+> origin, the browser drops the `Authorization` header on that redirect → 401 / empty
+> lists. Always call the no-slash path. See commit 6e6dee5 and issue #97.
 
 ## Route structure
 

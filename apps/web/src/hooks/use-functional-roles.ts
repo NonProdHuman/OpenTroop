@@ -10,7 +10,7 @@ export function useFunctionalRoles() {
   const { activeTenantId } = useActiveTenant()
   return useQuery({
     queryKey: [activeTenantId, "functional-roles"],
-    queryFn: () => request<FunctionalRole[]>("/functional-roles/"),
+    queryFn: () => request<FunctionalRole[]>("/functional-roles"),
     enabled: Boolean(activeTenantId),
   })
 }
@@ -31,7 +31,7 @@ export function useCreateFunctionalRole() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (data: { name: string; slug: string }) =>
-      request<FunctionalRole>("/functional-roles/", { method: "POST", body: JSON.stringify(data) }),
+      request<FunctionalRole>("/functional-roles", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "functional-roles"] })
     },

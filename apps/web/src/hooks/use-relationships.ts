@@ -26,7 +26,7 @@ export function useCreateRelationship() {
       to_member_id: string
       relationship_type: RelationshipType
     }) =>
-      request<MemberRelationship>("/relationships/", {
+      request<MemberRelationship>("/relationships", {
         method: "POST",
         body: JSON.stringify(body),
       }),
