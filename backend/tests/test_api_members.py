@@ -1,6 +1,10 @@
 """API tests for /members/ endpoints."""
 
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from app.models.member import Member
+from tests.conftest import NEW_USER_ID, TENANT_A
 
 
 def _create_member(client: TestClient, **overrides: object) -> dict:
@@ -86,3 +90,28 @@ def test_update_member_to_adult_clears_patrol_memberships(client: TestClient) ->
     # Verify patrol membership has been cleared
     members_after = client.get(f"/groups/{patrol['id']}/members").json()
     assert m["id"] not in {x["id"] for x in members_after}
+
+
+def test_patch_member_field_gating_basic_member_rejected(
+    client: TestClient, claim_client: TestClient, db_session: Session
+) -> None:
+    # Create member as admin
+    m_data = _create_member(client)
+
+    # Manually link the claim_client's user_id to this member
+    import uuid
+
+    m = db_session.get(Member, uuid.UUID(m_data["id"]))
+    m.user_id = NEW_USER_ID
+    db_session.commit()
+
+    # Issue requests as the basic member
+    claim_client.headers["X-Tenant-ID"] = str(TENANT_A)
+
+    # Allowed field (allergies)
+    r = claim_client.patch(f"/members/{m.id}", json={"allergies": "Peanuts"})
+    assert r.status_code == 200, r.text
+
+    # Restricted field (bsa_id)
+    r = claim_client.patch(f"/members/{m.id}", json={"bsa_id": "12345"})
+    assert "Not authorized to edit field: bsa_id" in r.text

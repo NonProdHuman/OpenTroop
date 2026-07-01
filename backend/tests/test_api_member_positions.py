@@ -130,3 +130,14 @@ def test_tenant_isolation(client: TestClient, other_client: TestClient) -> None:
     pos = _create_position(client)
     _assign(client, m["id"], pos["id"])
     assert other_client.get(f"/members/{m['id']}/positions").status_code == 404
+
+
+def test_cannot_delete_default_member_assignment(client: TestClient) -> None:
+    m = _create_member(client)
+    positions = client.get(f"/members/{m['id']}/positions").json()
+    assert len(positions) == 1
+    default_assignment_id = positions[0]["id"]
+
+    resp = client.delete(f"/members/{m['id']}/positions/{default_assignment_id}")
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "Default positions cannot be deleted"
