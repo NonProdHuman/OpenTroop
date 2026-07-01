@@ -31,7 +31,8 @@ class EmailMessage:
 
 
 class EmailBackend(Protocol):
-    def send(self, message: EmailMessage) -> None: ...
+    def send(self, message: EmailMessage) -> None:
+        pass
 
 
 @dataclass(frozen=True)
@@ -45,7 +46,8 @@ class SMSSendError(Exception):
 
 
 class SMSBackend(Protocol):
-    def send(self, message: SMSMessage) -> None: ...
+    def send(self, message: SMSMessage) -> None:
+        pass
 
 
 class FakeEmailBackend:
