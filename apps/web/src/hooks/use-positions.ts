@@ -10,7 +10,7 @@ export function usePositions() {
   const { activeTenantId } = useActiveTenant()
   return useQuery({
     queryKey: [activeTenantId, "positions"],
-    queryFn: () => request<Position[]>("/positions/"),
+    queryFn: () => request<Position[]>("/positions"),
     enabled: Boolean(activeTenantId),
   })
 }
@@ -31,7 +31,7 @@ export function useCreatePosition() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (data: { name: string; slug: string; applies_to?: string; sort_order?: number }) =>
-      request<Position>("/positions/", { method: "POST", body: JSON.stringify(data) }),
+      request<Position>("/positions", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "positions"] })
     },

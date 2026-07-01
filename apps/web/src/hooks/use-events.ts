@@ -20,7 +20,7 @@ export function useEvents() {
   const { activeTenantId } = useActiveTenant()
   return useQuery({
     queryKey: [activeTenantId, "events"],
-    queryFn: () => request<Event[]>("/events/"),
+    queryFn: () => request<Event[]>("/events"),
     enabled: Boolean(activeTenantId),
   })
 }
@@ -40,7 +40,7 @@ export function useEventTypes() {
   const { activeTenantId } = useActiveTenant()
   return useQuery({
     queryKey: [activeTenantId, "event-types"],
-    queryFn: () => request<EventType[]>("/event-types/"),
+    queryFn: () => request<EventType[]>("/event-types"),
     enabled: Boolean(activeTenantId),
   })
 }
@@ -50,7 +50,7 @@ export function useLocations() {
   const { activeTenantId } = useActiveTenant()
   return useQuery({
     queryKey: [activeTenantId, "locations"],
-    queryFn: () => request<Location[]>("/locations/"),
+    queryFn: () => request<Location[]>("/locations"),
     enabled: Boolean(activeTenantId),
   })
 }
@@ -153,7 +153,7 @@ export function useCreateEvent() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: Partial<Event>) =>
-      request<Event>("/events/", {
+      request<Event>("/events", {
         method: "POST",
         body: JSON.stringify(body),
       }),
