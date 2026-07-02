@@ -16,7 +16,7 @@ router = APIRouter(prefix="/locations", tags=["locations"])
     "", response_model=list[LocationRead], dependencies=[Depends(require(Permission.EVENT_READ))]
 )
 def list_locations(tenant_id: TenantDep, db: DbDep) -> Sequence[Location]:
-    return db.scalars(select(Location).where(Location.is_deleted.is_(False))).all()
+    return db.scalars(select(Location)).all()
 
 
 @router.post(
@@ -26,7 +26,7 @@ def list_locations(tenant_id: TenantDep, db: DbDep) -> Sequence[Location]:
     dependencies=[Depends(require(Permission.EVENT_WRITE))],
 )
 def create_location(body: LocationBase, tenant_id: TenantDep, db: DbDep) -> Location:
-    location = Location(tenant_id=tenant_id, **body.model_dump())
+    location = Location(**body.model_dump())
     db.add(location)
     db.commit()
     db.refresh(location)
@@ -39,7 +39,7 @@ def create_location(body: LocationBase, tenant_id: TenantDep, db: DbDep) -> Loca
     dependencies=[Depends(require(Permission.EVENT_READ))],
 )
 def get_location(location_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Location:
-    return get_or_404(db, Location, location_id, tenant_id, "Location not found")
+    return get_or_404(db, Location, location_id, "Location not found")
 
 
 @router.patch(
@@ -50,7 +50,7 @@ def get_location(location_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Loc
 def update_location(
     location_id: uuid.UUID, body: LocationUpdate, tenant_id: TenantDep, db: DbDep
 ) -> Location:
-    location = get_or_404(db, Location, location_id, tenant_id, "Location not found")
+    location = get_or_404(db, Location, location_id, "Location not found")
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(location, k, v)
     db.commit()
@@ -64,6 +64,6 @@ def update_location(
     dependencies=[Depends(require(Permission.EVENT_DELETE))],
 )
 def delete_location(location_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
-    location = get_or_404(db, Location, location_id, tenant_id, "Location not found")
+    location = get_or_404(db, Location, location_id, "Location not found")
     location.is_deleted = True
     db.commit()

@@ -5,8 +5,7 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
-    "type-check": "turbo type-check",
-    "generate": "turbo generate"
+    "type-check": "turbo type-check"
   },
   "devDependencies": {
     "turbo": "latest"

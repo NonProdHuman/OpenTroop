@@ -27,7 +27,7 @@ def _validate_permission_slip_config(allow_signups: bool, require_permission_sli
     dependencies=[Depends(require(Permission.EVENT_READ))],
 )
 def list_event_types(tenant_id: TenantDep, db: DbDep) -> Sequence[EventType]:
-    return db.scalars(select(EventType).where(EventType.is_deleted.is_(False))).all()
+    return db.scalars(select(EventType)).all()
 
 
 @router.post(
@@ -38,7 +38,7 @@ def list_event_types(tenant_id: TenantDep, db: DbDep) -> Sequence[EventType]:
 )
 def create_event_type(body: EventTypeBase, tenant_id: TenantDep, db: DbDep) -> EventType:
     _validate_permission_slip_config(body.allow_signups, body.require_permission_slip)
-    event_type = EventType(tenant_id=tenant_id, **body.model_dump())
+    event_type = EventType(**body.model_dump())
     db.add(event_type)
     db.commit()
     db.refresh(event_type)
@@ -51,7 +51,7 @@ def create_event_type(body: EventTypeBase, tenant_id: TenantDep, db: DbDep) -> E
     dependencies=[Depends(require(Permission.EVENT_READ))],
 )
 def get_event_type(event_type_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> EventType:
-    return get_or_404(db, EventType, event_type_id, tenant_id, "Event type not found")
+    return get_or_404(db, EventType, event_type_id, "Event type not found")
 
 
 @router.patch(
@@ -62,7 +62,7 @@ def get_event_type(event_type_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) ->
 def update_event_type(
     event_type_id: uuid.UUID, body: EventTypeUpdate, tenant_id: TenantDep, db: DbDep
 ) -> EventType:
-    event_type = get_or_404(db, EventType, event_type_id, tenant_id, "Event type not found")
+    event_type = get_or_404(db, EventType, event_type_id, "Event type not found")
     updates = body.model_dump(exclude_unset=True)
     _validate_permission_slip_config(
         updates.get("allow_signups", event_type.allow_signups),
@@ -81,7 +81,7 @@ def update_event_type(
     dependencies=[Depends(require(Permission.EVENT_DELETE))],
 )
 def delete_event_type(event_type_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
-    event_type = get_or_404(db, EventType, event_type_id, tenant_id, "Event type not found")
+    event_type = get_or_404(db, EventType, event_type_id, "Event type not found")
     if event_type.is_system:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

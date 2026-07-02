@@ -21,6 +21,7 @@ from contextvars import ContextVar, Token
 
 _current_tenant: ContextVar[uuid.UUID | None] = ContextVar("current_tenant", default=None)
 _bypass: ContextVar[bool] = ContextVar("tenant_bypass", default=False)
+_include_deleted: ContextVar[bool] = ContextVar("include_deleted", default=False)
 
 
 def set_current_tenant(tenant_id: uuid.UUID) -> Token[uuid.UUID | None]:
@@ -41,6 +42,11 @@ def current_tenant() -> uuid.UUID | None:
 def bypass_active() -> bool:
     """Whether automatic tenant scoping is currently bypassed (see :func:`unscoped`)."""
     return _bypass.get()
+
+
+def include_deleted_active() -> bool:
+    """Whether the automatic soft-delete filter is currently disabled (see :func:`include_deleted`)."""
+    return _include_deleted.get()
 
 
 @contextmanager
@@ -79,3 +85,19 @@ def unscoped() -> Generator[None, None, None]:
             # token here and would otherwise mask the real exception as a 500. The
             # ContextVar copy in this context is independent, so clear the flag directly.
             _bypass.set(False)
+
+
+@contextmanager
+def include_deleted() -> Generator[None, None, None]:
+    """Disable the automatic soft-delete filter for a block, keeping tenant scoping.
+
+    The sibling of :func:`unscoped` for the ``is_deleted`` dimension: tenant filtering
+    stays on, but ``do_orm_execute`` stops appending ``is_deleted == False`` so a query
+    can see (and revive) soft-deleted rows. Greppable and narrow — used only where a
+    tombstone must be read back, e.g. reviving a soft-deleted ``GroupRule`` on upsert.
+    """
+    token = _include_deleted.set(True)
+    try:
+        yield
+    finally:
+        _include_deleted.reset(token)

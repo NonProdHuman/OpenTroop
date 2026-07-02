@@ -6,6 +6,7 @@ from sqlalchemy import select
 
 from app.core.deps import DbDep, TenantDep, get_or_404, require, require_tenant_fk
 from app.core.groups import resolve_group_members
+from app.core.tenant_context import include_deleted
 from app.models.enums import (
     GroupType,
     MemberStatus,
@@ -21,6 +22,7 @@ from app.schemas.group import (
     GroupMemberCreate,
     GroupMemberRead,
     GroupRead,
+    GroupRosterEntry,
     GroupRuleRead,
     GroupRuleUpsert,
     GroupUpdate,
@@ -39,7 +41,7 @@ router = APIRouter(prefix="/groups", tags=["groups"])
     "", response_model=list[GroupRead], dependencies=[Depends(require(Permission.MEMBER_READ))]
 )
 def list_groups(tenant_id: TenantDep, db: DbDep) -> Sequence[Group]:
-    return db.scalars(select(Group).where(Group.is_deleted.is_(False))).all()
+    return db.scalars(select(Group)).all()
 
 
 @router.post(
@@ -49,21 +51,35 @@ def list_groups(tenant_id: TenantDep, db: DbDep) -> Sequence[Group]:
     dependencies=[Depends(require(Permission.MEMBER_WRITE))],
 )
 def create_group(body: GroupCreate, tenant_id: TenantDep, db: DbDep) -> Group:
-    existing = db.scalar(
-        select(Group).where(
-            Group.name == body.name,
-            Group.is_deleted.is_(False),
-        )
-    )
+    existing = db.scalar(select(Group).where(Group.name == body.name))
     if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="A group with this name already exists"
         )
-    group = Group(tenant_id=tenant_id, **body.model_dump())
+    group = Group(**body.model_dump())
     db.add(group)
     db.commit()
     db.refresh(group)
     return group
+
+
+@router.get(
+    "/roster",
+    response_model=list[GroupRosterEntry],
+    dependencies=[Depends(require(Permission.MEMBER_READ))],
+)
+def group_roster(tenant_id: TenantDep, db: DbDep) -> list[GroupRosterEntry]:
+    """Resolved membership for every group in one call — ``[{group_id, member_ids}]``.
+
+    Collapses the client-side N+1 (one ``/groups/{id}/members`` request per group) into a
+    single round trip; the backend already computes each group's set via
+    ``resolve_group_members``. Declared before ``/{group_id}`` so the literal path wins.
+    """
+    groups = db.scalars(select(Group)).all()
+    return [
+        GroupRosterEntry(group_id=g.id, member_ids=sorted(resolve_group_members(g.id, db)))
+        for g in groups
+    ]
 
 
 @router.get(
@@ -72,7 +88,7 @@ def create_group(body: GroupCreate, tenant_id: TenantDep, db: DbDep) -> Group:
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
 def get_group(group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Group:
-    return get_or_404(db, Group, group_id, tenant_id, "Group not found")
+    return get_or_404(db, Group, group_id, "Group not found")
 
 
 @router.patch(
@@ -81,7 +97,7 @@ def get_group(group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Group:
     dependencies=[Depends(require(Permission.MEMBER_WRITE))],
 )
 def update_group(group_id: uuid.UUID, body: GroupUpdate, tenant_id: TenantDep, db: DbDep) -> Group:
-    group = get_or_404(db, Group, group_id, tenant_id, "Group not found")
+    group = get_or_404(db, Group, group_id, "Group not found")
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(group, k, v)
     db.commit()
@@ -93,7 +109,7 @@ def update_group(group_id: uuid.UUID, body: GroupUpdate, tenant_id: TenantDep, d
     "/{group_id}", status_code=204, dependencies=[Depends(require(Permission.MEMBER_DELETE))]
 )
 def delete_group(group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
-    group = get_or_404(db, Group, group_id, tenant_id, "Group not found")
+    group = get_or_404(db, Group, group_id, "Group not found")
     if group.is_system:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="System groups cannot be deleted"
@@ -114,13 +130,11 @@ def delete_group(group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
 )
 def list_group_members(group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Sequence[Member]:
     """Return the group's resolved membership (manual inclusions + rule-derived)."""
-    get_or_404(db, Group, group_id, tenant_id, "Group not found")
+    get_or_404(db, Group, group_id, "Group not found")
     member_ids = resolve_group_members(group_id, db)
     if not member_ids:
         return []
-    return db.scalars(
-        select(Member).where(Member.id.in_(member_ids), Member.is_deleted.is_(False))
-    ).all()
+    return db.scalars(select(Member).where(Member.id.in_(member_ids))).all()
 
 
 @router.get(
@@ -137,13 +151,8 @@ def list_group_manual_members(
     opposed to those resolved dynamically by rules. The UI uses this to separate
     removable manual members from rule-derived ones.
     """
-    get_or_404(db, Group, group_id, tenant_id, "Group not found")
-    return db.scalars(
-        select(GroupMember).where(
-            GroupMember.group_id == group_id,
-            GroupMember.is_deleted.is_(False),
-        )
-    ).all()
+    get_or_404(db, Group, group_id, "Group not found")
+    return db.scalars(select(GroupMember).where(GroupMember.group_id == group_id)).all()
 
 
 @router.post(
@@ -161,14 +170,13 @@ def add_group_member(
     PATROL group, any prior PATROL membership of the member is cleared first, so
     a member belongs to at most one patrol.
     """
-    group = get_or_404(db, Group, group_id, tenant_id, "Group not found")
-    require_tenant_fk(db, Member, body.member_id, tenant_id, "member_id")
+    group = get_or_404(db, Group, group_id, "Group not found")
+    require_tenant_fk(db, Member, body.member_id, "member_id")
 
     existing = db.scalar(
         select(GroupMember).where(
             GroupMember.group_id == group_id,
             GroupMember.member_id == body.member_id,
-            GroupMember.is_deleted.is_(False),
         )
     )
     if existing is not None:
@@ -190,7 +198,7 @@ def add_group_member(
     if group.group_type is GroupType.PATROL:
         _clear_patrol_membership(db, body.member_id)
 
-    gm = GroupMember(tenant_id=tenant_id, group_id=group_id, member_id=body.member_id)
+    gm = GroupMember(group_id=group_id, member_id=body.member_id)
     db.add(gm)
     db.commit()
     db.refresh(gm)
@@ -205,12 +213,11 @@ def add_group_member(
 def remove_group_member(
     group_id: uuid.UUID, member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
 ) -> None:
-    get_or_404(db, Group, group_id, tenant_id, "Group not found")
+    get_or_404(db, Group, group_id, "Group not found")
     gm = db.scalar(
         select(GroupMember).where(
             GroupMember.group_id == group_id,
             GroupMember.member_id == member_id,
-            GroupMember.is_deleted.is_(False),
         )
     )
     if gm is None:
@@ -230,10 +237,8 @@ def remove_group_member(
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
 def list_group_rules(group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Sequence[GroupRule]:
-    get_or_404(db, Group, group_id, tenant_id, "Group not found")
-    return db.scalars(
-        select(GroupRule).where(GroupRule.group_id == group_id, GroupRule.is_deleted.is_(False))
-    ).all()
+    get_or_404(db, Group, group_id, "Group not found")
+    return db.scalars(select(GroupRule).where(GroupRule.group_id == group_id)).all()
 
 
 @router.put(
@@ -249,7 +254,7 @@ def upsert_group_rule(
     db: DbDep,
 ) -> GroupRule:
     """Create or update a dynamic membership rule for a specific dimension."""
-    group = get_or_404(db, Group, group_id, tenant_id, "Group not found")
+    group = get_or_404(db, Group, group_id, "Group not found")
     if group.group_type is GroupType.PATROL:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -305,7 +310,7 @@ def upsert_group_rule(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Invalid position UUID: {val}",
                 ) from err
-            require_tenant_fk(db, Position, pos_id, tenant_id, "position_id")
+            require_tenant_fk(db, Position, pos_id, "position_id")
     elif dimension == RuleDimension.GROUP_MEMBER:
         if not values:
             raise HTTPException(
@@ -325,7 +330,7 @@ def upsert_group_rule(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Rule cannot self-reference the group {group_id}",
                 )
-            require_tenant_fk(db, Group, ref_group_id, tenant_id, "group_id")
+            require_tenant_fk(db, Group, ref_group_id, "group_id")
     elif dimension == RuleDimension.RANK:
         if not values:
             raise HTTPException(
@@ -343,7 +348,6 @@ def upsert_group_rule(
         select(GroupRule).where(
             GroupRule.group_id == group_id,
             GroupRule.dimension == dimension,
-            GroupRule.is_deleted.is_(False),
         )
     )
     if existing is not None:
@@ -352,13 +356,14 @@ def upsert_group_rule(
         db.refresh(existing)
         return existing
 
-    soft_deleted = db.scalar(
-        select(GroupRule).where(
-            GroupRule.group_id == group_id,
-            GroupRule.dimension == dimension,
-            GroupRule.is_deleted.is_(True),
+    with include_deleted():
+        soft_deleted = db.scalar(
+            select(GroupRule).where(
+                GroupRule.group_id == group_id,
+                GroupRule.dimension == dimension,
+                GroupRule.is_deleted.is_(True),
+            )
         )
-    )
     if soft_deleted is not None:
         soft_deleted.is_deleted = False
         soft_deleted.values = values
@@ -366,7 +371,7 @@ def upsert_group_rule(
         db.refresh(soft_deleted)
         return soft_deleted
 
-    rule = GroupRule(tenant_id=tenant_id, group_id=group_id, dimension=dimension, values=values)
+    rule = GroupRule(group_id=group_id, dimension=dimension, values=values)
     db.add(rule)
     db.commit()
     db.refresh(rule)
@@ -381,12 +386,11 @@ def upsert_group_rule(
 def remove_group_rule(
     group_id: uuid.UUID, dimension: RuleDimension, tenant_id: TenantDep, db: DbDep
 ) -> None:
-    get_or_404(db, Group, group_id, tenant_id, "Group not found")
+    get_or_404(db, Group, group_id, "Group not found")
     rule = db.scalar(
         select(GroupRule).where(
             GroupRule.group_id == group_id,
             GroupRule.dimension == dimension,
-            GroupRule.is_deleted.is_(False),
         )
     )
     if rule is None:
@@ -402,7 +406,6 @@ def _clear_patrol_membership(db: DbDep, member_id: uuid.UUID) -> None:
         .join(Group, Group.id == GroupMember.group_id)
         .where(
             GroupMember.member_id == member_id,
-            GroupMember.is_deleted.is_(False),
             Group.group_type == GroupType.PATROL,
         )
     ).all()

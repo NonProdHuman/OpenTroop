@@ -338,3 +338,27 @@ def test_adult_cannot_be_member_of_patrol(client: TestClient) -> None:
     r = client.post(f"/groups/{group['id']}/members", json={"member_id": adult["id"]})
     assert r.status_code == 400
     assert "Adults cannot be members of a patrol" in r.text
+
+
+def test_group_roster_returns_all_resolved_memberships(client: TestClient) -> None:
+    """GET /groups/roster returns [{group_id, member_ids}] for every group in one call."""
+    patrol = _create_group(client, "Wolf", "patrol")
+    empty = _create_group(client, "Empty")
+    alice = _create_member(client, "Alice")
+    bob = _create_member(client, "Bob")
+    for m in (alice, bob):
+        r = client.post(f"/groups/{patrol['id']}/members", json={"member_id": m["id"]})
+        assert r.status_code == 201, r.text
+
+    roster = client.get("/groups/roster")
+    assert roster.status_code == 200, roster.text
+    by_group = {e["group_id"]: set(e["member_ids"]) for e in roster.json()}
+
+    assert by_group[patrol["id"]] == {alice["id"], bob["id"]}
+    assert by_group[empty["id"]] == set()
+
+
+def test_group_roster_is_tenant_scoped(client: TestClient, other_client: TestClient) -> None:
+    group = _create_group(client, "Wolf", "patrol")
+    other_group_ids = {e["group_id"] for e in other_client.get("/groups/roster").json()}
+    assert group["id"] not in other_group_ids

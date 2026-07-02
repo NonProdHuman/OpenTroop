@@ -39,7 +39,6 @@ def _get_assignment(
         select(MemberPositionAssignment).where(
             MemberPositionAssignment.id == assignment_id,
             MemberPositionAssignment.member_id == member_id,
-            MemberPositionAssignment.is_deleted.is_(False),
         )
     )
     if assignment is None:
@@ -68,14 +67,14 @@ def list_member_positions(
     ``current=true`` (default) returns only live terms; ``current=false`` returns the
     full non-deleted history, newest term first.
     """
-    get_or_404(db, Member, member_id, tenant_id, "Member not found")
+    get_or_404(db, Member, member_id, "Member not found")
     stmt = select(MemberPositionAssignment).where(
         MemberPositionAssignment.member_id == member_id,
     )
     if current:
         stmt = stmt.where(current_assignment_clause())
     else:
-        stmt = stmt.where(MemberPositionAssignment.is_deleted.is_(False)).order_by(
+        stmt = stmt.order_by(
             MemberPositionAssignment.start_date.desc().nullslast(),
             MemberPositionAssignment.created_at.desc(),
         )
@@ -100,8 +99,8 @@ def assign_position(
     Returns 409 if the member already holds a **current** term for that position
     (ended terms don't block re-assignment). ``start_date`` defaults to today.
     """
-    get_or_404(db, Member, member_id, tenant_id, "Member not found")
-    position = get_or_404(db, Position, body.position_id, tenant_id, "position_id")
+    get_or_404(db, Member, member_id, "Member not found")
+    position = get_or_404(db, Position, body.position_id, "position_id")
     if position.is_default:
         raise HTTPException(status_code=409, detail="Default positions cannot be manually assigned")
 
@@ -118,7 +117,6 @@ def assign_position(
         raise HTTPException(status_code=409, detail="Member already currently holds this position")
 
     assignment = MemberPositionAssignment(
-        tenant_id=tenant_id,
         member_id=member_id,
         position_id=body.position_id,
         assigned_by_id=actor.id,
@@ -145,7 +143,7 @@ def update_position_term(
 ) -> MemberPositionAssignment:
     """Edit a term's dates — correct ``start_date``, end a term (set ``end_date``),
     or reopen one (pass ``end_date: null``). Enforces ``end_date >= start_date``."""
-    get_or_404(db, Member, member_id, tenant_id, "Member not found")
+    get_or_404(db, Member, member_id, "Member not found")
     assignment = _get_assignment(db, member_id, assignment_id)
 
     fields = body.model_dump(exclude_unset=True)
@@ -172,7 +170,7 @@ def delete_position_term(
 ) -> None:
     """Soft-delete a term — "created in error". Removes it from history entirely;
     distinct from *ending* a term (PATCH ``end_date``), which preserves it."""
-    get_or_404(db, Member, member_id, tenant_id, "Member not found")
+    get_or_404(db, Member, member_id, "Member not found")
     assignment = _get_assignment(db, member_id, assignment_id)
     position = db.get(Position, assignment.position_id)
     if position and position.is_default:

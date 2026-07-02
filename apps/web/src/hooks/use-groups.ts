@@ -1,10 +1,10 @@
 "use client"
 
 import { useMemo } from "react"
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
-import type { Group, GroupMemberRow, GroupRule, Member } from "@/types/api"
+import type { Group, GroupMemberRow, GroupRosterEntry, GroupRule, Member } from "@/types/api"
 
 export function useGroups() {
   const { request } = useApi()
@@ -48,102 +48,90 @@ export function useGroupManualMembers(groupId: string | null) {
   })
 }
 
-/** Returns a Map<groupId, memberCount> for all provided groups. */
-export function useGroupMemberCounts(groups: Group[]): Map<string, number> {
+/**
+ * Resolved membership for every group in one request — `[{group_id, member_ids}]`.
+ *
+ * Backing query for the membership *selector* hooks below (`useGroupMemberCounts`,
+ * `usePatrolMemberships`, `useMemberGroups`, `useGroupMemberships`), which used to fire
+ * one `/groups/{id}/members` request per group and join client-side. The backend already
+ * computes each group's resolved set, so a single `/groups/roster` call replaces the N+1.
+ */
+export function useGroupRoster() {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
-  const results = useQueries({
-    queries: groups.map((g) => ({
-      queryKey: [activeTenantId, "group-members", g.id],
-      queryFn: () => request<Member[]>(`/groups/${g.id}/members`),
-      enabled: Boolean(activeTenantId),
-    })),
+  return useQuery({
+    queryKey: [activeTenantId, "group-roster"],
+    queryFn: () => request<GroupRosterEntry[]>("/groups/roster"),
+    enabled: Boolean(activeTenantId),
   })
+}
+
+/** Returns a Map<groupId, memberCount> for all provided groups. */
+export function useGroupMemberCounts(groups: Group[]): Map<string, number> {
+  const { data: roster = [] } = useGroupRoster()
   return useMemo(() => {
+    const counts = new Map(roster.map((e) => [e.group_id, e.member_ids.length]))
     const map = new Map<string, number>()
-    groups.forEach((g, i) => {
-      const data = results[i]?.data
-      if (data !== undefined) map.set(g.id, data.length)
-    })
+    for (const g of groups) {
+      const count = counts.get(g.id)
+      if (count !== undefined) map.set(g.id, count)
+    }
     return map
-  }, [groups, results])
+  }, [groups, roster])
 }
 
 export type PatrolInfo = { id: string; name: string }
 
 /** Returns a Map<memberId, PatrolInfo> built from all PATROL-type groups. */
 export function usePatrolMemberships(): Map<string, PatrolInfo> {
-  const { request } = useApi()
-  const { activeTenantId } = useActiveTenant()
   const { data: groups = [] } = useGroups()
-
-  const patrols = useMemo(() => groups.filter((g) => g.group_type === "patrol"), [groups])
-
-  const memberResults = useQueries({
-    queries: patrols.map((patrol) => ({
-      queryKey: [activeTenantId, "group-members", patrol.id],
-      queryFn: () => request<Member[]>(`/groups/${patrol.id}/members`),
-      enabled: Boolean(activeTenantId),
-    })),
-  })
+  const { data: roster = [] } = useGroupRoster()
 
   return useMemo(() => {
+    const memberIdsByGroup = new Map(roster.map((e) => [e.group_id, e.member_ids]))
     const map = new Map<string, PatrolInfo>()
-    patrols.forEach((patrol, i) => {
-      const members = memberResults[i]?.data ?? []
-      members.forEach((m) => map.set(m.id, { id: patrol.id, name: patrol.name }))
-    })
+    for (const patrol of groups.filter((g) => g.group_type === "patrol")) {
+      for (const memberId of memberIdsByGroup.get(patrol.id) ?? []) {
+        map.set(memberId, { id: patrol.id, name: patrol.name })
+      }
+    }
     return map
-  }, [patrols, memberResults])
+  }, [groups, roster])
 }
 
 /** Returns all groups a given member belongs to (resolved membership). */
-export function useMemberGroups(memberId: string | null) {
-  const { request } = useApi()
-  const { activeTenantId } = useActiveTenant()
+export function useMemberGroups(memberId: string | null): Group[] {
   const { data: groups = [] } = useGroups()
-
-  const memberResults = useQueries({
-    queries: groups.map((group) => ({
-      queryKey: [activeTenantId, "group-members", group.id],
-      queryFn: () => request<Member[]>(`/groups/${group.id}/members`),
-      enabled: memberId !== null && Boolean(activeTenantId),
-    })),
-  })
+  const { data: roster = [] } = useGroupRoster()
 
   return useMemo(() => {
     if (!memberId) return []
-    return groups.filter((_, i) =>
-      memberResults[i]?.data?.some((m) => m.id === memberId),
+    const memberGroupIds = new Set(
+      roster.filter((e) => e.member_ids.includes(memberId)).map((e) => e.group_id),
     )
-  }, [memberId, groups, memberResults])
+    return groups.filter((g) => memberGroupIds.has(g.id))
+  }, [memberId, groups, roster])
 }
 
 /** Returns a Map<memberId, Group[]> built from all active groups. */
 export function useGroupMemberships(): Map<string, Group[]> {
-  const { request } = useApi()
-  const { activeTenantId } = useActiveTenant()
   const { data: groups = [] } = useGroups()
-
-  const memberResults = useQueries({
-    queries: groups.map((group) => ({
-      queryKey: [activeTenantId, "group-members", group.id],
-      queryFn: () => request<Member[]>(`/groups/${group.id}/members`),
-      enabled: Boolean(activeTenantId),
-    })),
-  })
+  const { data: roster = [] } = useGroupRoster()
 
   return useMemo(() => {
+    const groupById = new Map(groups.map((g) => [g.id, g]))
     const map = new Map<string, Group[]>()
-    groups.forEach((group, i) => {
-      const members = memberResults[i]?.data ?? []
-      members.forEach((m) => {
-        const existing = map.get(m.id) ?? []
-        map.set(m.id, [...existing, group])
-      })
-    })
+    for (const entry of roster) {
+      const group = groupById.get(entry.group_id)
+      if (group === undefined) continue
+      for (const memberId of entry.member_ids) {
+        const existing = map.get(memberId) ?? []
+        existing.push(group)
+        map.set(memberId, existing)
+      }
+    }
     return map
-  }, [groups, memberResults])
+  }, [groups, roster])
 }
 
 
@@ -156,6 +144,7 @@ export function useCreateGroup() {
       request<Group>("/groups", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-roster"] })
     },
   })
 }
@@ -173,6 +162,7 @@ export function useUpdateGroup() {
       // rule_logic and include_parents change resolved membership — refresh all
       // group-member caches (and everything derived from them: counts, rosters).
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-roster"] })
     },
   })
 }
@@ -185,6 +175,7 @@ export function useDeleteGroup() {
     mutationFn: (id: string) => request(`/groups/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-roster"] })
     },
   })
 }
@@ -203,6 +194,7 @@ export function useAddGroupMember() {
       // Invalidate ALL group-member caches: the backend may silently remove
       // the member from a previous patrol, so every cached list could be stale.
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-roster"] })
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-manual-members"] })
     },
   })
@@ -218,6 +210,7 @@ export function useRemoveGroupMember() {
     onSuccess: () => {
       // Invalidate ALL group-member caches for consistency.
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-roster"] })
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-manual-members"] })
     },
   })
@@ -249,6 +242,7 @@ export function useUpsertGroupRule() {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-rules", groupId] })
       // Broad: other groups can depend on this one via group_member / parents-of rules.
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-roster"] })
     },
   })
 }
@@ -264,6 +258,7 @@ export function useDeleteGroupRule() {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-rules", groupId] })
       // Broad: other groups can depend on this one via group_member / parents-of rules.
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
+      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-roster"] })
     },
   })
 }

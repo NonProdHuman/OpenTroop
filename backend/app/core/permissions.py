@@ -104,9 +104,6 @@ def _member_functional_role_ids(member_id: uuid.UUID, session: Session) -> set[u
             .where(
                 MemberPositionAssignment.member_id == member_id,
                 current_assignment_clause(),
-                PositionFunctionalRole.is_deleted.is_(False),
-                Position.is_deleted.is_(False),
-                FunctionalRole.is_deleted.is_(False),
             )
         ).all()
     )
@@ -118,7 +115,6 @@ def _has_admin_role(functional_role_ids: set[uuid.UUID], session: Session) -> bo
             select(FunctionalRole.id).where(
                 FunctionalRole.id.in_(functional_role_ids),
                 FunctionalRole.is_admin.is_(True),
-                FunctionalRole.is_deleted.is_(False),
             )
         ).first()
         is not None
@@ -131,8 +127,7 @@ def _permissions_via_functional_roles(
     return frozenset(
         session.scalars(
             select(FunctionalRolePermission.permission).where(
-                FunctionalRolePermission.functional_role_id.in_(functional_role_ids),
-                FunctionalRolePermission.is_deleted.is_(False),
+                FunctionalRolePermission.functional_role_id.in_(functional_role_ids)
             )
         ).all()
     )
