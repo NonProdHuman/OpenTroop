@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app.core.event_visibility import event_visible_to_member, visibility_clause
 from app.core.groups import member_group_ids
+from app.core.tenant_context import tenant_scope
 from app.models.enums import GroupType, MemberType, RelationshipType, RuleDimension
 from app.models.event import Event
 from app.models.event_audience import EventAudience
@@ -128,7 +129,9 @@ def test_deleted_audience_reverts_to_troop_wide(db_session) -> None:
     audience.is_deleted = True
     session.flush()
 
-    assert event_visible_to_member(event.id, frozenset(), session) is True
+    # The soft-deleted audience is excluded by the session-level filter (tenant scope).
+    with tenant_scope(_TENANT):
+        assert event_visible_to_member(event.id, frozenset(), session) is True
 
 
 def test_visibility_clause_in_query(db_session) -> None:
@@ -139,14 +142,11 @@ def test_visibility_clause_in_query(db_session) -> None:
     session.add(EventAudience(tenant_id=_TENANT, event_id=scoped.id, group_id=group.id))
     session.flush()
 
-    in_group = session.scalars(
-        select(Event).where(
-            Event.tenant_id == _TENANT, visibility_clause(frozenset({group.id}), _TENANT)
-        )
-    ).all()
-    assert {e.id for e in in_group} == {troop_wide.id, scoped.id}
+    with tenant_scope(_TENANT):
+        in_group = session.scalars(
+            select(Event).where(visibility_clause(frozenset({group.id})))
+        ).all()
+        assert {e.id for e in in_group} == {troop_wide.id, scoped.id}
 
-    no_group = session.scalars(
-        select(Event).where(Event.tenant_id == _TENANT, visibility_clause(frozenset(), _TENANT))
-    ).all()
-    assert {e.id for e in no_group} == {troop_wide.id}
+        no_group = session.scalars(select(Event).where(visibility_clause(frozenset()))).all()
+        assert {e.id for e in no_group} == {troop_wide.id}

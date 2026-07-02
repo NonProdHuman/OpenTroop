@@ -12,8 +12,6 @@ pnpm --filter web dev                              # same, explicit
 pnpm --filter web test                             # run tests in watch mode
 pnpm --filter web test:run                         # run tests once (CI mode)
 pnpm --filter web test:coverage                    # run tests + coverage report
-pnpm --filter @opentroop/api-client generate       # regenerate TS types from OpenAPI spec
-                                                   # (requires backend running on :8000)
 ```
 
 Copy `apps/web/.env.local.example` → `apps/web/.env.local` and fill in Clerk keys and
@@ -27,8 +25,8 @@ Copy `apps/web/.env.local.example` → `apps/web/.env.local` and fill in Clerk k
 
 ## API and data fetching
 
-The web app does **not** use the `@opentroop/api-client` package (that's intended for mobile).
-Instead it uses two purpose-built layers:
+The web app does **not** use a generated API-client package (a generated client is
+planned for mobile only). Instead it uses two purpose-built layers:
 
 - **`useApi()`** (`src/lib/api.ts`) — the central HTTP client. Wraps `fetch` with a Clerk
   `Bearer` token and the `X-Tenant-ID` header. Use this in all data hooks.

@@ -54,3 +54,10 @@ class GroupRuleRead(TrackedRead):
     group_id: uuid.UUID
     dimension: RuleDimension
     values: list[str] | None = None
+
+
+class GroupRosterEntry(BaseModel):
+    """One group's fully resolved membership — the unit of ``GET /groups/roster``."""
+
+    group_id: uuid.UUID
+    member_ids: list[uuid.UUID]

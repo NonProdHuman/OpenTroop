@@ -28,7 +28,7 @@ def list_relationships(
     db: DbDep,
     member_id: Annotated[uuid.UUID | None, Query()] = None,
 ) -> Sequence[MemberRelationship]:
-    q = select(MemberRelationship).where(MemberRelationship.is_deleted.is_(False))
+    q = select(MemberRelationship)
     if member_id is not None:
         q = q.where(
             or_(
@@ -48,9 +48,9 @@ def list_relationships(
 def create_relationship(
     body: MemberRelationshipBase, tenant_id: TenantDep, db: DbDep
 ) -> MemberRelationship:
-    require_tenant_fk(db, Member, body.from_member_id, tenant_id, "from_member_id")
-    require_tenant_fk(db, Member, body.to_member_id, tenant_id, "to_member_id")
-    rel = MemberRelationship(tenant_id=tenant_id, **body.model_dump())
+    require_tenant_fk(db, Member, body.from_member_id, "from_member_id")
+    require_tenant_fk(db, Member, body.to_member_id, "to_member_id")
+    rel = MemberRelationship(**body.model_dump())
     db.add(rel)
     db.commit()
     db.refresh(rel)
@@ -63,7 +63,7 @@ def create_relationship(
     dependencies=[Depends(require(Permission.MEMBER_READ_CONTACT))],
 )
 def get_relationship(rel_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> MemberRelationship:
-    return get_or_404(db, MemberRelationship, rel_id, tenant_id, "Relationship not found")
+    return get_or_404(db, MemberRelationship, rel_id, "Relationship not found")
 
 
 @router.patch(
@@ -74,7 +74,7 @@ def get_relationship(rel_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Memb
 def update_relationship(
     rel_id: uuid.UUID, body: MemberRelationshipUpdate, tenant_id: TenantDep, db: DbDep
 ) -> MemberRelationship:
-    rel = get_or_404(db, MemberRelationship, rel_id, tenant_id, "Relationship not found")
+    rel = get_or_404(db, MemberRelationship, rel_id, "Relationship not found")
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(rel, k, v)
     db.commit()
@@ -86,6 +86,6 @@ def update_relationship(
     "/{rel_id}", status_code=204, dependencies=[Depends(require(Permission.MEMBER_WRITE))]
 )
 def delete_relationship(rel_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
-    rel = get_or_404(db, MemberRelationship, rel_id, tenant_id, "Relationship not found")
+    rel = get_or_404(db, MemberRelationship, rel_id, "Relationship not found")
     rel.is_deleted = True
     db.commit()

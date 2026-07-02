@@ -7,6 +7,7 @@ docs/spec/event-rsvp-permission.md.
 import uuid
 
 from app.core.relationships import family_member_ids
+from app.core.tenant_context import tenant_scope
 from app.models.enums import MemberType, RelationshipType
 from app.models.member import Member, MemberRelationship
 
@@ -98,7 +99,10 @@ def test_soft_deleted_member_and_relationship_excluded(db_session) -> None:
     gone.is_deleted = True
     db_session.flush()
 
-    fam = family_member_ids(a.id, db_session)
+    # Resolvers run under a tenant scope in production; the soft-delete exclusion is a
+    # session-level guarantee (see app.core.database), so scope the call here too.
+    with tenant_scope(_TENANT):
+        fam = family_member_ids(a.id, db_session)
     assert child.id in fam
     assert gone.id not in fam  # soft-deleted member dropped
 
@@ -106,4 +110,5 @@ def test_soft_deleted_member_and_relationship_excluded(db_session) -> None:
     rel = db_session.query(MemberRelationship).filter_by(to_member_id=child.id).one()
     rel.is_deleted = True
     db_session.flush()
-    assert child.id not in family_member_ids(a.id, db_session)
+    with tenant_scope(_TENANT):
+        assert child.id not in family_member_ids(a.id, db_session)

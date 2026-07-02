@@ -92,9 +92,8 @@ def get_session(user: CurrentUserDep, tenant_id: TenantDep, db: DbDep) -> Sessio
     permissions=[] when the user has no Member in the active tenant — not an error.
     Protected actions still 403 via require() on their own routes.
     """
-    member = db.scalar(
-        select(Member).where(Member.user_id == user.id, Member.is_deleted.is_(False))
-    )
+    # tenant_id (TenantDep) scopes this query to the current tenant and non-deleted rows.
+    member = db.scalar(select(Member).where(Member.user_id == user.id))
 
     if member is None:
         return SessionRead(tenant_id=tenant_id, member=None, permissions=[], roles=[])
@@ -105,18 +104,10 @@ def get_session(user: CurrentUserDep, tenant_id: TenantDep, db: DbDep) -> Sessio
         db.scalars(
             select(MemberPositionAssignment.position_id).where(
                 MemberPositionAssignment.member_id == member.id,
-                MemberPositionAssignment.is_deleted.is_(False),
             )
         ).all()
     )
-    positions = list(
-        db.scalars(
-            select(Position).where(
-                Position.id.in_(position_ids),
-                Position.is_deleted.is_(False),
-            )
-        ).all()
-    )
+    positions = list(db.scalars(select(Position).where(Position.id.in_(position_ids))).all())
 
     return SessionRead(
         tenant_id=tenant_id,

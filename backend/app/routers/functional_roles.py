@@ -24,7 +24,7 @@ router = APIRouter(prefix="/functional-roles", tags=["functional-roles"])
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
 def list_functional_roles(tenant_id: TenantDep, db: DbDep) -> Sequence[FunctionalRole]:
-    return db.scalars(select(FunctionalRole).where(FunctionalRole.is_deleted.is_(False))).all()
+    return db.scalars(select(FunctionalRole)).all()
 
 
 @router.post(
@@ -38,7 +38,7 @@ def create_functional_role(
 ) -> FunctionalRole:
     # Custom functional roles are never is_admin — that is reserved for the seeded
     # administrators role, so it cannot be conferred by creating a new role.
-    role = FunctionalRole(tenant_id=tenant_id, is_admin=False, **body.model_dump())
+    role = FunctionalRole(is_admin=False, **body.model_dump())
     db.add(role)
     db.commit()
     db.refresh(role)
@@ -51,7 +51,7 @@ def create_functional_role(
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
 def get_functional_role(role_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> FunctionalRole:
-    return get_or_404(db, FunctionalRole, role_id, tenant_id, "Functional role not found")
+    return get_or_404(db, FunctionalRole, role_id, "Functional role not found")
 
 
 @router.patch(
@@ -62,7 +62,7 @@ def get_functional_role(role_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> 
 def update_functional_role(
     role_id: uuid.UUID, body: FunctionalRoleUpdate, tenant_id: TenantDep, db: DbDep
 ) -> FunctionalRole:
-    role = get_or_404(db, FunctionalRole, role_id, tenant_id, "Functional role not found")
+    role = get_or_404(db, FunctionalRole, role_id, "Functional role not found")
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(role, k, v)
     db.commit()
@@ -76,7 +76,7 @@ def update_functional_role(
     dependencies=[Depends(require(Permission.ROLE_MANAGE))],
 )
 def delete_functional_role(role_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
-    role = get_or_404(db, FunctionalRole, role_id, tenant_id, "Functional role not found")
+    role = get_or_404(db, FunctionalRole, role_id, "Functional role not found")
     if role.is_system:
         raise HTTPException(status_code=403, detail="System functional roles cannot be deleted")
     role.is_deleted = True
@@ -100,11 +100,10 @@ class _PermissionBody(BaseModel):
 def list_functional_role_permissions(
     role_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
 ) -> Sequence[FunctionalRolePermission]:
-    get_or_404(db, FunctionalRole, role_id, tenant_id, "Functional role not found")
+    get_or_404(db, FunctionalRole, role_id, "Functional role not found")
     return db.scalars(
         select(FunctionalRolePermission).where(
-            FunctionalRolePermission.functional_role_id == role_id,
-            FunctionalRolePermission.is_deleted.is_(False),
+            FunctionalRolePermission.functional_role_id == role_id
         )
     ).all()
 
@@ -119,19 +118,16 @@ def add_functional_role_permission(
     role_id: uuid.UUID, body: _PermissionBody, tenant_id: TenantDep, db: DbDep
 ) -> FunctionalRolePermission:
     """Grant a permission to a functional role. Idempotent."""
-    get_or_404(db, FunctionalRole, role_id, tenant_id, "Functional role not found")
+    get_or_404(db, FunctionalRole, role_id, "Functional role not found")
     existing = db.scalar(
         select(FunctionalRolePermission).where(
             FunctionalRolePermission.functional_role_id == role_id,
             FunctionalRolePermission.permission == body.permission,
-            FunctionalRolePermission.is_deleted.is_(False),
         )
     )
     if existing is not None:
         return existing
-    perm = FunctionalRolePermission(
-        tenant_id=tenant_id, functional_role_id=role_id, permission=body.permission
-    )
+    perm = FunctionalRolePermission(functional_role_id=role_id, permission=body.permission)
     db.add(perm)
     db.commit()
     db.refresh(perm)
@@ -146,12 +142,11 @@ def add_functional_role_permission(
 def remove_functional_role_permission(
     role_id: uuid.UUID, permission: Permission, tenant_id: TenantDep, db: DbDep
 ) -> None:
-    get_or_404(db, FunctionalRole, role_id, tenant_id, "Functional role not found")
+    get_or_404(db, FunctionalRole, role_id, "Functional role not found")
     perm = db.scalar(
         select(FunctionalRolePermission).where(
             FunctionalRolePermission.functional_role_id == role_id,
             FunctionalRolePermission.permission == permission,
-            FunctionalRolePermission.is_deleted.is_(False),
         )
     )
     if perm is None:

@@ -14,21 +14,16 @@ from __future__ import annotations
 
 import uuid
 from functools import reduce
-from typing import TYPE_CHECKING
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.permissions import current_assignment_clause
-from app.models.enums import MemberStatus, MemberType, RuleDimension, RuleLogic
+from app.models.enums import MemberStatus, MemberType, RelationshipType, RuleDimension, RuleLogic
 from app.models.group import Group, GroupMember, GroupRule
 from app.models.member import Member
 from app.models.rbac import MemberPositionAssignment
 from app.models.relationship import MemberRelationship
-
-if TYPE_CHECKING:
-    pass
-
 
 # ---------------------------------------------------------------------------
 # Rule evaluation — one function per dimension
@@ -38,40 +33,21 @@ if TYPE_CHECKING:
 def _members_by_type(values: list[str], session: Session) -> set[uuid.UUID]:
     """Members whose member_type is in *values*."""
     types = [MemberType(v) for v in values]
-    return set(
-        session.scalars(
-            select(Member.id).where(
-                Member.member_type.in_(types),
-                Member.is_deleted.is_(False),
-            )
-        ).all()
-    )
+    return set(session.scalars(select(Member.id).where(Member.member_type.in_(types))).all())
 
 
 def _members_by_status(values: list[str], session: Session) -> set[uuid.UUID]:
     """Members whose membership_status is in *values*."""
     statuses = [MemberStatus(v) for v in values]
     return set(
-        session.scalars(
-            select(Member.id).where(
-                Member.membership_status.in_(statuses),
-                Member.is_deleted.is_(False),
-            )
-        ).all()
+        session.scalars(select(Member.id).where(Member.membership_status.in_(statuses))).all()
     )
 
 
 def _members_by_bool_field(field_name: str, session: Session) -> set[uuid.UUID]:
     """Members where a boolean field is True."""
     col = getattr(Member, field_name)
-    return set(
-        session.scalars(
-            select(Member.id).where(
-                col.is_(True),
-                Member.is_deleted.is_(False),
-            )
-        ).all()
-    )
+    return set(session.scalars(select(Member.id).where(col.is_(True))).all())
 
 
 def _members_by_position(values: list[str], session: Session) -> set[uuid.UUID]:
@@ -97,8 +73,6 @@ def _parents_of(
     """Members who are a parent or guardian of any of the given child IDs."""
     if not child_ids:
         return set()
-    from app.models.enums import RelationshipType
-
     return set(
         session.scalars(
             select(MemberRelationship.from_member_id).where(
@@ -106,7 +80,6 @@ def _parents_of(
                 MemberRelationship.relationship_type.in_(
                     [RelationshipType.PARENT_OF, RelationshipType.GUARDIAN_OF]
                 ),
-                MemberRelationship.is_deleted.is_(False),
             )
         ).all()
     )
@@ -183,26 +156,16 @@ def resolve_group_members(
 
     # Load the group to get rule_logic
     group = session.get(Group, group_id)
-    if group is None or group.is_deleted:
+    if group is None:
         return frozenset()
 
     # 1. Manual members — always included
     manual = set(
-        session.scalars(
-            select(GroupMember.member_id).where(
-                GroupMember.group_id == group_id,
-                GroupMember.is_deleted.is_(False),
-            )
-        ).all()
+        session.scalars(select(GroupMember.member_id).where(GroupMember.group_id == group_id)).all()
     )
 
     # 2. Load and evaluate all rules
-    rules = session.scalars(
-        select(GroupRule).where(
-            GroupRule.group_id == group_id,
-            GroupRule.is_deleted.is_(False),
-        )
-    ).all()
+    rules = session.scalars(select(GroupRule).where(GroupRule.group_id == group_id)).all()
 
     rule_sets: list[set[uuid.UUID]] = []
     for rule in rules:
@@ -222,29 +185,15 @@ def resolve_group_members(
     if not candidates and not group.include_parents:
         return frozenset()
 
-    # 5. Filter to non-deleted members
-    resolved = set(
-        session.scalars(
-            select(Member.id).where(
-                Member.id.in_(candidates),
-                Member.is_deleted.is_(False),
-            )
-        ).all()
-    )
+    # 5. Resolve candidate member IDs (soft-deleted rows are auto-filtered out)
+    resolved = set(session.scalars(select(Member.id).where(Member.id.in_(candidates))).all())
 
     # 6. Optionally expand to include parents/guardians of the resolved set.
     #    Runs after manual ∪ dynamic so it reads as "...and their parents/guardians".
     if group.include_parents and resolved:
         parents = _parents_of(resolved, session)
         if parents:
-            resolved |= set(
-                session.scalars(
-                    select(Member.id).where(
-                        Member.id.in_(parents),
-                        Member.is_deleted.is_(False),
-                    )
-                ).all()
-            )
+            resolved |= set(session.scalars(select(Member.id).where(Member.id.in_(parents))).all())
 
     return frozenset(resolved)
 
@@ -259,16 +208,13 @@ def member_group_ids(member_id: uuid.UUID, session: Session) -> frozenset[uuid.U
     # Manual memberships
     manual = set(
         session.scalars(
-            select(GroupMember.group_id).where(
-                GroupMember.member_id == member_id,
-                GroupMember.is_deleted.is_(False),
-            )
+            select(GroupMember.group_id).where(GroupMember.member_id == member_id)
         ).all()
     )
 
     # Load the member to check attribute-based rules
     member = session.get(Member, member_id)
-    if member is None or member.is_deleted:
+    if member is None:
         return frozenset(manual)
 
     # For each non-deleted group whose membership is computed (has rules) or expands to
@@ -278,9 +224,8 @@ def member_group_ids(member_id: uuid.UUID, session: Session) -> frozenset[uuid.U
     # troop-scale data (< 30 groups); for larger scale we'd want a reverse index.
     computed_group_ids = session.scalars(
         select(Group.id).where(
-            Group.is_deleted.is_(False),
             or_(
-                Group.id.in_(select(GroupRule.group_id).where(GroupRule.is_deleted.is_(False))),
+                Group.id.in_(select(GroupRule.group_id)),
                 Group.include_parents.is_(True),
             ),
         )

@@ -86,13 +86,7 @@ def member_calendar_ics(member: Member, session: Session, *, calendar_name: str)
     """Build the iCalendar document for *member* — visible, non-declined events."""
     groups = member_group_ids(member.id, session)
     events = session.scalars(
-        select(Event)
-        .where(
-            Event.tenant_id == member.tenant_id,
-            Event.is_deleted.is_(False),
-            visibility_clause(groups, member.tenant_id),
-        )
-        .order_by(Event.scheduled_start)
+        select(Event).where(visibility_clause(groups)).order_by(Event.scheduled_start)
     ).all()
 
     declined = set(
@@ -100,7 +94,6 @@ def member_calendar_ics(member: Member, session: Session, *, calendar_name: str)
             select(EventParticipant.event_id).where(
                 EventParticipant.member_id == member.id,
                 EventParticipant.rsvp_status == RsvpStatus.DECLINED,
-                EventParticipant.is_deleted.is_(False),
             )
         ).all()
     )

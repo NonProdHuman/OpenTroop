@@ -24,9 +24,7 @@ router = APIRouter(prefix="/positions", tags=["positions"])
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
 def list_positions(tenant_id: TenantDep, db: DbDep) -> Sequence[Position]:
-    return db.scalars(
-        select(Position).where(Position.is_deleted.is_(False)).order_by(Position.sort_order)
-    ).all()
+    return db.scalars(select(Position).order_by(Position.sort_order)).all()
 
 
 @router.post(
@@ -36,7 +34,7 @@ def list_positions(tenant_id: TenantDep, db: DbDep) -> Sequence[Position]:
     dependencies=[Depends(require(Permission.ROLE_MANAGE))],
 )
 def create_position(body: PositionCreate, tenant_id: TenantDep, db: DbDep) -> Position:
-    position = Position(tenant_id=tenant_id, **body.model_dump())
+    position = Position(**body.model_dump())
     db.add(position)
     db.commit()
     db.refresh(position)
@@ -49,7 +47,7 @@ def create_position(body: PositionCreate, tenant_id: TenantDep, db: DbDep) -> Po
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
 def get_position(position_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Position:
-    return get_or_404(db, Position, position_id, tenant_id, "Position not found")
+    return get_or_404(db, Position, position_id, "Position not found")
 
 
 @router.patch(
@@ -60,7 +58,7 @@ def get_position(position_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Pos
 def update_position(
     position_id: uuid.UUID, body: PositionUpdate, tenant_id: TenantDep, db: DbDep
 ) -> Position:
-    position = get_or_404(db, Position, position_id, tenant_id, "Position not found")
+    position = get_or_404(db, Position, position_id, "Position not found")
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(position, k, v)
     db.commit()
@@ -74,7 +72,7 @@ def update_position(
     dependencies=[Depends(require(Permission.ROLE_MANAGE))],
 )
 def delete_position(position_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
-    position = get_or_404(db, Position, position_id, tenant_id, "Position not found")
+    position = get_or_404(db, Position, position_id, "Position not found")
     if position.is_system:
         raise HTTPException(status_code=403, detail="System positions cannot be deleted")
     position.is_deleted = True
@@ -94,12 +92,9 @@ def delete_position(position_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> 
 def list_position_functional_roles(
     position_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
 ) -> Sequence[PositionFunctionalRole]:
-    get_or_404(db, Position, position_id, tenant_id, "Position not found")
+    get_or_404(db, Position, position_id, "Position not found")
     return db.scalars(
-        select(PositionFunctionalRole).where(
-            PositionFunctionalRole.position_id == position_id,
-            PositionFunctionalRole.is_deleted.is_(False),
-        )
+        select(PositionFunctionalRole).where(PositionFunctionalRole.position_id == position_id)
     ).all()
 
 
@@ -113,21 +108,19 @@ def attach_functional_role(
     position_id: uuid.UUID, body: FunctionalRoleLinkCreate, tenant_id: TenantDep, db: DbDep
 ) -> PositionFunctionalRole:
     """Map a functional role onto a position. Idempotent."""
-    get_or_404(db, Position, position_id, tenant_id, "Position not found")
-    require_tenant_fk(db, FunctionalRole, body.functional_role_id, tenant_id, "functional_role_id")
+    get_or_404(db, Position, position_id, "Position not found")
+    require_tenant_fk(db, FunctionalRole, body.functional_role_id, "functional_role_id")
 
     existing = db.scalar(
         select(PositionFunctionalRole).where(
             PositionFunctionalRole.position_id == position_id,
             PositionFunctionalRole.functional_role_id == body.functional_role_id,
-            PositionFunctionalRole.is_deleted.is_(False),
         )
     )
     if existing is not None:
         return existing
 
     link = PositionFunctionalRole(
-        tenant_id=tenant_id,
         position_id=position_id,
         functional_role_id=body.functional_role_id,
     )
@@ -148,12 +141,11 @@ def detach_functional_role(
     tenant_id: TenantDep,
     db: DbDep,
 ) -> None:
-    get_or_404(db, Position, position_id, tenant_id, "Position not found")
+    get_or_404(db, Position, position_id, "Position not found")
     link = db.scalar(
         select(PositionFunctionalRole).where(
             PositionFunctionalRole.position_id == position_id,
             PositionFunctionalRole.functional_role_id == functional_role_id,
-            PositionFunctionalRole.is_deleted.is_(False),
         )
     )
     if link is None:

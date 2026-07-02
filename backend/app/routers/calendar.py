@@ -45,12 +45,7 @@ def get_calendar_feed(
     suspended/deleted tenant, so the same response covers every "you can't see this"
     case (the suspended/deleted tenant is already rejected by the dependency).
     """
-    member = db.scalar(
-        select(Member).where(
-            Member.calendar_token == token,
-            Member.is_deleted.is_(False),
-        )
-    )
+    member = db.scalar(select(Member).where(Member.calendar_token == token))
     if member is None:
         raise HTTPException(status_code=404, detail="Calendar not found")
 

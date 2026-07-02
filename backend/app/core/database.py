@@ -5,7 +5,12 @@ from sqlalchemy import Engine, create_engine, event, text
 from sqlalchemy.orm import ORMExecuteState, Session, sessionmaker, with_loader_criteria
 
 from app.core.config import settings
-from app.core.tenant_context import bypass_active, current_tenant, unscoped
+from app.core.tenant_context import (
+    bypass_active,
+    current_tenant,
+    include_deleted_active,
+    unscoped,
+)
 from app.models.base import TrackedBase
 
 engine = create_engine(settings.database_url, future=True)
@@ -61,27 +66,44 @@ def _stamp_tenant_guc(session: Session, transaction: Any, connection: Any) -> No
 
 
 @event.listens_for(Session, "do_orm_execute")
-def _apply_tenant_filter(state: ORMExecuteState) -> None:
-    """Scope every ORM SELECT touching a TrackedBase entity to the current tenant.
+def _apply_scoping_filters(state: ORMExecuteState) -> None:
+    """Scope every ORM SELECT touching a TrackedBase entity to the current tenant and
+    exclude soft-deleted rows.
 
-    Applies a ``tenant_id == current_tenant()`` criterion to top-level selects *and*
-    relationship loads (``include_aliases=True``), so route code no longer carries the
-    predicate. PlatformBase entities have no ``tenant_id`` and are untouched. Skipped
-    inside :func:`app.core.tenant_context.unscoped` and when no tenant is set (e.g.
-    platform requests, fixture setup) — see ``docs/spec/tenant-data-access.md``.
+    Applies two ``with_loader_criteria`` predicates to top-level selects *and*
+    relationship loads (``include_aliases=True``), so route code carries neither by hand:
+
+    - ``tenant_id == current_tenant()`` — the multi-tenant partition boundary.
+    - ``is_deleted == False`` — the soft-delete tombstone filter, unless
+      :func:`app.core.tenant_context.include_deleted` is active for the block (e.g.
+      reviving a soft-deleted row).
+
+    PlatformBase entities have no ``tenant_id``/automatic scoping and are untouched — their
+    queries still filter ``is_deleted`` by hand. Both predicates are skipped inside
+    :func:`app.core.tenant_context.unscoped` and when no tenant is set (platform requests,
+    fixture setup) — see ``docs/spec/tenant-data-access.md``.
     """
     if bypass_active() or not state.is_select:
         return
     tid = current_tenant()
     if tid is None:
         return
-    state.statement = state.statement.options(
+    options = [
         with_loader_criteria(
             TrackedBase,
             lambda cls: cls.tenant_id == tid,
             include_aliases=True,
         )
-    )
+    ]
+    if not include_deleted_active():
+        options.append(
+            with_loader_criteria(
+                TrackedBase,
+                lambda cls: cls.is_deleted.is_(False),
+                include_aliases=True,
+            )
+        )
+    state.statement = state.statement.options(*options)
 
 
 @event.listens_for(Session, "before_flush")
