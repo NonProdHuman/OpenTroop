@@ -1,10 +1,9 @@
 "use client"
 
 import { type ColumnDef } from "@tanstack/react-table"
+import { sortableHeader } from "@/components/data-table"
 import { formatMemberName } from "@/lib/format"
 import type { Member, Group } from "@/types/api"
-import { Button } from "@/components/ui/button"
-import { ArrowUpDown } from "lucide-react"
 
 const TYPE_LABELS: Record<string, string> = {
   scout: "Scout",
@@ -46,16 +45,7 @@ export function buildColumns(
     {
       id: "name",
       accessorFn: (row) => `${row.last_name} ${row.first_name}`,
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="-ml-3"
-        >
-          Name
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: sortableHeader("Name"),
       cell: ({ row }) => {
         const m = row.original
         const display = formatMemberName(m)
@@ -71,16 +61,7 @@ export function buildColumns(
           .sort()
           .join(", ")
       },
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="-ml-3"
-        >
-          Groups
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: sortableHeader("Groups"),
       cell: ({ row }) => {
         const memberGroups = groupMap.get(row.original.id) ?? []
         if (memberGroups.length === 0) {
@@ -115,16 +96,7 @@ export function buildColumns(
     {
       id: "position",
       accessorFn: (row) => positionMap.get(row.id) ?? "",
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="-ml-3"
-        >
-          Position
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: sortableHeader("Position"),
       cell: ({ row }) => {
         const position = positionMap.get(row.original.id)
         return position ? (
@@ -137,16 +109,7 @@ export function buildColumns(
     {
       id: "member_type",
       accessorKey: "member_type",
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="-ml-3"
-        >
-          Type
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: sortableHeader("Type"),
       cell: ({ getValue }) => {
         const val = getValue<string>()
         return (
@@ -160,16 +123,7 @@ export function buildColumns(
     {
       id: "membership_status",
       accessorKey: "membership_status",
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="-ml-3"
-        >
-          Status
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: sortableHeader("Status"),
       cell: ({ getValue }) => {
         const val = getValue<string>()
         if (val === "active") return null
@@ -180,16 +134,7 @@ export function buildColumns(
     {
       id: "email",
       accessorKey: "email",
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="-ml-3"
-        >
-          Email
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      header: sortableHeader("Email"),
       cell: ({ getValue }) => {
         const email = getValue<string | null>()
         return email ? (
