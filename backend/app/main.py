@@ -24,21 +24,26 @@ from app.routers import (
 
 app = FastAPI(title=settings.app_name)
 
-# Compute regex for CORS origins based on app_domain
-# This allows https://opentroop.app and https://*.opentroop.app
+# Compute regex for CORS origins based on app_domain.
+# Allows https://opentroop.app and https://<one-label>.opentroop.app — a single
+# subdomain label only (tenant slugs, admin, www), never nested subdomains,
+# mirroring the nested-subdomain rejection in tenant resolution (GH-118).
 cors_regex = None
 if settings.app_domain:
     domain_escaped = re.escape(settings.app_domain)
     # e.g. ^https://([a-zA-Z0-9-]+\.)?opentroop\.app$
     cors_regex = rf"^https://([a-zA-Z0-9-]+\.)?{domain_escaped}$"
 
+# With allow_credentials=True the browser will attach auth to whatever this
+# middleware reflects, so methods and headers are enumerated instead of "*"
+# to keep the credentialed cross-origin surface as small as possible (GH-118).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_origin_regex=cors_regex,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Tenant-ID"],
 )
 
 app.include_router(groups.router)
