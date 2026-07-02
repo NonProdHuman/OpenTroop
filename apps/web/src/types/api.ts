@@ -342,6 +342,8 @@ export interface Event {
   agenda: string | null
   tour_permit_submitted: boolean | null
   attendance_taken: boolean
+  // Set when a leader cancels the event; the event still exists and renders.
+  cancelled_at: string | null
   linked_event_id: string | null
   community_service_hours: string | null
   conservation_hours: string | null

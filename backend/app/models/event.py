@@ -33,6 +33,9 @@ class Event(SourceTracked, TrackedBase):
     departure_location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     return_location: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
+    # Set when a leader cancels the event (POST /events/{id}/cancel). A cancelled
+    # event still exists and renders struck-through; distinct from is_deleted.
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     scheduled_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     scheduled_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     all_day: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
