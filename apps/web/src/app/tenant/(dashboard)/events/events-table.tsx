@@ -1,24 +1,8 @@
 "use client"
 
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type ColumnDef,
-  type SortingState,
-} from "@tanstack/react-table"
+import { type ColumnDef } from "@tanstack/react-table"
 import { Calendar } from "lucide-react"
-import { useState } from "react"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Skeleton } from "@/components/ui/skeleton"
+import { DataTable } from "@/components/data-table"
 import type { Event } from "@/types/api"
 
 interface EventsTableProps {
@@ -29,74 +13,19 @@ interface EventsTableProps {
 }
 
 export function EventsTable({ data, columns, isLoading, onRowClick }: EventsTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([{ id: "when", desc: false }])
-
-  const table = useReactTable({
-    data,
-    columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  })
-
-  if (isLoading) {
-    return (
-      <div className="space-y-2">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full rounded-md" />
-        ))}
-      </div>
-    )
-  }
-
-  if (data.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-3 py-20 text-muted-foreground">
-        <Calendar className="h-10 w-10 opacity-40" />
-        <p className="text-sm">No events match your filters.</p>
-      </div>
-    )
-  }
-
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((hg) => (
-            <TableRow key={hg.id}>
-              {hg.headers.map((header) => {
-                const meta = header.column.columnDef.meta as { className?: string } | undefined
-                return (
-                  <TableHead key={header.id} className={meta?.className}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                )
-              })}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows.map((row) => (
-            <TableRow
-              key={row.id}
-              className="cursor-pointer"
-              onClick={() => onRowClick(row.original)}
-            >
-              {row.getVisibleCells().map((cell) => {
-                const meta = cell.column.columnDef.meta as { className?: string } | undefined
-                return (
-                  <TableCell key={cell.id} className={meta?.className}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                )
-              })}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      data={data}
+      columns={columns}
+      isLoading={isLoading}
+      onRowClick={onRowClick}
+      initialSorting={[{ id: "when", desc: false }]}
+      emptyState={
+        <div className="flex flex-col items-center justify-center gap-3 py-20 text-muted-foreground">
+          <Calendar className="h-10 w-10 opacity-40" />
+          <p className="text-sm">No events match your filters.</p>
+        </div>
+      }
+    />
   )
 }
