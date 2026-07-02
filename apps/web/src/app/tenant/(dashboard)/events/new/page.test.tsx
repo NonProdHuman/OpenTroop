@@ -19,12 +19,15 @@ vi.mock("@/components/page-header", () => ({
   ),
 }))
 
+vi.mock("@/hooks/use-locations", () => ({
+  useLocations: () => ({ data: [] }),
+}))
+
 vi.mock("@/hooks/use-events", () => ({
   useCreateEvent: () => ({ mutate, isPending: false }),
   useEventTypes: () => ({
     data: [{ id: "type-1", name: "Campout", is_active: true }],
   }),
-  useLocations: () => ({ data: [] }),
 }))
 
 describe("NewEventPage", () => {
