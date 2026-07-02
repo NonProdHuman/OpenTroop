@@ -11,7 +11,7 @@ export function useRelationships(memberId: string | null) {
   return useQuery({
     queryKey: [activeTenantId, "relationships", memberId],
     queryFn: () =>
-      request<MemberRelationship[]>(`/relationships/?member_id=${memberId}`),
+      request<MemberRelationship[]>(`/relationships?member_id=${memberId}`),
     enabled: memberId !== null && Boolean(activeTenantId),
   })
 }

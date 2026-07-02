@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { FormField } from "@/components/form-helpers"
 import { useCreateTenant } from "@/hooks/use-platform"
 import type { TenantProvisioned } from "@/types/api"
 import { InviteTokenDisplay } from "../_components/invite-token-display"
@@ -100,15 +101,15 @@ export function CreateTenantDialog() {
             </DialogHeader>
 
             <div className="grid gap-3">
-              <Field label="Troop name">
+              <FormField label="Troop name">
                 <Input
                   required
                   value={form.name}
                   onChange={(e) => set("name", e.target.value)}
                   placeholder="Troop 123"
                 />
-              </Field>
-              <Field label="Slug (subdomain)" hint="lowercase letters, digits, hyphens">
+              </FormField>
+              <FormField label="Slug (subdomain)" hint="lowercase letters, digits, hyphens">
                 <Input
                   required
                   pattern="[a-z0-9-]+"
@@ -116,31 +117,31 @@ export function CreateTenantDialog() {
                   onChange={(e) => set("slug", e.target.value)}
                   placeholder="troop123"
                 />
-              </Field>
+              </FormField>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Founder first name">
+                <FormField label="Founder first name">
                   <Input
                     required
                     value={form.founder_first_name}
                     onChange={(e) => set("founder_first_name", e.target.value)}
                   />
-                </Field>
-                <Field label="Founder last name">
+                </FormField>
+                <FormField label="Founder last name">
                   <Input
                     required
                     value={form.founder_last_name}
                     onChange={(e) => set("founder_last_name", e.target.value)}
                   />
-                </Field>
+                </FormField>
               </div>
-              <Field label="Founder email" hint="optional">
+              <FormField label="Founder email" hint="optional">
                 <Input
                   type="email"
                   value={form.founder_email}
                   onChange={(e) => set("founder_email", e.target.value)}
                   placeholder="founder@example.com"
                 />
-              </Field>
+              </FormField>
             </div>
 
             <DialogFooter>
@@ -152,25 +153,5 @@ export function CreateTenantDialog() {
         )}
       </DialogContent>
     </Dialog>
-  )
-}
-
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string
-  hint?: string
-  children: React.ReactNode
-}) {
-  return (
-    <label className="grid gap-1.5 text-sm">
-      <span className="font-medium">
-        {label}
-        {hint ? <span className="ml-1 font-normal text-muted-foreground">— {hint}</span> : null}
-      </span>
-      {children}
-    </label>
   )
 }

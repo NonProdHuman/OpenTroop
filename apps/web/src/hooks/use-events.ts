@@ -75,7 +75,7 @@ export function useEventCounts(eventId: string | null) {
   })
 }
 
-type ParticipantBody = {
+export type ParticipantBody = {
   rsvp_status?: RsvpStatus
   driver?: boolean
   drives_to?: boolean
@@ -142,7 +142,7 @@ export function useTenantSettings() {
   const { activeTenantId } = useActiveTenant()
   return useQuery({
     queryKey: [activeTenantId, "tenant-settings"],
-    queryFn: () => request<TenantSettings>("/tenant/settings/"),
+    queryFn: () => request<TenantSettings>("/tenant/settings"),
     enabled: Boolean(activeTenantId),
   })
 }

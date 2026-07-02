@@ -43,7 +43,7 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
   const canFullEdit = has("member:write")
   const { data: groups = [] } = useGroups()
   const memberGroups = useMemberGroups(id)
-  const { data: assignments = [] } = useMemberPositions(id)
+  const { data: assignments = [] } = useMemberPositions(id, { history: true })
   const { data: allPositions = [] } = usePositions()
   const { data: relationships = [] } = useRelationships(id)
   const { data: allMembers = [] } = useMembers()
@@ -121,6 +121,7 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
           memberId={id}
           assignments={assignments}
           allPositions={allPositions}
+          allMembers={allMembers}
           canAssign={has("role:assign")}
         />
 

@@ -7,6 +7,37 @@ import { useActiveTenant } from "@/lib/tenant-context"
 const BASE = "/api"
 const CLERK_JWT_TEMPLATE = process.env.NEXT_PUBLIC_CLERK_JWT_TEMPLATE || undefined
 
+/** A non-2xx API response. Carries the HTTP status so callers can branch on
+ * semantics (409 conflict, 403 forbidden, …) instead of parsing the message. */
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(status: number, detail: string) {
+    super(`${status}: ${detail}`)
+    this.name = "ApiError"
+    this.status = status
+  }
+}
+
+const GENERIC_ERROR = "Something went wrong — please try again."
+const NETWORK_ERROR = "Could not reach the backend — is the server running?"
+
+/**
+ * Map a thrown request error to a user-facing message. `byStatus` supplies
+ * page-specific copy for HTTP statuses (e.g. a 409 conflict explanation);
+ * network failures (fetch rejects with a TypeError before any response) and
+ * unmatched statuses fall back to generic copy.
+ */
+export function apiErrorMessage(err: unknown, byStatus?: Record<number, string>): string {
+  if (err instanceof ApiError) {
+    return byStatus?.[err.status] ?? GENERIC_ERROR
+  }
+  if (err instanceof TypeError) {
+    return NETWORK_ERROR
+  }
+  return GENERIC_ERROR
+}
+
 export function useApi() {
   const { getToken } = useAuth()
   const { activeTenantId } = useActiveTenant()
@@ -31,7 +62,7 @@ export function useApi() {
       })
       if (!res.ok) {
         const detail = await res.text().catch(() => res.statusText)
-        throw new Error(`${res.status}: ${detail}`)
+        throw new ApiError(res.status, detail)
       }
       // 204 No Content (and other empty bodies) have nothing to parse.
       if (res.status === 204 || res.headers.get("content-length") === "0") {

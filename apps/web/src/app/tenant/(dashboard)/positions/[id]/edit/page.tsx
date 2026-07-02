@@ -29,6 +29,7 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
+import { apiErrorMessage } from "@/lib/api"
 import { buttonVariants } from "@/components/ui/button"
 import {
   usePosition,
@@ -78,9 +79,7 @@ function PositionEditForm({ id, position }: { id: string; position: Position }) 
       {
         onSuccess: () => router.push("/positions"),
         onError: (err) => {
-          const msg = err instanceof Error ? err.message : ""
-          if (msg.includes("409")) setNameError("A position with this slug already exists.")
-          else setNameError("Something went wrong — please try again.")
+          setNameError(apiErrorMessage(err, { 409: "A position with this slug already exists." }))
         },
       },
     )

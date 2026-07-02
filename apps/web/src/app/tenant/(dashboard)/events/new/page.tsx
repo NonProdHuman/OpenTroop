@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { apiErrorMessage } from "@/lib/api"
 import { useCreateEvent, useEventTypes, useLocations } from "@/hooks/use-events"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
@@ -51,17 +52,7 @@ export default function NewEventPage() {
     createEvent.mutate(toApiPayload(form, effectiveTypeId), {
       onSuccess: () => router.push("/events"),
       onError: (err) => {
-        const msg = err instanceof Error ? err.message : String(err)
-        if (msg.toLowerCase().includes("403")) {
-          setError("You don't have permission to add events.")
-        } else if (
-          msg.toLowerCase().includes("load failed") ||
-          msg.toLowerCase().includes("failed to fetch")
-        ) {
-          setError("Could not reach the backend — is the server running?")
-        } else {
-          setError("Something went wrong — please try again.")
-        }
+        setError(apiErrorMessage(err, { 403: "You don't have permission to add events." }))
       },
     })
   }

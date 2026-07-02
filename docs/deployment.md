@@ -145,12 +145,21 @@ Vercel handles CDN, TLS, and preview deployments automatically.
 
 Once both your frontend and backend are deployed and the database is migrated:
 
-1. Visit your deployed frontend application.
-2. Sign in via Clerk.
-3. Because the database is completely empty, **the first user to successfully authenticate is automatically granted the Platform `SUPERADMIN` role**.
-4. You will be redirected to `/platform/tenants` where you can create your first tenant.
+There is deliberately **no first-signup-wins promotion** — on a public deployment an
+empty `users` table (launch day, or any database restore) must not be a race an
+anonymous stranger can win. Bootstrap the superadmin one of two ways:
 
-> **Note:** If you miss this window or need to grant superadmin to another user later, you can use the `promote_platform_admin.py` script via a Cloud Run job similar to Step 6.
+1. **Env allowlist (recommended):** set `BOOTSTRAP_SUPERADMIN_EMAIL=you@example.com`
+   on the backend, then sign in via Clerk with that address. The role is granted on
+   sign-in, but only when the provider asserts the email is verified. You can unset
+   the variable afterwards.
+2. **CLI:** sign in once (as an ordinary user), then run
+   `uv run promote-platform-admin --email you@example.com` via a Cloud Run job
+   similar to Step 6.
+
+Either way you can then visit `/platform/tenants` and create your first tenant.
+Grant additional platform roles later from `POST /platform/admins` (superadmin only)
+or the same CLI.
 
 ---
 

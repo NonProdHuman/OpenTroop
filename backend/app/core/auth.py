@@ -7,7 +7,7 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from uuid6 import uuid7
 
@@ -95,28 +95,26 @@ def get_or_create_user(claims: dict[str, Any], session: Session) -> User:
             # was verified) links up on the next verified sign-in.
             _autolink_unclaimed_members(session, user, email)
             changed = True
+        if _bootstrap_superadmin(user, email, email_verified):
+            changed = True
         if changed:
             session.commit()
             session.refresh(user)
         return user
-
-    from app.models.enums import PlatformRole
-
-    user_count = session.scalar(select(func.count()).select_from(User))
-    role = PlatformRole.SUPERADMIN if user_count == 0 else None
 
     user = User(
         id=uuid7(),
         email=email,
         email_verified=bool(email) and email_verified,
         display_name=display_name,
-        platform_role=role,
+        platform_role=None,
     )
     session.add(user)
     session.flush()  # populate user.id before referencing it in Identity
 
     if email and email_verified:
         _autolink_unclaimed_members(session, user, email)
+    _bootstrap_superadmin(user, email, email_verified)
 
     identity = Identity(
         id=uuid7(),
@@ -130,6 +128,27 @@ def get_or_create_user(claims: dict[str, Any], session: Session) -> User:
     session.commit()
     session.refresh(user)
     return user
+
+
+def _bootstrap_superadmin(user: User, email: str | None, email_verified: bool) -> bool:
+    """Grant SUPERADMIN when the caller's *verified* email matches the bootstrap allowlist.
+
+    This replaces the old "first signup wins" auto-promotion (GH-111): an empty
+    users table must never be a race an anonymous stranger can win, and the email
+    must be provider-verified — an unverified claim is attacker-chosen. Returns
+    True when the role was granted.
+    """
+    allowlisted = settings.bootstrap_superadmin_email.strip().lower()
+    if not allowlisted or user.platform_role is not None:
+        return False
+    if not (email and email_verified and email.lower() == allowlisted):
+        return False
+
+    from app.models.enums import PlatformRole
+
+    user.platform_role = PlatformRole.SUPERADMIN
+    logger.info("Bootstrap superadmin granted to user %s via BOOTSTRAP_SUPERADMIN_EMAIL", user.id)
+    return True
 
 
 def _autolink_unclaimed_members(session: Session, user: User, email: str) -> None:

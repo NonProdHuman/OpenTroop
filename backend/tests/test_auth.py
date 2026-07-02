@@ -4,8 +4,9 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_or_create_user
+from app.core.config import settings
 from app.core.tenant import _extract_subdomain
-from app.models.enums import MemberType
+from app.models.enums import MemberType, PlatformRole
 from app.models.member import Member
 from app.models.user import User
 from tests.conftest import TENANT_A
@@ -68,6 +69,9 @@ def test_get_or_create_user_first_login(db_session: Session) -> None:
     assert user.identities[0].provider == "google"
     assert user.identities[0].issuer == "https://accounts.google.com"
     assert user.identities[0].provider_sub == "1234567890"
+    # No first-signup-wins: the first user on an empty table is NOT auto-promoted
+    # (GH-111 — launch day / DB restore must not be a race anyone can win).
+    assert user.platform_role is None
 
 
 def test_get_or_create_user_second_login_returns_same_user(db_session: Session) -> None:
@@ -235,3 +239,70 @@ def test_provider_label_derived_from_issuer(
     claims = {"iss": issuer, "sub": f"sub-{issuer}"}
     user = get_or_create_user(claims, db_session)
     assert user.identities[0].provider == expected_provider
+
+
+# ---------------------------------------------------------------------------
+# Superadmin bootstrap allowlist (GH-111)
+# ---------------------------------------------------------------------------
+
+
+def _bootstrap_claims(**overrides: object) -> dict:
+    return {
+        "iss": "https://accounts.google.com",
+        "sub": "bootstrap-sub",
+        "email": "founder@example.com",
+        "email_verified": True,
+        **overrides,
+    }
+
+
+def test_bootstrap_email_grants_superadmin(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "bootstrap_superadmin_email", "founder@example.com")
+    user = get_or_create_user(_bootstrap_claims(), db_session)
+    assert user.platform_role is PlatformRole.SUPERADMIN
+
+
+def test_bootstrap_email_match_is_case_insensitive(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "bootstrap_superadmin_email", "Founder@Example.COM")
+    user = get_or_create_user(_bootstrap_claims(), db_session)
+    assert user.platform_role is PlatformRole.SUPERADMIN
+
+
+def test_bootstrap_requires_verified_email(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An unverified email claim is attacker-chosen — it must never confer superadmin."""
+    monkeypatch.setattr(settings, "bootstrap_superadmin_email", "founder@example.com")
+    user = get_or_create_user(_bootstrap_claims(email_verified=False), db_session)
+    assert user.platform_role is None
+
+
+def test_bootstrap_ignores_non_matching_email(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "bootstrap_superadmin_email", "founder@example.com")
+    user = get_or_create_user(_bootstrap_claims(email="stranger@example.com"), db_session)
+    assert user.platform_role is None
+
+
+def test_bootstrap_promotes_existing_user_on_later_verified_login(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A user who signed in before the allowlist was set (or before verification)
+    is promoted on their next verified sign-in."""
+    monkeypatch.setattr(settings, "bootstrap_superadmin_email", "founder@example.com")
+    user = get_or_create_user(_bootstrap_claims(email_verified=False), db_session)
+    assert user.platform_role is None
+
+    same = get_or_create_user(_bootstrap_claims(), db_session)
+    assert same.id == user.id
+    assert same.platform_role is PlatformRole.SUPERADMIN
+
+
+def test_bootstrap_empty_setting_grants_nothing(db_session: Session) -> None:
+    user = get_or_create_user(_bootstrap_claims(), db_session)
+    assert user.platform_role is None

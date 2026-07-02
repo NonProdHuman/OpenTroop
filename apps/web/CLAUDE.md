@@ -66,13 +66,15 @@ Add the corresponding type(s) to `src/types/api.ts`.
 
 ## Route structure
 
-App Router route groups:
+App Router paths (the middleware in `proxy.ts` maps logical domains onto these):
 
 | Group / path | Purpose |
 |---|---|
 | `(auth)` | Sign-in / sign-up pages — Clerk-handled, no sidebar |
-| `(dashboard)` | Protected pages with `AppSidebar` layout |
-| `platform` | Platform-admin–only pages (tenant management) |
+| `landing` | Public landing page (root domain) |
+| `tenant/(dashboard)` | Protected tenant pages with `AppSidebar` layout (tenant subdomains) |
+| `admin` | Platform-admin–only control plane (`admin` subdomain) |
+| `claim` | Invite/claim flow — links a signed-in user to their Member row |
 
 ## Testing
 

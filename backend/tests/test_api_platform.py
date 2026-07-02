@@ -4,6 +4,7 @@ import asyncio
 import uuid
 from datetime import UTC, datetime
 
+import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -262,6 +263,89 @@ def test_admin_endpoints_require_platform_admin(
     tenant = _provision(platform_admin_client, "troop-gate")
     r = claim_client.get(f"/platform/tenants/{tenant['id']}/admins")
     assert r.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Control-plane role matrix (GH-111): writes are superadmin-only;
+# support/billing platform roles are read-only.
+# ---------------------------------------------------------------------------
+
+
+def test_support_cannot_provision_tenant(support_client: TestClient) -> None:
+    r = support_client.post(
+        "/platform/tenants",
+        json={
+            "name": "Hijack Troop",
+            "slug": "hijack",
+            "founder_first_name": "S",
+            "founder_last_name": "T",
+        },
+    )
+    assert r.status_code == 403
+
+
+def test_support_cannot_suspend_or_unsuspend(
+    platform_admin_client: TestClient, support_client: TestClient
+) -> None:
+    tenant = _provision(platform_admin_client, "troop-rolematrix")
+    for action in ("suspend", "unsuspend"):
+        r = support_client.post(f"/platform/tenants/{tenant['id']}/{action}")
+        assert r.status_code == 403, action
+    # The tenant was never actually suspended.
+    detail = platform_admin_client.get(f"/platform/tenants/{tenant['id']}")
+    assert detail.json()["suspended_at"] is None
+
+
+def test_support_cannot_invite_self_as_tenant_admin(
+    platform_admin_client: TestClient, support_client: TestClient
+) -> None:
+    """The GH-111 takeover path: support invites themselves into a troop. Must 403."""
+    tenant = _provision(platform_admin_client, "troop-takeover")
+    r = support_client.post(
+        f"/platform/tenants/{tenant['id']}/admins",
+        json={"first_name": "Sneaky", "last_name": "Support", "email": "support@test.com"},
+    )
+    assert r.status_code == 403
+    admins = platform_admin_client.get(f"/platform/tenants/{tenant['id']}/admins").json()
+    assert len(admins) == 1  # still just the founder
+
+
+def test_support_cannot_revoke_tenant_admin(
+    platform_admin_client: TestClient, support_client: TestClient
+) -> None:
+    tenant = _provision(platform_admin_client, "troop-norevoke")
+    r = support_client.delete(
+        f"/platform/tenants/{tenant['id']}/admins/{tenant['founder_member_id']}"
+    )
+    assert r.status_code == 403
+
+
+def test_audit_log_escapes_newlines_in_user_values(
+    db_session: Session, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A crafted request value must not forge extra lines in the audit log."""
+    import logging
+
+    from app.routers.platform import _audit
+
+    actor = _make_user(db_session, "auditor@test.com", PlatformRole.SUPERADMIN)
+    with caplog.at_level(logging.INFO, logger="opentroop.platform.audit"):
+        _audit(actor, "tenant_admin.invite", email="a@b.com\nFORGED actor=someone-else")
+
+    assert len(caplog.records) == 1
+    message = caplog.records[0].getMessage()
+    assert "\n" not in message
+    assert "\\nFORGED" in message
+
+
+def test_support_retains_read_access(
+    platform_admin_client: TestClient, support_client: TestClient
+) -> None:
+    """support/billing keep the read-only surface: list/get tenants, list admins."""
+    tenant = _provision(platform_admin_client, "troop-readonly")
+    assert support_client.get("/platform/tenants").status_code == 200
+    assert support_client.get(f"/platform/tenants/{tenant['id']}").status_code == 200
+    assert support_client.get(f"/platform/tenants/{tenant['id']}/admins").status_code == 200
 
 
 # ---------------------------------------------------------------------------
