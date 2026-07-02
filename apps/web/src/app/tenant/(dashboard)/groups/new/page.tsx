@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { apiErrorMessage } from "@/lib/api"
 import { ColorPicker, PRESET_COLORS } from "@/components/color-picker"
 import { FormField } from "@/components/form-helpers"
 import { PageHeader } from "@/components/page-header"
@@ -45,14 +46,7 @@ export default function NewGroupPage() {
         onSuccess: () => router.push("/groups"),
         onError: (err) => {
           console.error("[create group]", err)
-          const msg = err instanceof Error ? err.message : String(err)
-          if (msg.includes("409")) {
-            setNameError("A group with this name already exists.")
-          } else if (msg.toLowerCase().includes("load failed") || msg.toLowerCase().includes("failed to fetch")) {
-            setNameError("Could not reach the backend — is the server running?")
-          } else {
-            setNameError(`Error: ${msg}`)
-          }
+          setNameError(apiErrorMessage(err, { 409: "A group with this name already exists." }))
         },
       },
     )

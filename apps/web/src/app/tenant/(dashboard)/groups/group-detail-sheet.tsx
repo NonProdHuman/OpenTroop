@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { Section } from "@/components/detail-helpers"
 import {
   useGroupMembers,
   useGroupManualMembers,
@@ -49,17 +50,6 @@ function GroupTypeIcon({ group }: { group: Group }) {
     case "patrol":  return <Shield className={cls} />
     default:        return <Users className={cls} />
   }
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {title}
-      </h3>
-      {children}
-    </div>
-  )
 }
 
 interface GroupDetailSheetProps {

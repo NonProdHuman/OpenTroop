@@ -75,7 +75,7 @@ export function useEventCounts(eventId: string | null) {
   })
 }
 
-type ParticipantBody = {
+export type ParticipantBody = {
   rsvp_status?: RsvpStatus
   driver?: boolean
   drives_to?: boolean

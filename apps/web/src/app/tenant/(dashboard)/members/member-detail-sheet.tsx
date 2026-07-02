@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { Field, Section } from "@/components/detail-helpers"
 import type { Member } from "@/types/api"
 import { formatDate } from "@/lib/format"
 import { useMemberPositions } from "@/hooks/use-member-positions"
@@ -24,27 +25,6 @@ interface MemberDetailSheetProps {
   member: Member | null
   open: boolean
   onOpenChange: (open: boolean) => void
-}
-
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
-  if (!value && value !== 0) return null
-  return (
-    <div className="grid grid-cols-3 gap-2 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="col-span-2">{value}</span>
-    </div>
-  )
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {title}
-      </h3>
-      {children}
-    </div>
-  )
 }
 
 export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSheetProps) {

@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Check, Users } from "lucide-react"
+import { useMemo, useState } from "react"
+import { Users } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -14,13 +14,10 @@ import {
 import { cn } from "@/lib/utils"
 import { useMembers } from "@/hooks/use-members"
 import { useGroupMemberships, usePatrolMemberships } from "@/hooks/use-groups"
-import {
-  useEventAudiences,
-  useEventParticipants,
-  useAddParticipant,
-  useUpdateParticipant,
-} from "@/hooks/use-events"
+import { useEventAudiences, useEventParticipants } from "@/hooks/use-events"
+import { useRsvpDraft } from "@/hooks/use-rsvp-draft"
 import type { Event, EventParticipant, Member, RsvpStatus } from "@/types/api"
+import { CheckboxButton, RsvpStatusButtons } from "../../rsvp-controls"
 
 function memberName(m: Member) {
   return `${m.first_name} ${m.last_name}`
@@ -46,44 +43,6 @@ function draftFrom(participant: EventParticipant | undefined): RsvpDraft {
   }
 }
 
-const RSVP_OPTIONS: { value: RsvpStatus; label: string }[] = [
-  { value: "going", label: "Going" },
-  { value: "declined", label: "Declined" },
-  { value: "no_response", label: "Clear" },
-]
-
-function RsvpButtons({
-  value,
-  onChange,
-}: {
-  value: RsvpStatus
-  onChange: (s: RsvpStatus) => void
-}) {
-  return (
-    <div className="flex gap-1">
-      {RSVP_OPTIONS.map(({ value: s, label }) => (
-        <button
-          key={s}
-          type="button"
-          onClick={() => onChange(s)}
-          className={cn(
-            "text-xs px-2 py-0.5 rounded-full border transition-colors",
-            value === s
-              ? s === "going"
-                ? "bg-green-600 text-white border-green-600"
-                : s === "declined"
-                  ? "bg-destructive text-destructive-foreground border-destructive"
-                  : "bg-muted border-muted-foreground text-foreground"
-              : "border-border text-muted-foreground hover:border-foreground hover:text-foreground",
-          )}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
 function MemberRsvpAdminRow({
   member,
   event,
@@ -95,56 +54,12 @@ function MemberRsvpAdminRow({
   participant: EventParticipant | undefined
   patrolName?: string
 }) {
-  const [draft, setDraft] = useState<RsvpDraft>(() => draftFrom(participant))
-
-  // Re-seed local state from the server only when the participant *identity*
-  // changes (initial load or first creation), so edits aren't clobbered by refetches.
-  const seededId = useRef<string | null>(participant?.id ?? null)
-  useEffect(() => {
-    if (participant && participant.id !== seededId.current) {
-      seededId.current = participant.id
-      setDraft(draftFrom(participant))
-    }
-  }, [participant])
-
-  const addParticipant = useAddParticipant(event.id)
-  const updateParticipant = useUpdateParticipant(event.id)
-
-  /** Persist a partial change (create the participant row if it doesn't exist yet). */
-  function persist(changes: Partial<RsvpDraft>) {
-    if (!participant) {
-      addParticipant.mutate({
-        member_id: member.id,
-        rsvp_status: draft.rsvp_status,
-        ...changes,
-        comment: (changes.comment ?? draft.comment) || null,
-      })
-    } else {
-      updateParticipant.mutate({
-        memberId: member.id,
-        ...changes,
-        ...(changes.comment !== undefined ? { comment: changes.comment || null } : {}),
-      })
-    }
-  }
-
-  /** Toggle/select fields: update local state and persist immediately. */
-  function setAndPersist(changes: Partial<RsvpDraft>) {
-    setDraft((d) => ({ ...d, ...changes }))
-    persist(changes)
-  }
-
-  /** Text/number fields: update local state on change; persist on blur if changed. */
-  function setLocal(changes: Partial<RsvpDraft>) {
-    setDraft((d) => ({ ...d, ...changes }))
-  }
-
-  function commitField(field: keyof RsvpDraft) {
-    const serverDraft = draftFrom(participant)
-    if (draft[field] !== serverDraft[field]) {
-      persist({ [field]: draft[field] } as Partial<RsvpDraft>)
-    }
-  }
+  const { draft, setAndPersist, setLocal, commitField } = useRsvpDraft(
+    event.id,
+    member.id,
+    participant,
+    draftFrom,
+  )
 
   const isAdult = member.member_type === "adult"
 
@@ -158,25 +73,21 @@ function MemberRsvpAdminRow({
             <span className="text-xs text-muted-foreground">· {patrolName}</span>
           )}
         </div>
-        <RsvpButtons value={draft.rsvp_status} onChange={(s) => setAndPersist({ rsvp_status: s })} />
+        <RsvpStatusButtons
+          value={draft.rsvp_status}
+          onChange={(s) => setAndPersist({ rsvp_status: s })}
+          labels={{ no_response: "Clear" }}
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-1">
         {isAdult && (
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              role="checkbox"
-              aria-checked={draft.driver}
-              aria-label="Driver"
-              onClick={() => setAndPersist({ driver: !draft.driver })}
-              className={cn(
-                "h-4 w-4 rounded border border-border flex items-center justify-center shrink-0",
-                draft.driver && "bg-primary border-primary",
-              )}
-            >
-              {draft.driver && <Check className="h-3 w-3 text-primary-foreground" />}
-            </button>
+            <CheckboxButton
+              checked={draft.driver}
+              onToggle={() => setAndPersist({ driver: !draft.driver })}
+              label="Driver"
+            />
             <Label className="text-xs cursor-pointer">Driver</Label>
             {draft.driver && (
               <div className="flex items-center gap-1.5 pl-1">
