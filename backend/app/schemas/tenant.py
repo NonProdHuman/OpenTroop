@@ -6,12 +6,7 @@ from pydantic import BaseModel
 from app.schemas.base import PlatformRead
 
 
-class TenantCreate(BaseModel):
-    name: str
-    slug: str
-
-
-class TenantProvision(TenantCreate):
+class TenantProvision(BaseModel):
     """Request body for the platform-admin tenant onboarding endpoint.
 
     The founding admin is created as an *unclaimed* Member (``user_id`` is null)
@@ -20,6 +15,8 @@ class TenantProvision(TenantCreate):
     using the returned invite token.
     """
 
+    name: str
+    slug: str
     founder_first_name: str
     founder_last_name: str
     founder_email: str | None = None

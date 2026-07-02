@@ -5,18 +5,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
 from app.core.deps import DbDep, TenantDep, get_or_404, require, require_tenant_fk
-from app.core.groups import resolve_group_members
+from app.core.groups import resolve_group_members, validate_group_rule
 from app.core.tenant_context import include_deleted
 from app.models.enums import (
     GroupType,
-    MemberStatus,
     MemberType,
     Permission,
     RuleDimension,
 )
 from app.models.group import Group, GroupMember, GroupRule
 from app.models.member import Member
-from app.models.rbac import Position
 from app.schemas.group import (
     GroupCreate,
     GroupMemberCreate,
@@ -255,94 +253,8 @@ def upsert_group_rule(
 ) -> GroupRule:
     """Create or update a dynamic membership rule for a specific dimension."""
     group = get_or_404(db, Group, group_id, "Group not found")
-    if group.group_type is GroupType.PATROL:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Patrols cannot have dynamic rules",
-        )
-
+    validate_group_rule(group, dimension, body.values, db)
     values = body.values
-    if dimension in (RuleDimension.OA_MEMBER, RuleDimension.OA_ACTIVE):
-        if values is not None and len(values) > 0:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Values must be null or empty for boolean dimension {dimension}",
-            )
-    elif dimension == RuleDimension.MEMBER_TYPE:
-        if not values:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Values are required for member_type dimension",
-            )
-        for val in values:
-            try:
-                MemberType(val)
-            except ValueError as err:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid member_type value: {val}",
-                ) from err
-    elif dimension == RuleDimension.MEMBERSHIP_STATUS:
-        if not values:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Values are required for membership_status dimension",
-            )
-        for val in values:
-            try:
-                MemberStatus(val)
-            except ValueError as err:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid membership_status value: {val}",
-                ) from err
-    elif dimension == RuleDimension.POSITION:
-        if not values:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Values are required for position dimension",
-            )
-        for val in values:
-            try:
-                pos_id = uuid.UUID(val)
-            except ValueError as err:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid position UUID: {val}",
-                ) from err
-            require_tenant_fk(db, Position, pos_id, "position_id")
-    elif dimension == RuleDimension.GROUP_MEMBER:
-        if not values:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Values are required for {dimension} dimension",
-            )
-        for val in values:
-            try:
-                ref_group_id = uuid.UUID(val)
-            except ValueError as err:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid group UUID: {val}",
-                ) from err
-            if ref_group_id == group_id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Rule cannot self-reference the group {group_id}",
-                )
-            require_tenant_fk(db, Group, ref_group_id, "group_id")
-    elif dimension == RuleDimension.RANK:
-        if not values:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Values are required for rank dimension",
-            )
-        for val in values:
-            if not isinstance(val, str) or not val.strip():
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid rank value: {val}",
-                )
 
     existing = db.scalar(
         select(GroupRule).where(
