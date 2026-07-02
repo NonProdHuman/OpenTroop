@@ -18,7 +18,9 @@ import type { Member } from "@/types/api"
 import { formatDate } from "@/lib/format"
 import { useMemberPositions } from "@/hooks/use-member-positions"
 import { usePositions } from "@/hooks/use-positions"
-import { useUpdateMember, useInviteMember } from "@/hooks/use-members"
+import { useUpdateMember, useInviteMember, useMembers } from "@/hooks/use-members"
+import { usePermissions } from "@/hooks/use-session"
+import { MemberPositionsEditor } from "@/components/member-positions-editor"
 import { Pencil, UserCheck, UserMinus, Mail, Copy, Check } from "lucide-react"
 
 interface MemberDetailSheetProps {
@@ -29,9 +31,10 @@ interface MemberDetailSheetProps {
 
 export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSheetProps) {
   const router = useRouter()
-  const { data: assignments = [] } = useMemberPositions(member?.id ?? null)
+  const { data: assignments = [] } = useMemberPositions(member?.id ?? null, { history: true })
   const { data: positions = [] } = usePositions()
-  const positionById = new Map(positions.map((p) => [p.id, p.name]))
+  const { data: allMembers = [] } = useMembers()
+  const { has } = usePermissions()
   const updateMember = useUpdateMember()
   const inviteMember = useInviteMember()
   const [copied, setCopied] = useState(false)
@@ -164,6 +167,21 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
         </SheetHeader>
 
         <div className="space-y-6">
+          {assignments.length > 0 && (
+            <>
+              <Section title="Positions">
+                <MemberPositionsEditor
+                  memberId={member.id}
+                  assignments={assignments}
+                  allPositions={positions}
+                  allMembers={allMembers}
+                  canAssign={has("role:assign")}
+                />
+              </Section>
+              <Separator />
+            </>
+          )}
+
           <Section title="Contact">
             <Field label="Email" value={member.email} />
             <Field label="Phone" value={member.phone} />
@@ -227,24 +245,6 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                 <Field label="Vigil" value={formatDate(member.oa_vigil_date)} />
                 <Field label="Vigil name" value={member.oa_vigil_name} />
                 {member.oa_notes && <Field label="Notes" value={member.oa_notes} />}
-              </Section>
-            </>
-          )}
-
-          {assignments.length > 0 && (
-            <>
-              <Separator />
-              <Section title="Positions">
-                <div className="flex flex-wrap gap-1.5">
-                  {assignments.map((a) => {
-                    const name = positionById.get(a.position_id)
-                    return name ? (
-                      <Badge key={a.id} variant="outline">
-                        {name}
-                      </Badge>
-                    ) : null
-                  })}
-                </div>
               </Section>
             </>
           )}
