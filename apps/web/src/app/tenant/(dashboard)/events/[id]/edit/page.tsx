@@ -25,7 +25,6 @@ import {
   useEvent,
   useUpdateEvent,
   useEventTypes,
-  useLocations,
   useEventAudiences,
   useAddEventAudience,
   useRemoveEventAudience,
@@ -33,6 +32,7 @@ import {
   useAddEventOrganizer,
   useRemoveEventOrganizer,
 } from "@/hooks/use-events"
+import { useLocations } from "@/hooks/use-locations"
 import { useGroups } from "@/hooks/use-groups"
 import { useMembers } from "@/hooks/use-members"
 import { SectionTitle } from "@/components/form-helpers"

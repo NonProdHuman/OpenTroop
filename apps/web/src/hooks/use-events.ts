@@ -10,9 +10,7 @@ import type {
   EventParticipant,
   EventParticipantCounts,
   EventType,
-  Location,
   RsvpStatus,
-  TenantSettings,
 } from "@/types/api"
 
 export function useEvents() {
@@ -41,16 +39,6 @@ export function useEventTypes() {
   return useQuery({
     queryKey: [activeTenantId, "event-types"],
     queryFn: () => request<EventType[]>("/event-types"),
-    enabled: Boolean(activeTenantId),
-  })
-}
-
-export function useLocations() {
-  const { request } = useApi()
-  const { activeTenantId } = useActiveTenant()
-  return useQuery({
-    queryKey: [activeTenantId, "locations"],
-    queryFn: () => request<Location[]>("/locations"),
     enabled: Boolean(activeTenantId),
   })
 }
@@ -134,16 +122,6 @@ export function useGrantPermission(eventId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [activeTenantId, "event-participants", eventId] })
     },
-  })
-}
-
-export function useTenantSettings() {
-  const { request } = useApi()
-  const { activeTenantId } = useActiveTenant()
-  return useQuery({
-    queryKey: [activeTenantId, "tenant-settings"],
-    queryFn: () => request<TenantSettings>("/tenant/settings"),
-    enabled: Boolean(activeTenantId),
   })
 }
 

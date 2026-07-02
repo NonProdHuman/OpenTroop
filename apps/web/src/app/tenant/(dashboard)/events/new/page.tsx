@@ -3,7 +3,8 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { apiErrorMessage } from "@/lib/api"
-import { useCreateEvent, useEventTypes, useLocations } from "@/hooks/use-events"
+import { useCreateEvent, useEventTypes } from "@/hooks/use-events"
+import { useLocations } from "@/hooks/use-locations"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import {
