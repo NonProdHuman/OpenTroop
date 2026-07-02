@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ShieldCheck } from "lucide-react"
+import { SectionTitle } from "@/components/form-helpers"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -110,14 +111,6 @@ const PERM_LABELS: Record<Permission, string> = {
 }
 
 void ALL_PERMISSIONS // used for exhaustive mapping above
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground pt-2">
-      {children}
-    </h2>
-  )
-}
 
 export default function FunctionalRoleEditPage() {
   const { id } = useParams<{ id: string }>()

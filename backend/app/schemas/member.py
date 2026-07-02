@@ -52,10 +52,6 @@ class MemberBase(BaseModel):
     oa_notes: str | None = None
 
 
-class MemberCreate(MemberBase):
-    tenant_id: uuid.UUID
-
-
 class MemberUpdate(BaseModel):
     bsa_id: str | None = None
     first_name: str | None = None
