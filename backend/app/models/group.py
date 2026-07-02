@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, Index, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -86,6 +86,10 @@ class GroupMember(TrackedBase):
     __tablename__ = "group_members"
     __table_args__ = (
         UniqueConstraint("group_id", "member_id", name="uq_group_members_group_member"),
+        # Group resolution and member_group_ids run on most event reads (visibility);
+        # tenant-leading composites keep them index-only under RLS (GH-115).
+        Index("ix_group_members_tenant_group", "tenant_id", "group_id"),
+        Index("ix_group_members_tenant_member", "tenant_id", "member_id"),
     )
 
     group_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("groups.id"), nullable=False, index=True)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -96,10 +96,11 @@ def get_or_create_user(claims: dict[str, Any], session: Session) -> User:
         if display_name and not user.display_name:
             user.display_name = display_name
             changed = True
-        if email and email_verified:
+        if email and email_verified and _autolink_unclaimed_members(session, user, email):
             # A member invited before this user's first login (or before the email
-            # was verified) links up on the next verified sign-in.
-            _autolink_unclaimed_members(session, user, email)
+            # was verified) links up on the next verified sign-in. Only an actual
+            # link marks the session changed — unconditionally committing here made
+            # every authenticated request pay a write (GH-115).
             changed = True
         if _bootstrap_superadmin(user, email, email_verified):
             changed = True
@@ -157,8 +158,10 @@ def _bootstrap_superadmin(user: User, email: str | None, email_verified: bool) -
     return True
 
 
-def _autolink_unclaimed_members(session: Session, user: User, email: str) -> None:
+def _autolink_unclaimed_members(session: Session, user: User, email: str) -> bool:
     """Link unclaimed Member rows matching a *verified* email to *user*.
+
+    Returns True when at least one Member row was actually linked.
 
     Callers must have established that the OIDC provider asserted
     ``email_verified`` for *email* — tenant provisioning creates unclaimed admin
@@ -166,14 +169,17 @@ def _autolink_unclaimed_members(session: Session, user: User, email: str) -> Non
     to anyone who can mint a token carrying the victim's address (GH-110).
     """
     from sqlalchemy import update
+    from sqlalchemy.engine import CursorResult
 
     from app.models.member import Member
 
-    session.execute(
+    result = session.execute(
         update(Member)
         .where(Member.email == email, Member.user_id.is_(None), Member.is_deleted.is_(False))
         .values(user_id=user.id)
     )
+    # An UPDATE statement always yields a CursorResult carrying rowcount.
+    return cast("CursorResult[Any]", result).rowcount > 0
 
 
 def _provider_label(issuer: str) -> str:

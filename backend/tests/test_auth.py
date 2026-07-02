@@ -294,6 +294,56 @@ def test_verified_email_claim_autolinks_member(db_session: Session) -> None:
     assert user.email_verified is True
 
 
+def test_repeat_login_without_changes_does_not_commit(db_session: Session) -> None:
+    """A steady-state login must be read-only (GH-115).
+
+    The auto-link path used to mark the session changed unconditionally, so every
+    authenticated request paid a commit. Once the profile is populated and no
+    unclaimed member matches, a repeat login must not write.
+    """
+    claims = {
+        "iss": "https://sso.example.com",
+        "sub": "steady-state",
+        "email": "steady@example.com",
+        "name": "Steady State",
+        "email_verified": True,
+    }
+    get_or_create_user(claims, db_session)
+
+    commits = 0
+    original_commit = db_session.commit
+
+    def counting_commit() -> None:
+        nonlocal commits
+        commits += 1
+        original_commit()
+
+    db_session.commit = counting_commit  # type: ignore[method-assign]
+    try:
+        get_or_create_user(claims, db_session)
+    finally:
+        db_session.commit = original_commit  # type: ignore[method-assign]
+    assert commits == 0
+
+
+def test_repeat_login_still_links_newly_invited_member(db_session: Session) -> None:
+    """The no-write fast path must not break late linking: a member invited after
+    the user's earlier logins still links (and commits) on the next sign-in."""
+    claims = {
+        "iss": "https://sso.example.com",
+        "sub": "late-invite",
+        "email": "late-invite@example.com",
+        "email_verified": True,
+    }
+    user = get_or_create_user(claims, db_session)
+    get_or_create_user(claims, db_session)  # steady-state login, no member yet
+
+    member = _unclaimed_member(db_session, "late-invite@example.com")
+    get_or_create_user(claims, db_session)
+    db_session.refresh(member)
+    assert member.user_id == user.id
+
+
 def test_autolink_happens_on_later_verified_login(db_session: Session) -> None:
     """A member invited after (or verified after) first login links on the next sign-in."""
     claims = {

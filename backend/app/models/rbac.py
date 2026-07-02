@@ -21,7 +21,7 @@ import uuid
 from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Date, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -162,6 +162,11 @@ class MemberPositionAssignment(SourceTracked, TrackedBase):
     """
 
     __tablename__ = "member_position_assignments"
+    # resolve_permissions filters by member within the tenant on every require()
+    # guard — the hottest query in the app; lead with tenant_id for RLS (GH-115).
+    __table_args__ = (
+        Index("ix_member_position_assignments_tenant_member", "tenant_id", "member_id"),
+    )
 
     member_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("members.id"), nullable=False, index=True
