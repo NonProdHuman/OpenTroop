@@ -93,9 +93,11 @@ class Member(SourceTracked, Syncable, TrackedBase):
     )
     user: Mapped[User | None] = relationship("User")
 
-    # Secret bearer token for the member's personal iCal subscription feed
-    # (GET /calendar/{token}.ics). Null until the member subscribes; rotatable.
-    calendar_token: Mapped[str | None] = mapped_column(
+    # SHA-256 hex digest of the secret bearer token for the member's personal iCal
+    # feed (GET /calendar/{token}.ics). Only the hash is stored — the raw token is
+    # shown once at mint/rotate time, so a DB or backup leak exposes no live feed
+    # credentials (GH-114). Null until the member subscribes; rotatable.
+    calendar_token_hash: Mapped[str | None] = mapped_column(
         String(64), nullable=True, unique=True, index=True
     )
 

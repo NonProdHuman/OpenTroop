@@ -464,8 +464,11 @@ export interface PlatformAdminGrantInput {
 }
 
 export interface CalendarSubscriptionRead {
-  token: string
-  feed_path: string
+  active: boolean
+  // Shown once: populated only by the response that minted/rotated the token
+  // (the server stores only a hash). Null on later status calls.
+  token: string | null
+  feed_path: string | null
 }
 
 // ── Tenant switcher ───────────────────────────────────────────────────────────
