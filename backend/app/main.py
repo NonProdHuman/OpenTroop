@@ -18,6 +18,7 @@ from app.routers import (
     platform,
     positions,
     relationships,
+    sync,
     tenant_settings,
 )
 
@@ -54,6 +55,7 @@ app.include_router(events.router)
 app.include_router(calendar.router)
 app.include_router(imports.router)
 app.include_router(tenant_settings.router)
+app.include_router(sync.router)
 
 
 @app.get("/health")

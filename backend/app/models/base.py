@@ -1,7 +1,8 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, String, Uuid
+from sqlalchemy import BigInteger, Boolean, DateTime, String, Uuid, text
+from sqlalchemy.engine.default import DefaultExecutionContext
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from uuid6 import uuid7
 
@@ -12,6 +13,39 @@ class Base(DeclarativeBase):
 
 def _utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+def _next_sync_seq(context: DefaultExecutionContext) -> int:
+    """Draw the next global sync cursor value (see ``docs/spec/sync-protocol.md``).
+
+    On Postgres this is the ``sync_seq`` sequence — strictly monotonic across all
+    syncable tables. On SQLite (tests, quick local dev) there is no sequence, so fall
+    back to ``MAX(sync_seq)+1`` on the target table; duplicates are tolerable there
+    because the pull cursor is the ``(sync_seq, id)`` pair, which stays totally ordered.
+    """
+    if context.connection.dialect.name == "postgresql":
+        return context.connection.scalar(text("SELECT nextval('sync_seq')"))  # type: ignore[no-any-return]
+    if context.current_column is None:  # pragma: no cover — column-default context always has one
+        raise RuntimeError("_next_sync_seq called outside a column-default context")
+    table = context.current_column.table.name
+    current = context.connection.scalar(
+        text(f"SELECT COALESCE(MAX(sync_seq), 0) FROM {table}")  # noqa: S608 — table name from ORM metadata, not user input
+    )
+    return int(current or 0) + 1
+
+
+class Syncable:
+    """Mixin: opt a ``TrackedBase`` table into the offline sync pull protocol.
+
+    Supplies ``sync_seq``, the server-assigned monotonic pull cursor — bumped on every
+    insert *and* update (soft-deletes included, so tombstones re-enter the stream).
+    Adopting tables must also add a ``(tenant_id, sync_seq)`` index in
+    ``__table_args__`` and a backfill migration. See ``docs/spec/sync-protocol.md``.
+    """
+
+    sync_seq: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=_next_sync_seq, onupdate=_next_sync_seq
+    )
 
 
 class SourceTracked:
