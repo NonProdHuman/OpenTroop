@@ -9,7 +9,12 @@ export function getRootDomain(): string {
 }
 
 function protocol(): string {
-  return typeof window !== "undefined" ? window.location.protocol : "https:"
+  // On the client, mirror the actual scheme. On the server we can't read it, so derive
+  // it deterministically from the domain — http for local dev, https everywhere else —
+  // so the SSR'd href matches what the client renders and doesn't trip a hydration
+  // mismatch (React won't patch attribute differences).
+  if (typeof window !== "undefined") return window.location.protocol
+  return APP_DOMAIN.startsWith("localhost") ? "http:" : "https:"
 }
 
 export function getAdminUrl(path: string = ""): string {
