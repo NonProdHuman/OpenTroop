@@ -142,7 +142,7 @@ export function useTenantSettings() {
   const { activeTenantId } = useActiveTenant()
   return useQuery({
     queryKey: [activeTenantId, "tenant-settings"],
-    queryFn: () => request<TenantSettings>("/tenant/settings/"),
+    queryFn: () => request<TenantSettings>("/tenant/settings"),
     enabled: Boolean(activeTenantId),
   })
 }
