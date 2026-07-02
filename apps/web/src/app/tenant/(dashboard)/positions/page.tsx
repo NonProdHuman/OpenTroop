@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { PageHeader } from "@/components/page-header"
+import { Section } from "@/components/detail-helpers"
 import { usePositions, useDeletePosition, usePositionFunctionalRoles } from "@/hooks/use-positions"
 import { useFunctionalRoles } from "@/hooks/use-functional-roles"
 import { usePermissions } from "@/hooks/use-session"
@@ -37,17 +38,6 @@ function TintBadge({ label, className }: { label: string; className: string }) {
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${className}`}>
       {label}
     </span>
-  )
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {title}
-      </h3>
-      {children}
-    </div>
   )
 }
 
