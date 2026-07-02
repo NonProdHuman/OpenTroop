@@ -6,6 +6,7 @@ credential. The subscription endpoints that mint/rotate that token are normal
 authenticated, tenant-scoped routes.
 """
 
+import hashlib
 import secrets
 import uuid
 from typing import Annotated
@@ -31,6 +32,16 @@ def _new_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+def hash_calendar_token(token: str) -> str:
+    """Digest a raw feed token for storage/lookup (GH-114).
+
+    A single unsalted SHA-256 is deliberate: the token is high-entropy random data
+    (not a password), so brute force is infeasible, and the digest must stay
+    deterministic to serve as the indexed lookup key.
+    """
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 @router.get("/{token}.ics")
 def get_calendar_feed(
     token: str,
@@ -45,7 +56,9 @@ def get_calendar_feed(
     suspended/deleted tenant, so the same response covers every "you can't see this"
     case (the suspended/deleted tenant is already rejected by the dependency).
     """
-    member = db.scalar(select(Member).where(Member.calendar_token == token))
+    member = db.scalar(
+        select(Member).where(Member.calendar_token_hash == hash_calendar_token(token))
+    )
     if member is None:
         raise HTTPException(status_code=404, detail="Calendar not found")
 
@@ -65,20 +78,24 @@ def get_calendar_feed(
 
 @router.post("/subscription", response_model=CalendarSubscriptionRead, status_code=201)
 def create_subscription(member: CurrentMemberDep, db: DbDep) -> CalendarSubscriptionRead:
-    """Return the caller's feed token, minting one on first use (idempotent)."""
-    if member.calendar_token is None:
-        member.calendar_token = _new_token()
+    """Mint the caller's feed token on first use; report status thereafter.
+
+    Only the token's hash is stored, so the raw token appears in exactly one
+    response — the one that minted it. A repeat call cannot reveal it again and
+    returns ``active`` with no token; the client rotates to obtain a fresh URL.
+    """
+    if member.calendar_token_hash is None:
+        token = _new_token()
+        member.calendar_token_hash = hash_calendar_token(token)
         db.commit()
-    return CalendarSubscriptionRead(
-        token=member.calendar_token, feed_path=_feed_path(member.calendar_token)
-    )
+        return CalendarSubscriptionRead(active=True, token=token, feed_path=_feed_path(token))
+    return CalendarSubscriptionRead(active=True)
 
 
 @router.delete("/subscription", response_model=CalendarSubscriptionRead)
 def rotate_subscription(member: CurrentMemberDep, db: DbDep) -> CalendarSubscriptionRead:
     """Rotate the caller's token — old subscription URLs immediately stop working."""
-    member.calendar_token = _new_token()
+    token = _new_token()
+    member.calendar_token_hash = hash_calendar_token(token)
     db.commit()
-    return CalendarSubscriptionRead(
-        token=member.calendar_token, feed_path=_feed_path(member.calendar_token)
-    )
+    return CalendarSubscriptionRead(active=True, token=token, feed_path=_feed_path(token))
