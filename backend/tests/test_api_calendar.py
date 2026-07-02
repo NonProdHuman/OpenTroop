@@ -1,11 +1,14 @@
 """API tests for the iCal feed and subscription endpoints."""
 
+import hashlib
 import uuid
 from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.member import Member
 from app.models.tenant import Tenant
 
 TENANT_A = uuid.UUID("10000000-0000-0000-0000-000000000001")
@@ -49,21 +52,37 @@ def _admin_member_id(client: TestClient) -> str:
 # --- Subscription management ---------------------------------------------
 
 
-def test_create_subscription_is_idempotent(client: TestClient) -> None:
+def test_create_subscription_shows_token_once(client: TestClient) -> None:
     first = client.post("/calendar/subscription")
     assert first.status_code == 201
     body = first.json()
+    assert body["active"] is True
     assert body["token"]
     assert body["feed_path"] == f"/calendar/{body['token']}.ics"
 
-    second = client.post("/calendar/subscription")
-    assert second.json()["token"] == body["token"]
+    # Only the hash is stored, so a repeat call cannot reveal the token again.
+    second = client.post("/calendar/subscription").json()
+    assert second == {"active": True, "token": None, "feed_path": None}
 
 
-def test_rotate_subscription_changes_token(client: TestClient) -> None:
-    token1 = client.post("/calendar/subscription").json()["token"]
-    token2 = client.delete("/calendar/subscription").json()["token"]
-    assert token1 != token2
+def test_token_stored_hashed_not_plaintext(client: TestClient, db_session: Session) -> None:
+    token = client.post("/calendar/subscription").json()["token"]
+    stored = db_session.scalars(
+        select(Member.calendar_token_hash).where(Member.calendar_token_hash.is_not(None))
+    ).one()
+    assert stored != token
+    assert stored == hashlib.sha256(token.encode()).hexdigest()
+
+
+def test_rotate_subscription_changes_token(client: TestClient, db_session: Session) -> None:
+    _ensure_tenant(db_session)
+    first = client.post("/calendar/subscription").json()
+    rotated = client.delete("/calendar/subscription").json()
+    assert rotated["token"] and rotated["token"] != first["token"]
+
+    # The old URL stops working immediately; the new one serves.
+    assert client.get(first["feed_path"]).status_code == 404
+    assert client.get(rotated["feed_path"]).status_code == 200
 
 
 # --- Feed ----------------------------------------------------------------

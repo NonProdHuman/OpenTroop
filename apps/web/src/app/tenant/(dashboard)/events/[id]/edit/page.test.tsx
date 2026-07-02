@@ -36,11 +36,14 @@ const event: Partial<Event> = {
   all_day: false,
 }
 
+vi.mock("@/hooks/use-locations", () => ({
+  useLocations: () => ({ data: [] }),
+}))
+
 vi.mock("@/hooks/use-events", () => ({
   useEvent: () => ({ data: event, isLoading: false }),
   useUpdateEvent: () => ({ mutate: updateMutate, isPending: false }),
   useEventTypes: () => ({ data: [{ id: "type-1", name: "Campout", is_active: true }] }),
-  useLocations: () => ({ data: [] }),
   useEventAudiences: () => ({ data: [] }),
   useAddEventAudience: () => ({ mutate: vi.fn() }),
   useRemoveEventAudience: () => ({ mutate: vi.fn() }),

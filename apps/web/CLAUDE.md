@@ -34,8 +34,10 @@ planned for mobile only). Instead it uses two purpose-built layers:
   When you add or change a backend field, update this file to match.
 
 All server state is managed with **TanStack React Query**. Data hooks live in
-`src/hooks/use-*.ts` and use `useQuery` / `useMutation`. Query keys are plain string arrays
-(`["members"]`, `["events"]`, etc.).
+`src/hooks/use-*.ts` and use `useQuery` / `useMutation`. Query keys are **prefixed with
+the active tenant id** (`[activeTenantId, "members"]`, `[activeTenantId, "events", id]`)
+so switching tenants can never serve another tenant's cached data, and queries set
+`enabled: Boolean(activeTenantId)` so nothing fires before the tenant is resolved.
 
 ### Adding a new data hook
 
@@ -45,13 +47,16 @@ All server state is managed with **TanStack React Query**. Data hooks live in
 
 import { useQuery } from "@tanstack/react-query"
 import { useApi } from "@/lib/api"
+import { useActiveTenant } from "@/lib/tenant-context"
 import type { Foo } from "@/types/api"
 
 export function useFoo() {
   const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: ["foo"],
+    queryKey: [activeTenantId, "foo"],
     queryFn: () => request<Foo[]>("/foo"),
+    enabled: Boolean(activeTenantId),
   })
 }
 ```

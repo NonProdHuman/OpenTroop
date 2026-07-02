@@ -93,6 +93,19 @@ export function CalendarSubscriptionDialog() {
           </div>
         ) : (
           <div className="space-y-4 py-2">
+            {!feedPath ? (
+              <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-1 text-xs">
+                <div className="flex items-center gap-1.5 font-medium text-foreground">
+                  <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>Your calendar feed is active</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  For security, the feed link is shown only when it is created. If you no
+                  longer have it, reset the link below to get a new one.
+                </p>
+              </div>
+            ) : (
+            <>
             <div className="space-y-2">
               <a
                 href={webcalUrl}
@@ -155,6 +168,8 @@ export function CalendarSubscriptionDialog() {
                 </li>
               </ul>
             </div>
+            </>
+            )}
 
             <div className="border-t border-border pt-4">
               {showRotateConfirm ? (

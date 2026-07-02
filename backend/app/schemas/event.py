@@ -76,6 +76,7 @@ class EventUpdate(BaseModel):
 
 class EventRead(EventBase, TrackedRead):
     attendance_taken: bool
+    cancelled_at: UtcDateTime | None = None
     event_type: EventTypeRead
     location: LocationRead | None = None
 
@@ -174,3 +175,9 @@ class EventAudienceCreate(BaseModel):
 class EventAudienceRead(TrackedRead):
     event_id: uuid.UUID
     group_id: uuid.UUID
+
+
+class EventNotifyResult(BaseModel):
+    """How many notification emails a trigger endpoint actually sent."""
+
+    emails_sent: int

@@ -34,6 +34,7 @@ describe("CalendarSubscriptionDialog", () => {
     // Set up default hook values
     vi.mocked(subHook.useCalendarSubscription).mockReturnValue({
       subscription: {
+        active: true,
         token: "test-token",
         feed_path: "/calendar/test-token.ics",
       },
@@ -136,5 +137,24 @@ describe("CalendarSubscriptionDialog", () => {
     await userEvent.click(confirmButton)
 
     expect(mockRotate).toHaveBeenCalled()
+  })
+
+  it("shows the shown-once notice when the feed is active but the URL is not available", async () => {
+    vi.mocked(subHook.useCalendarSubscription).mockReturnValue({
+      subscription: { active: true, token: null, feed_path: null },
+      isLoading: false,
+      error: null,
+      rotate: mockRotate,
+      isRotating: false,
+      refetch: mockRefetch,
+    })
+
+    render(<CalendarSubscriptionDialog />)
+    await userEvent.click(screen.getByRole("button", { name: /subscribe/i }))
+
+    expect(screen.getByText("Your calendar feed is active")).toBeInTheDocument()
+    expect(screen.queryByText("Subscribe in Calendar App")).not.toBeInTheDocument()
+    // The reset affordance is still offered so the member can get a fresh URL.
+    expect(screen.getByRole("button", { name: "Reset link" })).toBeInTheDocument()
   })
 })

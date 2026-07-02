@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Shield, Users, Lock, Plus, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { Users, Lock, Plus, MoreHorizontal } from "lucide-react"
+import { DataTable } from "@/components/data-table"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,7 +15,9 @@ import {
   useDeleteGroup,
 } from "@/hooks/use-groups"
 import { useMembers } from "@/hooks/use-members"
+import { formatMemberName } from "@/lib/format"
 import type { Group } from "@/types/api"
+import { buildGroupColumns } from "./columns"
 import { GroupDetailSheet } from "./group-detail-sheet"
 import { toast } from "sonner"
 import {
@@ -42,33 +45,6 @@ import {
   CommandList,
 } from "@/components/ui/command"
 
-const TYPE_LABELS: Record<string, string> = {
-  patrol: "Patrol",
-  custom: "Custom",
-}
-
-// Soft tinted badge classes for group types
-const TYPE_BADGE: Record<string, string> = {
-  patrol:  "bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300",
-  custom:  "bg-amber-50  text-amber-700 border border-amber-200 dark:bg-amber-950 dark:text-amber-300",
-  system:  "bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400",
-}
-
-function TintBadge({ label, className }: { label: string; className: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${className}`}>
-      {label}
-    </span>
-  )
-}
-
-function GroupTypeIcon({ group, className }: { group: Group; className?: string }) {
-  switch (group.group_type) {
-    case "patrol":  return <Shield className={className} />
-    default:        return <Users className={className} />
-  }
-}
-
 export default function GroupsPage() {
   const router = useRouter()
   const [search, setSearch] = useState("")
@@ -79,104 +55,23 @@ export default function GroupsPage() {
   const active = groups.filter((g) => !g.is_deleted)
   const memberCounts = useGroupMemberCounts(active)
 
-  const [sortField, setSortField] = useState<"name" | "group_type" | "member_count">("name")
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
-
   const filtered = active.filter((g) =>
     g.name.toLowerCase().includes(search.toLowerCase()),
   )
 
-  function handleSort(field: "name" | "group_type" | "member_count") {
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
-    } else {
-      setSortField(field)
-      setSortDirection("asc")
-    }
-  }
-
-  const sortedGroups = [...filtered].sort((a, b) => {
-    let valA: string | number = ""
-    let valB: string | number = ""
-
-    if (sortField === "name") {
-      valA = a.name
-      valB = b.name
-    } else if (sortField === "group_type") {
-      valA = a.is_system ? "System" : (TYPE_LABELS[a.group_type] ?? a.group_type)
-      valB = b.is_system ? "System" : (TYPE_LABELS[b.group_type] ?? b.group_type)
-    } else if (sortField === "member_count") {
-      valA = memberCounts.get(a.id) ?? 0
-      valB = memberCounts.get(b.id) ?? 0
-    }
-
-    if (typeof valA === "string" && typeof valB === "string") {
-      const aStr = valA.toLowerCase()
-      const bStr = valB.toLowerCase()
-      if (aStr < bStr) return sortDirection === "asc" ? -1 : 1
-      if (aStr > bStr) return sortDirection === "asc" ? 1 : -1
-    } else if (typeof valA === "number" && typeof valB === "number") {
-      if (valA < valB) return sortDirection === "asc" ? -1 : 1
-      if (valA > valB) return sortDirection === "asc" ? 1 : -1
-    }
-    return 0
-  })
-
-  function GroupRow({ group }: { group: Group }) {
-    const count = memberCounts.get(group.id)
-    const badgeClass = group.is_system
-      ? TYPE_BADGE.system
-      : (TYPE_BADGE[group.group_type] ?? TYPE_BADGE.custom)
-    return (
-      <tr
-        key={group.id}
-        className="border-b last:border-0 hover:bg-muted/40 cursor-pointer transition-colors duration-75"
-        onClick={() => setSelectedGroup(group)}
-      >
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-2.5">
-            <span
-              className="flex h-7 w-7 items-center justify-center rounded-full shrink-0"
-              style={
-                group.color
-                  ? { backgroundColor: `${group.color}25`, color: group.color }
-                  : undefined
-              }
-              aria-hidden
-            >
-              <GroupTypeIcon group={group} className="h-3.5 w-3.5 text-muted-foreground" />
-            </span>
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-sm">{group.name}</span>
-              {group.is_system && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-            </div>
-          </div>
-        </td>
-        <td className="px-4 py-3">
-          <TintBadge
-            label={group.is_system ? "System" : (TYPE_LABELS[group.group_type] ?? group.group_type)}
-            className={badgeClass}
-          />
-        </td>
-        <td className="px-4 py-3 text-sm text-muted-foreground tabular-nums">
-          {count !== undefined ? count : <span className="opacity-40">—</span>}
-        </td>
-        <td className="px-4 py-3 w-8 text-right" onClick={(e) => e.stopPropagation()}>
-          {!group.is_system ? (
-            <GroupActionsDropdown
-              group={group}
-              onAddMember={() => setAddMemberGroup(group)}
-              onViewDetails={() => setSelectedGroup(group)}
-            />
-          ) : (
-            <span title="System group" className="text-muted-foreground flex justify-end">
-              <Lock className="h-3.5 w-3.5" />
-            </span>
-          )}
-        </td>
-      </tr>
-    )
-  }
+  const columns = buildGroupColumns(memberCounts, (group) =>
+    group.is_system ? (
+      <span title="System group" className="text-muted-foreground flex justify-end">
+        <Lock className="h-3.5 w-3.5" />
+      </span>
+    ) : (
+      <GroupActionsDropdown
+        group={group}
+        onAddMember={() => setAddMemberGroup(group)}
+        onViewDetails={() => setSelectedGroup(group)}
+      />
+    ),
+  )
 
   return (
     <>
@@ -211,9 +106,7 @@ export default function GroupsPage() {
           />
         </div>
 
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : active.length === 0 ? (
+        {!isLoading && active.length === 0 ? (
           <div className="rounded-lg border border-dashed p-12 text-center">
             <div className="flex justify-center mb-4">
               <div className="rounded-full bg-muted p-4">
@@ -229,64 +122,17 @@ export default function GroupsPage() {
               New group
             </Button>
           </div>
-        ) : filtered.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No groups match &quot;{search}&quot;.</p>
         ) : (
-          <div className="space-y-6">
-            {sortedGroups.length > 0 && (
-              <div className="rounded-lg border shadow-sm overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/40">
-                      <th
-                        onClick={() => handleSort("name")}
-                        className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer select-none hover:text-foreground"
-                      >
-                        <div className="flex items-center gap-1">
-                          Name
-                          {sortField === "name" ? (
-                            sortDirection === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
-                          ) : (
-                            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
-                          )}
-                        </div>
-                      </th>
-                      <th
-                        onClick={() => handleSort("group_type")}
-                        className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer select-none hover:text-foreground"
-                      >
-                        <div className="flex items-center gap-1">
-                          Type
-                          {sortField === "group_type" ? (
-                            sortDirection === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
-                          ) : (
-                            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
-                          )}
-                        </div>
-                      </th>
-                      <th
-                        onClick={() => handleSort("member_count")}
-                        className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer select-none hover:text-foreground"
-                      >
-                        <div className="flex items-center gap-1">
-                          Members
-                          {sortField === "member_count" ? (
-                            sortDirection === "asc" ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
-                          ) : (
-                            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
-                          )}
-                        </div>
-                      </th>
-                      <th className="px-4 py-2.5 w-8" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedGroups.map((g) => <GroupRow key={g.id} group={g} />)}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <DataTable
+            data={filtered}
+            columns={columns}
+            isLoading={isLoading}
+            onRowClick={setSelectedGroup}
+            initialSorting={[{ id: "name", desc: false }]}
+            emptyState={
+              <p className="text-sm text-muted-foreground">No groups match &quot;{search}&quot;.</p>
+            }
+          />
         )}
       </div>
     </>
@@ -337,26 +183,20 @@ function GroupActionsDropdown({
         <DropdownMenuPortal>
           <DropdownMenuContent align="end" className="w-36">
             <DropdownMenuItem onClick={onViewDetails}>View details</DropdownMenuItem>
-            {!group.is_system && (
-              <DropdownMenuItem onClick={onAddMember}>Add member…</DropdownMenuItem>
-            )}
-            {!group.is_system && (
-              <DropdownMenuItem onClick={() => router.push(`/groups/${group.id}/edit`)}>
-                Edit group
-              </DropdownMenuItem>
-            )}
-            {!group.is_system && <DropdownMenuSeparator />}
-            {!group.is_system && (
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => {
-                  setDropdownOpen(false)
-                  setDeleteDialogOpen(true)
-                }}
-              >
-                Delete group
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem onClick={onAddMember}>Add member…</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push(`/groups/${group.id}/edit`)}>
+              Edit group
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => {
+                setDropdownOpen(false)
+                setDeleteDialogOpen(true)
+              }}
+            >
+              Delete group
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenuPortal>
       </DropdownMenu>
@@ -429,9 +269,7 @@ function AddMemberDialog({
             </CommandEmpty>
             <CommandGroup>
               {addableMembers.map((m) => {
-                const name = m.nickname
-                  ? `${m.first_name} "${m.nickname}" ${m.last_name}`
-                  : `${m.first_name} ${m.last_name}`
+                const name = formatMemberName(m)
                 return (
                   <CommandItem
                     key={m.id}

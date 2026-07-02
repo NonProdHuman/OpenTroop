@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -32,14 +32,20 @@ def decode_token(token: str) -> dict[str, Any]:
     """Validate a JWT against the configured JWKS. Raises HTTP 401 on any failure."""
     try:
         signing_key = _get_jwks_client().get_signing_key_from_jwt(token)
-        # Pass audience only when configured; PyJWT skips aud verification when
-        # audience=None, which is acceptable for deployments that don't use aud.
+        # Pass audience/issuer only when configured; PyJWT skips each verification
+        # when the parameter is None, which is acceptable for deployments that
+        # don't use aud or pin a single issuer. Standard claims must always be
+        # present — identity is keyed on (iss, sub), so a token missing either
+        # must be rejected here rather than failing later.
         audience: str | None = settings.auth_audience if settings.auth_audience else None
+        issuer: str | None = settings.auth_issuer if settings.auth_issuer else None
         return jwt.decode(
             token,
             signing_key.key,
             algorithms=["RS256", "ES256"],
             audience=audience,
+            issuer=issuer,
+            options={"require": ["exp", "iat", "iss", "sub"]},
         )
     except jwt.exceptions.PyJWTError as exc:
         # Log only the exception class, not the message — the message may contain
@@ -90,10 +96,11 @@ def get_or_create_user(claims: dict[str, Any], session: Session) -> User:
         if display_name and not user.display_name:
             user.display_name = display_name
             changed = True
-        if email and email_verified:
+        if email and email_verified and _autolink_unclaimed_members(session, user, email):
             # A member invited before this user's first login (or before the email
-            # was verified) links up on the next verified sign-in.
-            _autolink_unclaimed_members(session, user, email)
+            # was verified) links up on the next verified sign-in. Only an actual
+            # link marks the session changed — unconditionally committing here made
+            # every authenticated request pay a write (GH-115).
             changed = True
         if _bootstrap_superadmin(user, email, email_verified):
             changed = True
@@ -151,8 +158,10 @@ def _bootstrap_superadmin(user: User, email: str | None, email_verified: bool) -
     return True
 
 
-def _autolink_unclaimed_members(session: Session, user: User, email: str) -> None:
+def _autolink_unclaimed_members(session: Session, user: User, email: str) -> bool:
     """Link unclaimed Member rows matching a *verified* email to *user*.
+
+    Returns True when at least one Member row was actually linked.
 
     Callers must have established that the OIDC provider asserted
     ``email_verified`` for *email* — tenant provisioning creates unclaimed admin
@@ -160,14 +169,17 @@ def _autolink_unclaimed_members(session: Session, user: User, email: str) -> Non
     to anyone who can mint a token carrying the victim's address (GH-110).
     """
     from sqlalchemy import update
+    from sqlalchemy.engine import CursorResult
 
     from app.models.member import Member
 
-    session.execute(
+    result = session.execute(
         update(Member)
         .where(Member.email == email, Member.user_id.is_(None), Member.is_deleted.is_(False))
         .values(user_id=user.id)
     )
+    # An UPDATE statement always yields a CursorResult carrying rowcount.
+    return cast("CursorResult[Any]", result).rowcount > 0
 
 
 def _provider_label(issuer: str) -> str:

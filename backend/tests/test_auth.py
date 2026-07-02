@@ -1,9 +1,15 @@
 """Tests for authentication utilities: tenant resolution and user identity."""
 
+import time
+from typing import Any
+
+import jwt
 import pytest
+from cryptography.hazmat.primitives.asymmetric import rsa
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_or_create_user
+from app.core.auth import decode_token, get_or_create_user
 from app.core.config import settings
 from app.core.tenant import _extract_subdomain
 from app.models.enums import MemberType, PlatformRole
@@ -47,6 +53,97 @@ def test_extract_subdomain_reserved_returns_none() -> None:
     assert _extract_subdomain("www.opentroop.app", "opentroop.app") is None
     # Case-insensitive and port-tolerant too.
     assert _extract_subdomain("Admin.opentroop.localhost:3000", "opentroop.localhost") is None
+
+
+# ---------------------------------------------------------------------------
+# JWT validation (decode_token) — issuer verification + required claims (GH-112)
+# ---------------------------------------------------------------------------
+
+_RSA_KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+ISSUER = "https://auth.example.com"
+
+
+class _StubSigningKey:
+    def __init__(self, key: Any) -> None:
+        self.key = key
+
+
+class _StubJwksClient:
+    """Stands in for the JWKS fetch so tests can sign with a local key."""
+
+    def get_signing_key_from_jwt(self, token: str) -> _StubSigningKey:
+        return _StubSigningKey(_RSA_KEY.public_key())
+
+
+def _make_token(claims: dict[str, Any]) -> str:
+    return jwt.encode(claims, _RSA_KEY, algorithm="RS256")
+
+
+def _standard_claims(**overrides: Any) -> dict[str, Any]:
+    now = int(time.time())
+    claims: dict[str, Any] = {
+        "iss": ISSUER,
+        "sub": "user-123",
+        "iat": now,
+        "exp": now + 300,
+        **overrides,
+    }
+    # Passing claim=None in overrides removes the claim entirely.
+    return {k: v for k, v in claims.items() if v is not None}
+
+
+@pytest.fixture(autouse=False)
+def stub_jwks(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.core.auth._get_jwks_client", _StubJwksClient)
+
+
+def _assert_rejected(token: str) -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        decode_token(token)
+    assert exc_info.value.status_code == 401
+
+
+def test_decode_token_valid_with_matching_issuer(
+    stub_jwks: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "auth_issuer", ISSUER)
+    claims = decode_token(_make_token(_standard_claims()))
+    assert claims["sub"] == "user-123"
+    assert claims["iss"] == ISSUER
+
+
+def test_decode_token_rejects_wrong_issuer(
+    stub_jwks: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "auth_issuer", ISSUER)
+    _assert_rejected(_make_token(_standard_claims(iss="https://evil.example.com")))
+
+
+def test_decode_token_unset_issuer_skips_value_check(
+    stub_jwks: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Deployments that don't pin AUTH_ISSUER accept any issuer value (the JWKS
+    # signature is the trust anchor) — pin this permissive behavior explicitly.
+    monkeypatch.setattr(settings, "auth_issuer", "")
+    claims = decode_token(_make_token(_standard_claims(iss="https://other.example.com")))
+    assert claims["iss"] == "https://other.example.com"
+
+
+@pytest.mark.parametrize("missing", ["iss", "sub", "exp", "iat"])
+def test_decode_token_rejects_missing_standard_claim(
+    stub_jwks: None, monkeypatch: pytest.MonkeyPatch, missing: str
+) -> None:
+    # Even with AUTH_ISSUER unset, every standard claim must be *present*:
+    # identity is keyed on (iss, sub), and exp/iat bound the token lifetime.
+    monkeypatch.setattr(settings, "auth_issuer", "")
+    _assert_rejected(_make_token(_standard_claims(**{missing: None})))
+
+
+def test_decode_token_rejects_expired(stub_jwks: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "auth_issuer", ISSUER)
+    now = int(time.time())
+    _assert_rejected(_make_token(_standard_claims(iat=now - 600, exp=now - 300)))
 
 
 # ---------------------------------------------------------------------------
@@ -194,6 +291,56 @@ def test_verified_email_claim_autolinks_member(db_session: Session) -> None:
     db_session.refresh(member)
     assert member.user_id == user.id
     assert user.email_verified is True
+
+
+def test_repeat_login_without_changes_does_not_commit(db_session: Session) -> None:
+    """A steady-state login must be read-only (GH-115).
+
+    The auto-link path used to mark the session changed unconditionally, so every
+    authenticated request paid a commit. Once the profile is populated and no
+    unclaimed member matches, a repeat login must not write.
+    """
+    claims = {
+        "iss": "https://sso.example.com",
+        "sub": "steady-state",
+        "email": "steady@example.com",
+        "name": "Steady State",
+        "email_verified": True,
+    }
+    get_or_create_user(claims, db_session)
+
+    commits = 0
+    original_commit = db_session.commit
+
+    def counting_commit() -> None:
+        nonlocal commits
+        commits += 1
+        original_commit()
+
+    db_session.commit = counting_commit  # type: ignore[method-assign]
+    try:
+        get_or_create_user(claims, db_session)
+    finally:
+        db_session.commit = original_commit  # type: ignore[method-assign]
+    assert commits == 0
+
+
+def test_repeat_login_still_links_newly_invited_member(db_session: Session) -> None:
+    """The no-write fast path must not break late linking: a member invited after
+    the user's earlier logins still links (and commits) on the next sign-in."""
+    claims = {
+        "iss": "https://sso.example.com",
+        "sub": "late-invite",
+        "email": "late-invite@example.com",
+        "email_verified": True,
+    }
+    user = get_or_create_user(claims, db_session)
+    get_or_create_user(claims, db_session)  # steady-state login, no member yet
+
+    member = _unclaimed_member(db_session, "late-invite@example.com")
+    get_or_create_user(claims, db_session)
+    db_session.refresh(member)
+    assert member.user_id == user.id
 
 
 def test_autolink_happens_on_later_verified_login(db_session: Session) -> None:

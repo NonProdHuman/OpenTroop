@@ -1,6 +1,7 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
 import type { FunctionalRole, FunctionalRolePermission, Permission } from "@/types/api"
@@ -9,7 +10,7 @@ export function useFunctionalRoles() {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: [activeTenantId, "functional-roles"],
+    queryKey: queryKeys.functionalRoles(activeTenantId),
     queryFn: () => request<FunctionalRole[]>("/functional-roles"),
     enabled: Boolean(activeTenantId),
   })
@@ -19,7 +20,7 @@ export function useFunctionalRole(roleId: string | null) {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: [activeTenantId, "functional-roles", roleId],
+    queryKey: queryKeys.functionalRole(activeTenantId, roleId),
     queryFn: () => request<FunctionalRole>(`/functional-roles/${roleId}`),
     enabled: roleId !== null && Boolean(activeTenantId),
   })
@@ -33,7 +34,7 @@ export function useCreateFunctionalRole() {
     mutationFn: (data: { name: string; slug: string }) =>
       request<FunctionalRole>("/functional-roles", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "functional-roles"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.functionalRoles(activeTenantId) })
     },
   })
 }
@@ -49,8 +50,8 @@ export function useUpdateFunctionalRole() {
         body: JSON.stringify(data),
       }),
     onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "functional-roles"] })
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "functional-roles", id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.functionalRoles(activeTenantId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.functionalRole(activeTenantId, id) })
     },
   })
 }
@@ -62,7 +63,7 @@ export function useDeleteFunctionalRole() {
   return useMutation({
     mutationFn: (id: string) => request(`/functional-roles/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "functional-roles"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.functionalRoles(activeTenantId) })
     },
   })
 }
@@ -73,7 +74,7 @@ export function useFunctionalRolePermissions(roleId: string | null) {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: [activeTenantId, "functional-role-permissions", roleId],
+    queryKey: queryKeys.functionalRolePermissions(activeTenantId, roleId),
     queryFn: () =>
       request<FunctionalRolePermission[]>(`/functional-roles/${roleId}/permissions`),
     enabled: roleId !== null && Boolean(activeTenantId),
@@ -92,7 +93,7 @@ export function useGrantFunctionalRolePermission() {
       }),
     onSuccess: (_data, { roleId }) => {
       queryClient.invalidateQueries({
-        queryKey: [activeTenantId, "functional-role-permissions", roleId],
+        queryKey: queryKeys.functionalRolePermissions(activeTenantId, roleId),
       })
     },
   })
@@ -107,7 +108,7 @@ export function useRevokeFunctionalRolePermission() {
       request(`/functional-roles/${roleId}/permissions/${permission}`, { method: "DELETE" }),
     onSuccess: (_data, { roleId }) => {
       queryClient.invalidateQueries({
-        queryKey: [activeTenantId, "functional-role-permissions", roleId],
+        queryKey: queryKeys.functionalRolePermissions(activeTenantId, roleId),
       })
     },
   })

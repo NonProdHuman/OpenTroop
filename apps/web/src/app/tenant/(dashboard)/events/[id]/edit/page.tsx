@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { formatMemberName } from "@/lib/format"
 import { useParams, useRouter } from "next/navigation"
 import { X, ChevronsUpDown, Check } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
@@ -25,7 +26,6 @@ import {
   useEvent,
   useUpdateEvent,
   useEventTypes,
-  useLocations,
   useEventAudiences,
   useAddEventAudience,
   useRemoveEventAudience,
@@ -33,6 +33,7 @@ import {
   useAddEventOrganizer,
   useRemoveEventOrganizer,
 } from "@/hooks/use-events"
+import { useLocations } from "@/hooks/use-locations"
 import { useGroups } from "@/hooks/use-groups"
 import { useMembers } from "@/hooks/use-members"
 import { SectionTitle } from "@/components/form-helpers"
@@ -282,7 +283,7 @@ function OrganizerEditor({ eventId }: { eventId: string }) {
   const addable = members.filter((m) => !m.is_deleted && !selectedIds.has(m.id))
   const name = (id: string) => {
     const m = memberById.get(id)
-    return m ? `${m.first_name} ${m.last_name}` : "Unknown member"
+    return m ? formatMemberName(m) : "Unknown member"
   }
 
   return (
@@ -305,7 +306,7 @@ function OrganizerEditor({ eventId }: { eventId: string }) {
           triggerLabel="Add organizer…"
           placeholder="Search members…"
           emptyText="No members found."
-          options={addable.map((m) => ({ id: m.id, label: `${m.first_name} ${m.last_name}` }))}
+          options={addable.map((m) => ({ id: m.id, label: formatMemberName(m) }))}
           onSelect={(id) => addOrganizer.mutate(id)}
         />
       )}

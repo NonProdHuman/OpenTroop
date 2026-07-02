@@ -1,6 +1,7 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
 import type { MemberRelationship, RelationshipType } from "@/types/api"
@@ -9,7 +10,7 @@ export function useRelationships(memberId: string | null) {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: [activeTenantId, "relationships", memberId],
+    queryKey: queryKeys.relationships(activeTenantId, memberId),
     queryFn: () =>
       request<MemberRelationship[]>(`/relationships?member_id=${memberId}`),
     enabled: memberId !== null && Boolean(activeTenantId),
@@ -32,10 +33,10 @@ export function useCreateRelationship() {
       }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: [activeTenantId, "relationships", variables.from_member_id],
+        queryKey: queryKeys.relationships(activeTenantId, variables.from_member_id),
       })
       queryClient.invalidateQueries({
-        queryKey: [activeTenantId, "relationships", variables.to_member_id],
+        queryKey: queryKeys.relationships(activeTenantId, variables.to_member_id),
       })
     },
   })
@@ -55,7 +56,7 @@ export function useDeleteRelationship() {
       request<void>(`/relationships/${relId}`, { method: "DELETE" }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: [activeTenantId, "relationships", variables.memberId],
+        queryKey: queryKeys.relationships(activeTenantId, variables.memberId),
       })
     },
   })

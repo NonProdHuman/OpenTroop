@@ -8,14 +8,14 @@ from sqlalchemy import Boolean, Date, ForeignKey, Index, String, Text, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import SourceTracked, TrackedBase
+from app.models.base import SourceTracked, Syncable, TrackedBase
 from app.models.enums import MemberStatus, MemberType, RelationshipType, SwimClassification
 
 if TYPE_CHECKING:
     from app.models.user import User  # User does not import Member, so no cycle
 
 
-class Member(SourceTracked, TrackedBase):
+class Member(SourceTracked, Syncable, TrackedBase):
     __tablename__ = "members"
     __table_args__ = (
         Index(
@@ -25,6 +25,8 @@ class Member(SourceTracked, TrackedBase):
             unique=True,
             postgresql_where=text("bsa_id IS NOT NULL"),
         ),
+        # Keyset-paging index for the sync pull endpoint (docs/spec/sync-protocol.md).
+        Index("ix_members_tenant_sync_seq", "tenant_id", "sync_seq"),
     )
 
     bsa_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
@@ -91,9 +93,11 @@ class Member(SourceTracked, TrackedBase):
     )
     user: Mapped[User | None] = relationship("User")
 
-    # Secret bearer token for the member's personal iCal subscription feed
-    # (GET /calendar/{token}.ics). Null until the member subscribes; rotatable.
-    calendar_token: Mapped[str | None] = mapped_column(
+    # SHA-256 hex digest of the secret bearer token for the member's personal iCal
+    # feed (GET /calendar/{token}.ics). Only the hash is stored — the raw token is
+    # shown once at mint/rotate time, so a DB or backup leak exposes no live feed
+    # credentials (GH-114). Null until the member subscribes; rotatable.
+    calendar_token_hash: Mapped[str | None] = mapped_column(
         String(64), nullable=True, unique=True, index=True
     )
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { useApi } from "@/lib/api"
 import type { CalendarSubscriptionRead } from "@/types/api"
 import { toast } from "sonner"
@@ -10,7 +11,7 @@ export function useCalendarSubscription() {
   const queryClient = useQueryClient()
 
   const query = useQuery({
-    queryKey: ["calendar-subscription"],
+    queryKey: queryKeys.calendarSubscription(),
     queryFn: () =>
       request<CalendarSubscriptionRead>("/calendar/subscription", {
         method: "POST",
@@ -24,7 +25,7 @@ export function useCalendarSubscription() {
         method: "DELETE",
       }),
     onSuccess: (data) => {
-      queryClient.setQueryData(["calendar-subscription"], data)
+      queryClient.setQueryData(queryKeys.calendarSubscription(), data)
       toast.success("Calendar feed link reset successfully")
     },
     onError: (err) => {

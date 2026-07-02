@@ -65,6 +65,7 @@ function evt(over: Partial<Event>): Event {
     description: null,
     agenda: null,
     tour_permit_submitted: null,
+    cancelled_at: null,
     attendance_taken: false,
     linked_event_id: null,
     community_service_hours: null,
