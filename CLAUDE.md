@@ -46,7 +46,7 @@ For backend-only commands see `backend/CLAUDE.md`. For frontend-only commands se
 ## Conventions
 
 - **Bug fixes must include a test.** When fixing a bug, add a test that would have caught it before writing the fix.
-- **New features get a spec first.** For any non-trivial new feature, write a spec in `docs/spec/` before implementing. See [`docs/spec/members-screen.md`](docs/spec/members-screen.md) for the expected format and depth. Skip the spec for bug fixes, small UI tweaks, and cases where the user explicitly asks for a direct implementation.
+- **New features get a spec first, stored in the tracking GitHub issue.** For any non-trivial new feature, write the spec into the issue (body or comment) before implementing — see [#168](../../issues/168) for the expected format and depth. `docs/spec/` holds earlier specs and stays for reference; don't add new specs there. Skip the spec for bug fixes, small UI tweaks, and cases where the user explicitly asks for a direct implementation.
 - **Work is tracked in GitHub Issues.** [`ROADMAP.md`](ROADMAP.md) is the strategic map (six pillars, sequencing); the actionable backlog lives in [GitHub Issues](../../issues), grouped by milestone (one per pillar). Do **not** re-add granular `[ ]` checklists to `ROADMAP.md` — file an issue instead. When starting non-trivial work, check for (or open) a tracking issue; reference it in the PR. `pillar-N` labels map issues to pillars.
 - **PRs target `develop`, not `main`** (`develop` is promoted to `main` on release). See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
@@ -66,7 +66,9 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-Hooks run automatically on `git commit`. All hooks use `language: system`:
+Hooks run automatically on `git commit`. The repo-local hooks below use
+`language: system` (standard upstream hooks — pre-commit-hooks, gitleaks,
+terraform — manage their own environments):
 
 | Hook | Scope | Tool |
 |------|-------|------|
@@ -91,10 +93,11 @@ pre-commit environment.
 - **Frontend** (`apps/web/`): Next.js 16 (App Router) + Tailwind 4 + shadcn/ui
   (`base-nova` style) + Clerk auth. Managed via Turborepo + pnpm workspaces.
   Run with `pnpm dev` from repo root (or `pnpm --filter web dev`).
-  *Note:* The web app uses Next.js Middleware (`proxy.ts`) to provide logical domain
-  routing from a single deployment: the root domain (e.g. `opentroop.dev`) serves the
-  landing page, the `admin` subdomain serves the platform control plane, and any other
-  subdomain (e.g. `troop123.opentroop.dev`) serves that tenant's dashboard.
+  *Note:* The web app uses Next.js Middleware (`src/proxy.ts` — Next 16's filename
+  for middleware) to provide logical domain routing from a single deployment: the
+  root domain (e.g. `opentroop.app`) serves the landing page, the `admin` subdomain
+  serves the platform control plane, and any other subdomain
+  (e.g. `troop123.opentroop.app`) serves that tenant's dashboard.
 - **Mobile** (`apps/mobile/`): Expo (React Native) — stub, to be scaffolded once
   the web API contract stabilizes. It will consume a generated TypeScript API client
   produced from the FastAPI OpenAPI spec (`openapi-typescript`); that package will be
@@ -120,6 +123,14 @@ instead. `PlatformBase` has the same `id`, timestamps, and `is_deleted` as
 so a future incremental sync can match an upstream record to its OpenTroop row and
 detect changes. The TWH importer populates these; nothing reads them yet — it's
 groundwork for dual-run sync. See [`docs/spec/twh-sync.md`](docs/spec/twh-sync.md).
+
+**Pull-sync cursor.** Tables exposed through the sync API additionally mix in
+`Syncable` (`app/models/base.py`), which supplies `sync_seq` — a server-assigned,
+strictly monotonic cursor bumped on every insert/update (Postgres `sync_seq`
+sequence; `MAX+1` fallback on SQLite). Adopting tables must also add a
+`(tenant_id, sync_seq)` index. `Member` is live today via
+`GET /sync/members` (`app/routers/sync.py`), keyset-paged on `(sync_seq, id)`.
+See [`docs/spec/sync-protocol.md`](docs/spec/sync-protocol.md).
 
 The dialect-agnostic SQLAlchemy `Uuid` type lets the Postgres-targeted models run
 unmodified on SQLite, which is how the test suite stays DB-free.
@@ -193,8 +204,10 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   within a troop while permitting multiple null values. It is declared in
   `Member.__table_args__` and created by the initial Alembic migration.
   `user_id` (nullable FK → `users.id`) links the roster record to the platform
-  identity once a member claims their account. `calendar_token` (nullable, unique) is
-  the secret bearer token for the member's personal iCal feed (`/calendar/{token}.ics`).
+  identity once a member claims their account. `calendar_token_hash` (nullable, unique)
+  stores the SHA-256 hash of the secret bearer token for the member's personal iCal
+  feed (`/calendar/{token}.ics`); the raw token is shown once at mint time and never
+  persisted.
   OA (Order of the Arrow) fields: `oa_member`, `oa_active` (bools), plus
   `oa_election_date`, `oa_call_out_date`, `oa_ordeal_date`, `oa_brotherhood_date`,
   `oa_vigil_date`, `oa_vigil_name`, `oa_notes` (all nullable).
@@ -345,10 +358,19 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   it (revoking any earlier token).
 - **iCal calendar feed** (`app/routers/calendar.py`, `app/core/ical.py`): a member's
   personal calendar. `GET /calendar/{token}.ics` is **unauthenticated by design** — the
-  unguessable `Member.calendar_token` is the credential (calendar apps can't do OAuth);
-  it resolves the member by token, 404s on unknown/rotated tokens and suspended/deleted
+  unguessable calendar token is the credential (calendar apps can't do OAuth); only its
+  SHA-256 hash is stored (`Member.calendar_token_hash`) — the feed hashes the presented
+  token to resolve the member, and 404s on unknown/rotated tokens and suspended/deleted
   tenants, and emits RFC 5545 VEVENTs for events the member can see
   (`event_visibility`) minus ones they've **declined** (`rsvp_status`). The token is
   minted/rotated via `POST`/`DELETE /calendar/subscription` (authenticated, current
   member). The feed is audience-based (no manager bypass) — it's *my* calendar, not a
   management view.
+- **Email notifications** (`app/core/notifications.py`, `app/core/event_notifications.py`):
+  vendor-agnostic — app code talks to `NotificationService`, never a vendor SDK;
+  the backend is selected once in `get_notification_service()` via `EMAIL_BACKEND`.
+  `event_notifications.py` (GH-86) sends event-triggered emails (creation,
+  cancellation, permission-slip requests) from the events router; recipients resolve
+  through the same audience/group primitives as visibility, with parent expansion via
+  `parent_of`/`guardian_of` edges. Sends are synchronous on-request for now — the
+  async queue (GH-78) and scheduled RSVP reminders/digests are tracked separately.

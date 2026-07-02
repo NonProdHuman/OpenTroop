@@ -17,6 +17,7 @@ uv run uvicorn app.main:app --reload  # run the API locally on :8000
 # Dev data management
 uv run provision-tenant --troop-name "Troop 123" --slug troop123 --admin-first A --admin-last B  # sign in first!
 uv run promote-platform-admin --email you@example.com   # grant global/platform admin (sign in first)
+uv run link-admin <tenant-id> --first A --last B  # link your signed-in User to an admin Member (fixes provision-tenant run before first sign-in)
 uv run import-twh <tenant-id> <export.xml>  # import TWH XML into a tenant
 uv run anonymize-twh <real.xml> <out.xml>   # scrub PII from a TWH export for use as test fixture
 uv run reset-tenant <tenant-id>   # clear imported data, keep Clerk admin — then re-import
