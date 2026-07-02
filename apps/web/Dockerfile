@@ -11,7 +11,6 @@ WORKDIR /app
 COPY pnpm-lock.yaml package.json pnpm-workspace.yaml ./
 COPY apps/web/package.json ./apps/web/
 COPY apps/mobile/package.json ./apps/mobile/
-COPY packages/api-client/package.json ./packages/api-client/
 
 # Install dependencies using the pnpm cache mount
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
