@@ -1,13 +1,17 @@
 """Platform (global) control-plane API.
 
-Every route here is gated by ``get_platform_admin`` (the caller's
-``User.platform_role`` must be set) — this is the SaaS control plane, distinct
-from tenant-scoped RBAC. Operations: provision/list/suspend tenants and invite,
-list, and revoke a tenant's administrators.
+This is the SaaS control plane, distinct from tenant-scoped RBAC. The role
+matrix is two-tier (GH-111): every route requires a platform role
+(``get_platform_admin``), and **all writes** — tenant provisioning,
+suspend/unsuspend, tenant-admin invites/revocations, platform-role grants —
+additionally require ``superadmin``. ``support``/``billing`` are read-only, so
+they can neither escalate themselves into a tenant nor disrupt one. Every write
+is audit-logged with the acting user.
 """
 
 from __future__ import annotations
 
+import logging
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
@@ -15,7 +19,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 
-from app.core.deps import AdminDbDep, get_platform_admin, get_superadmin
+from app.core.deps import AdminDbDep, SuperadminDep, get_platform_admin
 from app.core.provisioning import invite_admin_member, provision_tenant
 from app.core.tenant_context import unscoped
 from app.models.enums import PlatformRole
@@ -38,6 +42,21 @@ router = APIRouter(
     dependencies=[Depends(get_platform_admin)],
 )
 
+# Control-plane writes are high-consequence and cross-tenant; every one is logged
+# with the acting user so takeovers and mistakes are reconstructable after the fact.
+audit_log = logging.getLogger("opentroop.platform.audit")
+
+
+def _sanitize(value: object) -> str:
+    # Target values include caller-supplied strings (emails, slugs). Escape CR/LF
+    # so a crafted value cannot forge extra lines in the audit log (log injection).
+    return str(value).replace("\r", "\\r").replace("\n", "\\n")
+
+
+def _audit(actor: User, action: str, **target: object) -> None:
+    detail = " ".join(f"{k}={_sanitize(v)}" for k, v in target.items())
+    audit_log.info("%s actor=%s (%s) %s", action, actor.id, _sanitize(actor.email), detail)
+
 
 def _get_tenant_or_404(db: AdminDbDep, tenant_id: uuid.UUID) -> Tenant:
     tenant = db.get(Tenant, tenant_id)
@@ -52,8 +71,8 @@ def _get_tenant_or_404(db: AdminDbDep, tenant_id: uuid.UUID) -> Tenant:
 
 
 @router.post("/tenants", response_model=TenantProvisioned, status_code=201)
-def create_tenant(body: TenantProvision, db: AdminDbDep) -> TenantProvisioned:
-    """Provision a new tenant and invite its founding admin.
+def create_tenant(body: TenantProvision, db: AdminDbDep, actor: SuperadminDep) -> TenantProvisioned:
+    """Provision a new tenant and invite its founding admin (superadmin only).
 
     Atomically creates the Tenant, an *unclaimed* founding admin Member
     (``user_id`` null), the administrators role, the role assignment, and the six
@@ -78,6 +97,7 @@ def create_tenant(body: TenantProvision, db: AdminDbDep) -> TenantProvisioned:
         )
         db.commit()
         db.refresh(tenant)
+    _audit(actor, "tenant.provision", tenant=tenant.id, slug=tenant.slug, founder=founder.id)
     return TenantProvisioned(
         **TenantRead.model_validate(tenant).model_dump(),
         founder_member_id=founder.id,
@@ -100,24 +120,26 @@ def get_tenant(tenant_id: uuid.UUID, db: AdminDbDep) -> Tenant:
 
 
 @router.post("/tenants/{tenant_id}/suspend", response_model=TenantRead)
-def suspend_tenant(tenant_id: uuid.UUID, db: AdminDbDep) -> Tenant:
-    """Suspend a tenant — tenant-scoped requests are then rejected. Idempotent."""
+def suspend_tenant(tenant_id: uuid.UUID, db: AdminDbDep, actor: SuperadminDep) -> Tenant:
+    """Suspend a tenant — tenant-scoped requests are then rejected. Idempotent. Superadmin only."""
     tenant = _get_tenant_or_404(db, tenant_id)
     if tenant.suspended_at is None:
         tenant.suspended_at = datetime.now(UTC)
         db.commit()
         db.refresh(tenant)
+    _audit(actor, "tenant.suspend", tenant=tenant.id, slug=tenant.slug)
     return tenant
 
 
 @router.post("/tenants/{tenant_id}/unsuspend", response_model=TenantRead)
-def unsuspend_tenant(tenant_id: uuid.UUID, db: AdminDbDep) -> Tenant:
-    """Lift a tenant's suspension. Idempotent."""
+def unsuspend_tenant(tenant_id: uuid.UUID, db: AdminDbDep, actor: SuperadminDep) -> Tenant:
+    """Lift a tenant's suspension. Idempotent. Superadmin only."""
     tenant = _get_tenant_or_404(db, tenant_id)
     if tenant.suspended_at is not None:
         tenant.suspended_at = None
         db.commit()
         db.refresh(tenant)
+    _audit(actor, "tenant.unsuspend", tenant=tenant.id, slug=tenant.slug)
     return tenant
 
 
@@ -182,12 +204,14 @@ def list_tenant_admins(tenant_id: uuid.UUID, db: AdminDbDep) -> list[TenantAdmin
     status_code=201,
 )
 def invite_tenant_admin(
-    tenant_id: uuid.UUID, body: TenantAdminInvite, db: AdminDbDep
+    tenant_id: uuid.UUID, body: TenantAdminInvite, db: AdminDbDep, actor: SuperadminDep
 ) -> TenantAdminInviteResult:
-    """Invite a new administrator into an existing tenant.
+    """Invite a new administrator into an existing tenant (superadmin only).
 
     Creates an unclaimed admin Member and returns a 7-day claim token the
-    invitee redeems via POST /auth/claim.
+    invitee redeems via POST /auth/claim. Superadmin-only: a tenant-admin seat
+    grants full member PII access, so support/billing must not be able to
+    invite anyone (least of all themselves) into a troop.
     """
     _get_tenant_or_404(db, tenant_id)
     with unscoped():
@@ -199,12 +223,15 @@ def invite_tenant_admin(
             email=body.email,
         )
         db.commit()
+    _audit(actor, "tenant_admin.invite", tenant=tenant_id, member=member.id, email=body.email)
     return TenantAdminInviteResult(member_id=member.id, token=token, expires_at=expires_at)
 
 
 @router.delete("/tenants/{tenant_id}/admins/{member_id}", status_code=204)
-def revoke_tenant_admin(tenant_id: uuid.UUID, member_id: uuid.UUID, db: AdminDbDep) -> None:
-    """Revoke a member's administrator role(s) in the tenant.
+def revoke_tenant_admin(
+    tenant_id: uuid.UUID, member_id: uuid.UUID, db: AdminDbDep, actor: SuperadminDep
+) -> None:
+    """Revoke a member's administrator role(s) in the tenant (superadmin only).
 
     Soft-deletes the member's admin role assignment(s), preserving history.
     Returns 404 if the member is not an admin here, and 409 if they are the
@@ -228,6 +255,7 @@ def revoke_tenant_admin(tenant_id: uuid.UUID, member_id: uuid.UUID, db: AdminDbD
         for assignment in target:
             assignment.is_deleted = True
         db.commit()
+    _audit(actor, "tenant_admin.revoke", tenant=tenant_id, member=member_id)
 
 
 # ---------------------------------------------------------------------------
@@ -258,13 +286,10 @@ def list_platform_admins(db: AdminDbDep) -> list[PlatformAdminRead]:
     return [_as_admin_read(u) for u in users]
 
 
-@router.post(
-    "/admins",
-    response_model=PlatformAdminRead,
-    status_code=201,
-    dependencies=[Depends(get_superadmin)],
-)
-def grant_platform_admin(body: PlatformAdminGrant, db: AdminDbDep) -> PlatformAdminRead:
+@router.post("/admins", response_model=PlatformAdminRead, status_code=201)
+def grant_platform_admin(
+    body: PlatformAdminGrant, db: AdminDbDep, actor: SuperadminDep
+) -> PlatformAdminRead:
     """Grant a platform role to an existing user (superadmin only).
 
     The target user must already exist — i.e. have signed in at least once — and
@@ -291,11 +316,12 @@ def grant_platform_admin(body: PlatformAdminGrant, db: AdminDbDep) -> PlatformAd
     user.platform_role = body.role
     db.commit()
     db.refresh(user)
+    _audit(actor, "platform_admin.grant", user=user.id, email=user.email, role=body.role)
     return _as_admin_read(user)
 
 
-@router.delete("/admins/{user_id}", status_code=204, dependencies=[Depends(get_superadmin)])
-def revoke_platform_admin(user_id: uuid.UUID, db: AdminDbDep) -> None:
+@router.delete("/admins/{user_id}", status_code=204)
+def revoke_platform_admin(user_id: uuid.UUID, db: AdminDbDep, actor: SuperadminDep) -> None:
     """Revoke a user's platform role (superadmin only).
 
     Returns 404 if the user holds no platform role, and 409 if they are the last
@@ -323,3 +349,4 @@ def revoke_platform_admin(user_id: uuid.UUID, db: AdminDbDep) -> None:
 
     user.platform_role = None
     db.commit()
+    _audit(actor, "platform_admin.revoke", user=user_id, email=user.email)

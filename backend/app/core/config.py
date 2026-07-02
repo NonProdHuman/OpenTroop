@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     # deployment. When False (default), tenant resolution uses the Host header only.
     trust_forwarded_host: bool = False
 
+    # Bootstrap allowlist for the first platform superadmin. When set, a user whose
+    # provider-verified email matches (case-insensitive) is granted SUPERADMIN on
+    # sign-in. Leave empty to bootstrap exclusively via `uv run promote-platform-admin`.
+    # There is deliberately no "first signup wins" fallback — on a public SaaS an
+    # empty users table (launch day, DB restore) must not be a race anyone can win.
+    bootstrap_superadmin_email: str = ""
+
     # Secret used to sign member invite/claim tokens (HS256). A guessable secret means
     # forgeable claim tokens → tenant admin takeover, so a minimum length is enforced
     # at startup. Generate one with: python3 -c "import secrets; print(secrets.token_urlsafe(48))"
