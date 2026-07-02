@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Lock } from "lucide-react"
+import { apiErrorMessage } from "@/lib/api"
 import { ColorPicker, PRESET_COLORS } from "@/components/color-picker"
 import { FormField, SectionTitle } from "@/components/form-helpers"
 import { PageHeader } from "@/components/page-header"
@@ -69,9 +70,7 @@ function GroupEditForm({ id, group }: { id: string; group: Group }) {
       {
         onSuccess: () => router.push("/groups"),
         onError: (err) => {
-          const msg = err instanceof Error ? err.message : ""
-          if (msg.includes("409")) setNameError("A group with this name already exists.")
-          else setNameError("Something went wrong — please try again.")
+          setNameError(apiErrorMessage(err, { 409: "A group with this name already exists." }))
         },
       },
     )

@@ -20,6 +20,7 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
+import { apiErrorMessage } from "@/lib/api"
 import {
   useEvent,
   useUpdateEvent,
@@ -96,12 +97,7 @@ function EventEditForm({ id, event }: { id: string; event: Event }) {
       {
         onSuccess: () => router.push("/events"),
         onError: (err) => {
-          const msg = err instanceof Error ? err.message : String(err)
-          if (msg.toLowerCase().includes("403")) {
-            setError("You don't have permission to edit events.")
-          } else {
-            setError("Something went wrong — please try again.")
-          }
+          setError(apiErrorMessage(err, { 403: "You don't have permission to edit events." }))
         },
       },
     )

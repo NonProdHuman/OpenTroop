@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { apiErrorMessage } from "@/lib/api"
 import { FormField } from "@/components/form-helpers"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
@@ -54,9 +55,7 @@ export default function NewPositionPage() {
       {
         onSuccess: () => router.push("/positions"),
         onError: (err) => {
-          const msg = err instanceof Error ? err.message : ""
-          if (msg.includes("409")) setError("A position with this slug already exists.")
-          else setError("Something went wrong — please try again.")
+          setError(apiErrorMessage(err, { 409: "A position with this slug already exists." }))
         },
       },
     )
