@@ -9,7 +9,6 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-import app.core.auth as auth_module
 from app.core.auth import decode_token, get_or_create_user
 from app.core.config import settings
 from app.core.tenant import _extract_subdomain
@@ -96,7 +95,7 @@ def _standard_claims(**overrides: Any) -> dict[str, Any]:
 
 @pytest.fixture(autouse=False)
 def stub_jwks(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(auth_module, "_get_jwks_client", lambda: _StubJwksClient())
+    monkeypatch.setattr("app.core.auth._get_jwks_client", _StubJwksClient)
 
 
 def _assert_rejected(token: str) -> None:
