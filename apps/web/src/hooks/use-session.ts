@@ -1,6 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
 import type { Permission, Session } from "@/types/api"
@@ -9,7 +10,7 @@ export function useSession(enabled = true) {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: ["session", activeTenantId],
+    queryKey: queryKeys.session(activeTenantId),
     queryFn: () => request<Session>("/auth/session"),
     // /auth/session is tenant-scoped. Callers on a non-tenant surface (the platform
     // console) pass enabled=false so it isn't fetched where there is no tenant.

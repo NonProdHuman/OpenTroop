@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { useApi } from "@/lib/api"
 import type { Member } from "@/types/api"
 
@@ -15,7 +16,7 @@ export function useClaimMembership() {
     },
     onSuccess: () => {
       // Invalidate memberships so the new tenant appears in the TenantSwitcher immediately
-      queryClient.invalidateQueries({ queryKey: ["memberships"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.memberships() })
     },
   })
 }
