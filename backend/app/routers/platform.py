@@ -47,9 +47,15 @@ router = APIRouter(
 audit_log = logging.getLogger("opentroop.platform.audit")
 
 
+def _sanitize(value: object) -> str:
+    # Target values include caller-supplied strings (emails, slugs). Escape CR/LF
+    # so a crafted value cannot forge extra lines in the audit log (log injection).
+    return str(value).replace("\r", "\\r").replace("\n", "\\n")
+
+
 def _audit(actor: User, action: str, **target: object) -> None:
-    detail = " ".join(f"{k}={v}" for k, v in target.items())
-    audit_log.info("%s actor=%s (%s) %s", action, actor.id, actor.email, detail)
+    detail = " ".join(f"{k}={_sanitize(v)}" for k, v in target.items())
+    audit_log.info("%s actor=%s (%s) %s", action, actor.id, _sanitize(actor.email), detail)
 
 
 def _get_tenant_or_404(db: AdminDbDep, tenant_id: uuid.UUID) -> Tenant:

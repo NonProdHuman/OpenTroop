@@ -4,6 +4,7 @@ import asyncio
 import uuid
 from datetime import UTC, datetime
 
+import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -317,6 +318,24 @@ def test_support_cannot_revoke_tenant_admin(
         f"/platform/tenants/{tenant['id']}/admins/{tenant['founder_member_id']}"
     )
     assert r.status_code == 403
+
+
+def test_audit_log_escapes_newlines_in_user_values(
+    db_session: Session, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A crafted request value must not forge extra lines in the audit log."""
+    import logging
+
+    from app.routers.platform import _audit
+
+    actor = _make_user(db_session, "auditor@test.com", PlatformRole.SUPERADMIN)
+    with caplog.at_level(logging.INFO, logger="opentroop.platform.audit"):
+        _audit(actor, "tenant_admin.invite", email="a@b.com\nFORGED actor=someone-else")
+
+    assert len(caplog.records) == 1
+    message = caplog.records[0].getMessage()
+    assert "\n" not in message
+    assert "\\nFORGED" in message
 
 
 def test_support_retains_read_access(
