@@ -22,29 +22,18 @@ from app.models.event import Event
 from app.models.event_audience import EventAudience
 
 
-def visibility_clause(
-    member_group_ids: Collection[uuid.UUID], tenant_id: uuid.UUID
-) -> ColumnElement[bool]:
+def visibility_clause(member_group_ids: Collection[uuid.UUID]) -> ColumnElement[bool]:
     """SQLAlchemy predicate selecting events visible to a member with these groups.
 
     An event is visible when it has no audience (troop-wide) or its audience
-    includes one of the member's groups.
+    includes one of the member's groups. The ``EventAudience`` subqueries are scoped
+    to the current tenant and to non-deleted rows automatically by the session-level
+    filter (see ``app.core.database``), so neither predicate is carried here.
     """
-    scoped = (
-        select(EventAudience.event_id)
-        .where(
-            EventAudience.tenant_id == tenant_id,
-            EventAudience.is_deleted.is_(False),
-        )
-        .distinct()
-    )
+    scoped = select(EventAudience.event_id).distinct()
     allowed = (
         select(EventAudience.event_id)
-        .where(
-            EventAudience.tenant_id == tenant_id,
-            EventAudience.is_deleted.is_(False),
-            EventAudience.group_id.in_(member_group_ids),
-        )
+        .where(EventAudience.group_id.in_(member_group_ids))
         .distinct()
     )
     return or_(Event.id.not_in(scoped), Event.id.in_(allowed))
@@ -58,10 +47,7 @@ def event_visible_to_member(
     """Return whether a single event is visible to a member with these groups."""
     audience = set(
         session.scalars(
-            select(EventAudience.group_id).where(
-                EventAudience.event_id == event_id,
-                EventAudience.is_deleted.is_(False),
-            )
+            select(EventAudience.group_id).where(EventAudience.event_id == event_id)
         ).all()
     )
     if not audience:

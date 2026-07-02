@@ -38,7 +38,6 @@ def _children_of(member_id: uuid.UUID, session: Session) -> set[uuid.UUID]:
             select(MemberRelationship.to_member_id).where(
                 MemberRelationship.from_member_id == member_id,
                 MemberRelationship.relationship_type.in_(_PARENT_EDGES),
-                MemberRelationship.is_deleted.is_(False),
             )
         ).all()
     )
@@ -55,7 +54,6 @@ def _parents_of(
             select(MemberRelationship.from_member_id).where(
                 MemberRelationship.to_member_id.in_(child_ids),
                 MemberRelationship.relationship_type.in_(_PARENT_EDGES),
-                MemberRelationship.is_deleted.is_(False),
             )
         ).all()
     )
@@ -73,7 +71,6 @@ def is_guardian_of(adult_id: uuid.UUID, child_id: uuid.UUID, session: Session) -
                 MemberRelationship.from_member_id == adult_id,
                 MemberRelationship.to_member_id == child_id,
                 MemberRelationship.relationship_type.in_(_PARENT_EDGES),
-                MemberRelationship.is_deleted.is_(False),
             )
         )
         is not None
@@ -94,12 +91,6 @@ def family_member_ids(member_id: uuid.UUID, session: Session) -> frozenset[uuid.
 
     candidates = {member_id} | children | co_parents
 
-    # Filter out soft-deleted members (a child/co-parent edge may point at a tombstone).
-    return frozenset(
-        session.scalars(
-            select(Member.id).where(
-                Member.id.in_(candidates),
-                Member.is_deleted.is_(False),
-            )
-        ).all()
-    )
+    # Soft-deleted members (a child/co-parent edge may point at a tombstone) are
+    # excluded automatically by the session-level scoping filter.
+    return frozenset(session.scalars(select(Member.id).where(Member.id.in_(candidates))).all())

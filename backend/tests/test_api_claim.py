@@ -3,6 +3,9 @@ POST /members/{id}/invite  — admin generates a claim token
 POST /auth/claim           — new user links their account to a Member record
 """
 
+import uuid
+from datetime import UTC, datetime, timedelta
+
 import jwt
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -17,6 +20,7 @@ from app.core.notifications import (
     NotificationService,
 )
 from app.main import app
+from app.models.member import Member
 from app.models.tenant import Tenant
 from tests.conftest import NEW_USER_ID, TENANT_A
 
@@ -53,6 +57,16 @@ def test_invite_token_encodes_correct_ids(client: TestClient) -> None:
     assert payload["sub"] == member["id"]
     assert payload["tid"] == str(TENANT_A)
     assert payload["type"] == "member_claim"
+    assert payload["jti"]  # single-use marker, persisted on the member
+
+
+def test_invite_persists_jti_on_member(client: TestClient, db_session: Session) -> None:
+    member = _create_member(client)
+    data = _invite(client, member["id"])
+    payload = jwt.decode(data["token"], settings.app_secret, algorithms=["HS256"])
+    row = db_session.get(Member, uuid.UUID(member["id"]))
+    assert row is not None
+    assert row.invite_token_jti == payload["jti"]
 
 
 def test_invite_already_claimed_returns_409(client: TestClient) -> None:
@@ -172,9 +186,82 @@ def test_claim_invalid_token(claim_client: TestClient) -> None:
 def test_claim_wrong_token_type(claim_client: TestClient) -> None:
     """A token with a different type field must be rejected."""
     bad = jwt.encode(
-        {"sub": "00000000-0000-0000-0000-000000000000", "tid": str(TENANT_A), "type": "other"},
+        {
+            "sub": "00000000-0000-0000-0000-000000000000",
+            "tid": str(TENANT_A),
+            "type": "other",
+            "jti": "abc",
+            "exp": datetime.now(UTC) + timedelta(days=1),
+        },
         settings.app_secret,
         algorithm="HS256",
     )
     r = claim_client.post("/auth/claim", json={"token": bad})
+    assert r.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Single-use / revocable tokens (GH-110)
+# ---------------------------------------------------------------------------
+
+
+def test_claim_token_without_jti_rejected(client: TestClient, claim_client: TestClient) -> None:
+    """Legacy-style tokens (minted before single-use enforcement) are rejected."""
+    member = _create_member(client)
+    legacy = jwt.encode(
+        {
+            "sub": member["id"],
+            "tid": str(TENANT_A),
+            "type": "member_claim",
+            "exp": datetime.now(UTC) + timedelta(days=1),
+        },
+        settings.app_secret,
+        algorithm="HS256",
+    )
+    r = claim_client.post("/auth/claim", json={"token": legacy})
+    assert r.status_code == 400
+
+
+def test_reinvite_revokes_previous_token(client: TestClient, claim_client: TestClient) -> None:
+    """Minting a new invite rotates the stored jti, so the earlier token dies."""
+    member = _create_member(client)
+    old_token = _invite(client, member["id"])["token"]
+    new_token = _invite(client, member["id"])["token"]
+
+    r = claim_client.post("/auth/claim", json={"token": old_token})
+    assert r.status_code == 400
+
+    r = claim_client.post("/auth/claim", json={"token": new_token})
+    assert r.status_code == 200
+
+
+def test_claim_clears_jti(
+    client: TestClient, claim_client: TestClient, db_session: Session
+) -> None:
+    """A redeemed token is single-use: the stored jti is cleared on claim."""
+    member = _create_member(client)
+    token = _invite(client, member["id"])["token"]
+    r = claim_client.post("/auth/claim", json={"token": token})
+    assert r.status_code == 200
+
+    row = db_session.get(Member, uuid.UUID(member["id"]))
+    assert row is not None
+    assert row.invite_token_jti is None
+
+
+def test_claimed_token_cannot_be_replayed_after_unlink(
+    client: TestClient, claim_client: TestClient, db_session: Session
+) -> None:
+    """If the link is later removed, the spent token must not work again."""
+    member = _create_member(client)
+    token = _invite(client, member["id"])["token"]
+    assert claim_client.post("/auth/claim", json={"token": token}).status_code == 200
+
+    # Simulate an admin unlinking the account (e.g. offboarding, created in error).
+    row = db_session.get(Member, uuid.UUID(member["id"]))
+    assert row is not None
+    row.user_id = None
+    db_session.commit()
+
+    r = claim_client.post("/auth/claim", json={"token": token})
     assert r.status_code == 400

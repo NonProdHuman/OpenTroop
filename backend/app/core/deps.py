@@ -79,15 +79,11 @@ def get_current_member(user: CurrentUserDep, tenant_id: TenantDep, db: DbDep) ->
     Complements ``require(...)`` (which gates by permission but doesn't expose the
     member) for handlers that need the member itself — e.g. to compute event
     visibility from the caller's group memberships. Raises 403 if the signed-in
-    user has no Member in this tenant.
+    user has no Member in this tenant. ``tenant_id`` (``TenantDep``) publishes the
+    active tenant so the query below is automatically scoped to it and to
+    non-deleted rows.
     """
-    member = db.scalar(
-        select(Member).where(
-            Member.user_id == user.id,
-            Member.tenant_id == tenant_id,
-            Member.is_deleted.is_(False),
-        )
-    )
+    member = db.scalar(select(Member).where(Member.user_id == user.id))
     if member is None:
         raise HTTPException(status_code=403, detail="Not a member of this tenant")
     return member
@@ -96,20 +92,50 @@ def get_current_member(user: CurrentUserDep, tenant_id: TenantDep, db: DbDep) ->
 CurrentMemberDep = Annotated[Member, Depends(get_current_member)]
 
 
-def get_or_404[T: TrackedBase](
-    db: Session, model: type[T], obj_id: uuid.UUID, tenant_id: uuid.UUID, detail: str
-) -> T:
+def get_member_with_permissions(
+    user: CurrentUserDep, tenant_id: TenantDep, db: DbDep
+) -> tuple[Member, frozenset[Permission]]:
+    """Resolve the caller's ``Member`` and their effective permissions in one pass.
+
+    Collapses what used to be three round trips on a single request — ``require()``
+    (member lookup + resolve), ``CurrentMemberDep`` (a second member lookup), and an
+    in-handler ``resolve_permissions`` — into one member query and one resolution.
+    Use for handlers that both gate on and branch by permissions (e.g. permission-aware
+    event visibility). Raises 403 if the user has no Member in the current tenant.
+    """
+    member = db.scalar(select(Member).where(Member.user_id == user.id))
+    if member is None:
+        raise HTTPException(status_code=403, detail="Not a member of this tenant")
+    return member, resolve_permissions(member.id, db)
+
+
+MemberContextDep = Annotated[
+    tuple[Member, frozenset[Permission]], Depends(get_member_with_permissions)
+]
+
+
+def get_or_404[T: TrackedBase](db: Session, model: type[T], obj_id: uuid.UUID, detail: str) -> T:
+    """Fetch a tenant-scoped row by id or raise 404.
+
+    ``db.get`` runs under the automatic tenant + soft-delete scoping (see
+    ``app.core.database``), so a row in another tenant or a soft-deleted row simply
+    resolves to ``None`` here — no manual ``tenant_id``/``is_deleted`` re-check needed.
+    """
     obj = db.get(model, obj_id)
-    if not obj or obj.tenant_id != tenant_id or obj.is_deleted:
+    if obj is None:
         raise HTTPException(status_code=404, detail=detail)
     return obj
 
 
 def require_tenant_fk[T: TrackedBase](
-    db: Session, model: type[T], fk_id: uuid.UUID, tenant_id: uuid.UUID, field: str
+    db: Session, model: type[T], fk_id: uuid.UUID, field: str
 ) -> None:
-    obj = db.get(model, fk_id)
-    if not obj or obj.tenant_id != tenant_id or obj.is_deleted:
+    """Validate that an FK target exists in the current tenant (and isn't deleted).
+
+    Relies on the same automatic scoping as :func:`get_or_404`: a cross-tenant or
+    soft-deleted target resolves to ``None``.
+    """
+    if db.get(model, fk_id) is None:
         raise HTTPException(status_code=422, detail=f"{field} not found in this tenant")
 
 
@@ -126,13 +152,9 @@ def require(permission: Permission) -> Callable[..., Any]:
         tenant_id: TenantDep,
         db: DbDep,
     ) -> None:
-        member = db.scalar(
-            select(Member).where(
-                Member.user_id == user.id,
-                Member.tenant_id == tenant_id,
-                Member.is_deleted.is_(False),
-            )
-        )
+        # tenant_id (TenantDep) publishes the active tenant, so this query is
+        # automatically scoped to it and to non-deleted rows.
+        member = db.scalar(select(Member).where(Member.user_id == user.id))
         if member is None:
             raise HTTPException(status_code=403, detail="Not a member of this tenant")
         if permission not in resolve_permissions(member.id, db):

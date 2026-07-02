@@ -203,6 +203,12 @@ export interface GroupMemberRow {
   added_by_id: string | null
 }
 
+// One group's fully resolved membership — the unit of GET /groups/roster.
+export interface GroupRosterEntry {
+  group_id: string
+  member_ids: string[]
+}
+
 // ── Events ───────────────────────────────────────────────────────────────────
 
 export interface EventType {

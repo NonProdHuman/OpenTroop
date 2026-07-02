@@ -20,9 +20,6 @@
     "test": {
       "cache": false,
       "persistent": true
-    },
-    "generate": {
-      "cache": false
     }
   }
 }

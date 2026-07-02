@@ -32,7 +32,7 @@ router = APIRouter(prefix="/members", tags=["members"])
     "", response_model=list[MemberRead], dependencies=[Depends(require(Permission.MEMBER_READ))]
 )
 def list_members(tenant_id: TenantDep, db: DbDep) -> Sequence[Member]:
-    return db.scalars(select(Member).where(Member.is_deleted.is_(False))).all()
+    return db.scalars(select(Member)).all()
 
 
 @router.post(
@@ -42,7 +42,7 @@ def list_members(tenant_id: TenantDep, db: DbDep) -> Sequence[Member]:
     dependencies=[Depends(require(Permission.MEMBER_WRITE))],
 )
 def create_member(body: MemberBase, tenant_id: TenantDep, db: DbDep) -> Member:
-    member = Member(tenant_id=tenant_id, **body.model_dump())
+    member = Member(**body.model_dump())
     db.add(member)
     db.flush()
 
@@ -50,11 +50,7 @@ def create_member(body: MemberBase, tenant_id: TenantDep, db: DbDep) -> Member:
     from app.models.rbac import MemberPositionAssignment
 
     member_pos = get_or_create_member_position(db, tenant_id)
-    db.add(
-        MemberPositionAssignment(
-            tenant_id=tenant_id, member_id=member.id, position_id=member_pos.id
-        )
-    )
+    db.add(MemberPositionAssignment(member_id=member.id, position_id=member_pos.id))
 
     db.commit()
     db.refresh(member)
@@ -67,7 +63,7 @@ def create_member(body: MemberBase, tenant_id: TenantDep, db: DbDep) -> Member:
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
 def get_member(member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Member:
-    return get_or_404(db, Member, member_id, tenant_id, "Member not found")
+    return get_or_404(db, Member, member_id, "Member not found")
 
 
 @router.patch(
@@ -81,7 +77,7 @@ def update_member(
     db: DbDep,
     caller: CurrentMemberDep,
 ) -> Member:
-    member = get_or_404(db, Member, member_id, tenant_id, "Member not found")
+    member = get_or_404(db, Member, member_id, "Member not found")
 
     perms = resolve_permissions(caller.id, db)
     can_full_edit = Permission.MEMBER_WRITE in perms
@@ -127,7 +123,6 @@ def update_member(
             .join(Group, Group.id == GroupMember.group_id)
             .where(
                 GroupMember.member_id == member.id,
-                GroupMember.is_deleted.is_(False),
                 Group.group_type == GroupType.PATROL,
             )
         ).all()
@@ -145,7 +140,7 @@ def update_member(
     "/{member_id}", status_code=204, dependencies=[Depends(require(Permission.MEMBER_DELETE))]
 )
 def delete_member(member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
-    member = get_or_404(db, Member, member_id, tenant_id, "Member not found")
+    member = get_or_404(db, Member, member_id, "Member not found")
     member.is_deleted = True
     db.commit()
 
@@ -168,13 +163,14 @@ def invite_member(
     an invite email; the token is still returned (and still valid) even if no
     email was sent, so an admin can share the link manually.
     """
-    member = get_or_404(db, Member, member_id, tenant_id, "Member not found")
+    member = get_or_404(db, Member, member_id, "Member not found")
     if member.user_id is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Member already has a linked user account",
         )
-    token, expires_at = create_invite_token(member_id, tenant_id)
+    token, expires_at = create_invite_token(member)
+    db.commit()  # persist the token's jti; re-inviting revokes any earlier token
 
     email_sent = False
     if member.email and not member.email_opt_out and not member.email_bounced:

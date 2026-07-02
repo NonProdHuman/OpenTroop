@@ -39,6 +39,8 @@ describe("group cache invalidation", () => {
     result.current.mutate({ id: "g1", data: { include_parents: true } })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(invalidatedKeys()).toContainEqual([TENANT, "group-members"])
+    // The collapsed membership hooks read from the single /groups/roster cache.
+    expect(invalidatedKeys()).toContainEqual([TENANT, "group-roster"])
   })
 
   it("useUpsertGroupRule invalidates all group-members (dependent groups)", async () => {
@@ -46,6 +48,7 @@ describe("group cache invalidation", () => {
     result.current.mutate({ groupId: "g1", dimension: "member_type", values: ["scout"] })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(invalidatedKeys()).toContainEqual([TENANT, "group-members"])
+    expect(invalidatedKeys()).toContainEqual([TENANT, "group-roster"])
   })
 
   it("useDeleteGroupRule invalidates all group-members (dependent groups)", async () => {
@@ -53,5 +56,6 @@ describe("group cache invalidation", () => {
     result.current.mutate({ groupId: "g1", dimension: "member_type" })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(invalidatedKeys()).toContainEqual([TENANT, "group-members"])
+    expect(invalidatedKeys()).toContainEqual([TENANT, "group-roster"])
   })
 })

@@ -5,7 +5,10 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import get_or_create_user
 from app.core.tenant import _extract_subdomain
+from app.models.enums import MemberType
+from app.models.member import Member
 from app.models.user import User
+from tests.conftest import TENANT_A
 
 # ---------------------------------------------------------------------------
 # Subdomain extraction
@@ -126,6 +129,94 @@ def test_get_or_create_user_no_email(db_session: Session) -> None:
     user = get_or_create_user(claims, db_session)
     assert user.email is None
     assert user.display_name is None
+
+
+# ---------------------------------------------------------------------------
+# Email-based Member auto-link — gated on a verified email claim (GH-110)
+# ---------------------------------------------------------------------------
+
+
+def _unclaimed_member(db: Session, email: str) -> Member:
+    member = Member(
+        tenant_id=TENANT_A,
+        first_name="Founding",
+        last_name="Admin",
+        email=email,
+        member_type=MemberType.ADULT,
+    )
+    db.add(member)
+    db.commit()
+    return member
+
+
+def test_unverified_email_claim_does_not_autolink_member(db_session: Session) -> None:
+    """An email claim without email_verified must never link an unclaimed Member.
+
+    Tenant provisioning creates an unclaimed founding-admin Member; before GH-110
+    a first login carrying the victim's (unverified) email in claims silently took
+    over that admin seat.
+    """
+    member = _unclaimed_member(db_session, "founder@example.com")
+    claims = {"iss": "https://sso.example.com", "sub": "attacker-1", "email": "founder@example.com"}
+    get_or_create_user(claims, db_session)
+    db_session.refresh(member)
+    assert member.user_id is None
+
+
+def test_truthy_but_non_boolean_email_verified_does_not_autolink(db_session: Session) -> None:
+    """Only a literal ``true`` counts — strings like "true" are not verification."""
+    member = _unclaimed_member(db_session, "founder2@example.com")
+    claims = {
+        "iss": "https://sso.example.com",
+        "sub": "attacker-2",
+        "email": "founder2@example.com",
+        "email_verified": "true",
+    }
+    user = get_or_create_user(claims, db_session)
+    db_session.refresh(member)
+    assert member.user_id is None
+    assert user.email_verified is False
+
+
+def test_verified_email_claim_autolinks_member(db_session: Session) -> None:
+    member = _unclaimed_member(db_session, "leader@example.com")
+    claims = {
+        "iss": "https://sso.example.com",
+        "sub": "leader-sub",
+        "email": "leader@example.com",
+        "email_verified": True,
+    }
+    user = get_or_create_user(claims, db_session)
+    db_session.refresh(member)
+    assert member.user_id == user.id
+    assert user.email_verified is True
+
+
+def test_autolink_happens_on_later_verified_login(db_session: Session) -> None:
+    """A member invited after (or verified after) first login links on the next sign-in."""
+    claims = {
+        "iss": "https://sso.example.com",
+        "sub": "late-link",
+        "email": "late@example.com",
+        "email_verified": True,
+    }
+    user = get_or_create_user(claims, db_session)
+    member = _unclaimed_member(db_session, "late@example.com")
+
+    same = get_or_create_user(claims, db_session)
+    db_session.refresh(member)
+    assert same.id == user.id
+    assert member.user_id == user.id
+
+
+def test_email_verified_upgrades_on_later_verified_login(db_session: Session) -> None:
+    claims = {"iss": "https://sso.example.com", "sub": "upgrade", "email": "up@example.com"}
+    user = get_or_create_user(claims, db_session)
+    assert user.email_verified is False
+
+    get_or_create_user({**claims, "email_verified": True}, db_session)
+    db_session.refresh(user)
+    assert user.email_verified is True
 
 
 @pytest.mark.parametrize(

@@ -34,9 +34,9 @@ import {
 } from "@/hooks/use-events"
 import { useGroups } from "@/hooks/use-groups"
 import { useMembers } from "@/hooks/use-members"
+import { SectionTitle } from "@/components/form-helpers"
 import {
   EventFormFields,
-  SectionTitle,
   toApiPayload,
   toFormState,
   type FormState,

@@ -96,10 +96,10 @@ pre-commit environment.
   landing page, the `admin` subdomain serves the platform control plane, and any other
   subdomain (e.g. `troop123.opentroop.dev`) serves that tenant's dashboard.
 - **Mobile** (`apps/mobile/`): Expo (React Native) — stub, to be scaffolded once
-  the web API contract stabilizes. Will share `@opentroop/api-client`.
-- **API client** (`packages/api-client/`): shared TypeScript package. Types are
-  generated from the FastAPI OpenAPI spec via `pnpm --filter @opentroop/api-client generate`
-  (requires the backend running on `:8000`). Used by mobile; web uses hand-written types.
+  the web API contract stabilizes. It will consume a generated TypeScript API client
+  produced from the FastAPI OpenAPI spec (`openapi-typescript`); that package will be
+  regenerated and added under `packages/` when mobile work actually begins. The web app
+  does not use it — it hand-maintains its types in `apps/web/src/types/api.ts`.
 
 ### Sync-aware schema contract (critical)
 
@@ -148,19 +148,37 @@ unmodified on SQLite, which is how the test suite stays DB-free.
 **Tenant-scoped (TrackedBase):**
 
 - `Group` — the unifying *resolvable set of members*; **folds the former `Patrol`**.
-  `group_type` (`manual`/`dynamic`/`patrol`) classifies how membership is managed — a
-  patrol is a `PATROL`-type group a member belongs to **at most one of** (enforced in the
-  API). Membership resolves as the **union** of manual inclusions (`GroupMember`) and
-  **dynamic**, rule-based members (`GroupPositionRule` — everyone holding a *position*,
-  e.g. PLC = PL/SPL/ASM/SM). Groups drive event visibility (audiences) and, later, email/
-  SMS distribution lists and report scoping.
+  `group_type` (`GroupType`: `custom`/`patrol`) classifies how membership is managed — a
+  patrol is a `PATROL`-type group a member belongs to **at most one of** (adults excluded;
+  enforced in the API), carrying manual members only (no rules). A `CUSTOM` group's
+  membership resolves as the **union** of manual inclusions (`GroupMember`) and
+  **dynamic**, rule-based members (`GroupRule` rows evaluated per dimension). Two group-level
+  knobs shape resolution: `rule_logic` (`RuleLogic`: `and` (default) = a member must match
+  *all* rules (intersection); `or` = matching *any* rule includes them (union) — manual
+  members are always included regardless) and `include_parents` (after rule resolution, add
+  the resolved members' parents/guardians to the group — reads as "…and their
+  parents/guardians"). `cc_parents_on_messages` is a *communications-only* flag: the future
+  messaging layer also sends to resolved members' parents without making them group members —
+  it does **not** affect `resolve_group_members`, visibility, or the iCal feed. Groups drive
+  event visibility (audiences) and, later, email/SMS distribution lists and report scoping.
+  See [`docs/spec/dynamic-groups-refinement.md`](docs/spec/dynamic-groups-refinement.md).
 - `GroupMember` — an explicit (manual) inclusion of a member in a group; also stores patrol
-  membership. Soft-deletable. `GroupPositionRule` — a dynamic rule: members holding
-  `position_id` belong to the group.
-- `resolve_group_members(group_id, session)` in `app/core/groups.py` — walks manual + role
-  rules and returns the resolved `frozenset[member_id]` (mirrors `resolve_permissions`,
-  excludes soft-deleted). `member_group_ids(member_id, session)` is the inverse (which groups
-  a member is in) — used by event visibility.
+  membership. Soft-deletable.
+- `GroupRule` — a dynamic membership rule for one `RuleDimension` (a group has **at most one
+  rule per dimension**, enforced by unique constraint). Dimensions: `member_type`,
+  `membership_status`, `oa_member`, `oa_active` (the two OA dimensions are booleans — the
+  presence of the rule is the predicate, `values` is null/empty), `position` (members
+  *currently* holding any of the named positions, e.g. PLC = PL/SPL/ASM/SM — termed-out
+  members drop out), `group_member` (group-of-groups: members of the referenced group(s),
+  resolved recursively with a cycle guard), and `rank` (Phase 2 — no-op until the Pillar 4
+  advancement model exists). Multiple values for a dimension are stored as a JSON list in
+  `values`.
+- `resolve_group_members(group_id, session)` in `app/core/groups.py` — evaluates each rule
+  via `evaluate_rule` (one function per dimension), combines the rule sets per `rule_logic`,
+  unions in manual members, optionally expands to parents (`include_parents`), and returns
+  the resolved `frozenset[member_id]` (mirrors `resolve_permissions`, excludes soft-deleted,
+  guards recursion for group-of-groups). `member_group_ids(member_id, session)` is the
+  inverse (which groups a member is in) — used by event visibility.
 - `Member` — scouts and adults. Key enums: `member_type` (scout/adult),
   `membership_status` (active/inactive/alumni — distinct from `is_deleted`; alumni
   records remain visible to leaders for history while `is_deleted=True` purges the
@@ -268,10 +286,17 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   `AUTH_JWKS_URI`, validates RS256/ES256 signatures, and checks `aud` only when
   `AUTH_AUDIENCE` is set (omit for providers that don't use `aud`).
 - **User provisioning**: `get_or_create_user` maps validated `(iss, sub)` claims to a
-  `User` + `Identity` row pair, creating both atomically on first login.
+  `User` + `Identity` row pair, creating both atomically on first login. Email-based
+  matching (auto-linking unclaimed `Member` rows, admin-invite pre-linking, platform
+  grant-by-email) runs **only** when the provider asserted `email_verified: true` —
+  an unverified email claim is attacker-chosen (`User.email_verified` records this;
+  the Clerk JWT template must include the `email_verified` shortcode).
 - **Tenant resolution** (`app/core/tenant.py`): `get_tenant_id` resolves the tenant
   from the request subdomain first (`troop123.opentroop.app` → slug lookup), then
-  falls back to the `X-Tenant-ID` header (raw UUID → DB validation). Nested
+  falls back to the `X-Tenant-ID` header (raw UUID → DB validation). The subdomain
+  host comes from `Host`; the client-controlled `X-Forwarded-Host` is honored only
+  when `TRUST_FORWARDED_HOST=true` — set it only behind a trusted proxy that
+  overwrites the header (the Cloudflare Worker does; Terraform wires this). Nested
   subdomains are rejected to prevent Host-header spoofing. A **suspended** tenant
   (`Tenant.suspended_at` set) is rejected with 403 on both resolution paths.
 - **FastAPI dependencies** (`app/core/deps.py`): `TenantDep`, `DbDep`,
@@ -311,10 +336,13 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   writes the DB directly, bypassing the API gate, and auto-links the single signed-in `User`
   as founder.
 - **Invite/claim flow** (`app/core/invite.py`): `create_invite_token` / `decode_invite_token`
-  use HS256 (signed with `APP_SECRET`) to produce 7-day claim tokens. Tokens are minted
-  either by tenant provisioning (for the founder) or by an admin calling
+  use HS256 (signed with `APP_SECRET`, enforced ≥32 chars) to produce 7-day claim tokens.
+  Tokens are minted either by tenant provisioning (for the founder) or by an admin calling
   `POST /members/{id}/invite`; the invitee signs in via OIDC then calls `POST /auth/claim`
-  with the token to link their `User.id` to the `Member` row.
+  with the token to link their `User.id` to the `Member` row. Tokens are **single-use and
+  revocable**: each carries a `jti` stored on `Member.invite_token_jti`; the claim endpoint
+  honors a token only while the jti matches, clears it on success, and re-inviting rotates
+  it (revoking any earlier token).
 - **iCal calendar feed** (`app/routers/calendar.py`, `app/core/ical.py`): a member's
   personal calendar. `GET /calendar/{token}.ics` is **unauthenticated by design** — the
   unguessable `Member.calendar_token` is the credential (calendar apps can't do OAuth);

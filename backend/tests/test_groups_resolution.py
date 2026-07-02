@@ -3,6 +3,7 @@
 import uuid
 
 from app.core.groups import resolve_group_members
+from app.core.tenant_context import tenant_scope
 from app.models.enums import (
     GroupType,
     MemberStatus,
@@ -87,7 +88,10 @@ def test_soft_deleted_members_excluded(db_session) -> None:
     session.add(GroupMember(tenant_id=_TENANT, group_id=group.id, member_id=gone.id))
     session.flush()
 
-    assert resolve_group_members(group.id, session) == frozenset({live.id})
+    # The soft-delete exclusion is a session-level guarantee (see app.core.database),
+    # active under a tenant scope — which is how resolvers are called in production.
+    with tenant_scope(_TENANT):
+        assert resolve_group_members(group.id, session) == frozenset({live.id})
 
 
 def test_empty_group_resolves_empty(db_session) -> None:

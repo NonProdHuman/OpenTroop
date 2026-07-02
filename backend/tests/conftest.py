@@ -43,18 +43,26 @@ PLATFORM_ADMIN_USER_ID = uuid.UUID("d0000000-0000-0000-0000-000000000001")
 # A platform admin with a non-superadmin role — used to test the superadmin boundary.
 PLATFORM_SUPPORT_USER_ID = uuid.UUID("d0000000-0000-0000-0000-000000000002")
 
+# Seeded users carry email_verified=True — they stand in for accounts whose OIDC
+# provider verified the address; email-based matching paths require it.
 _USERS = {
-    str(ADMIN_USER_ID): User(id=ADMIN_USER_ID, email="admin@test.com", display_name="Test Admin"),
-    str(NEW_USER_ID): User(id=NEW_USER_ID, email="newuser@test.com", display_name="New User"),
+    str(ADMIN_USER_ID): User(
+        id=ADMIN_USER_ID, email="admin@test.com", email_verified=True, display_name="Test Admin"
+    ),
+    str(NEW_USER_ID): User(
+        id=NEW_USER_ID, email="newuser@test.com", email_verified=True, display_name="New User"
+    ),
     str(PLATFORM_ADMIN_USER_ID): User(
         id=PLATFORM_ADMIN_USER_ID,
         email="platform@test.com",
+        email_verified=True,
         display_name="Platform Admin",
         platform_role=PlatformRole.SUPERADMIN,
     ),
     str(PLATFORM_SUPPORT_USER_ID): User(
         id=PLATFORM_SUPPORT_USER_ID,
         email="support@test.com",
+        email_verified=True,
         display_name="Support Admin",
         platform_role=PlatformRole.SUPPORT,
     ),
