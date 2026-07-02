@@ -412,6 +412,188 @@ describe("MemberPositionsEditor", () => {
     expect(within(dialog).getByText("Scribe")).toBeInTheDocument()
   })
 
+  it("orders current-position badges by sort_order", () => {
+    const spl = makePosition({ id: "p1", name: "Senior Patrol Leader", sort_order: 5 })
+    const scribe = makePosition({ id: "p2", name: "Scribe", sort_order: 20 })
+    const a1 = makeAssignment({ id: "a1", position_id: "p2" })
+    const a2 = makeAssignment({ id: "a2", position_id: "p1" })
+
+    render(
+      <MemberPositionsEditor
+        memberId="m1"
+        assignments={[a1, a2]}
+        allPositions={[spl, scribe]}
+        canAssign={false}
+      />,
+    )
+
+    const splBadge = screen.getByText("Senior Patrol Leader")
+    const scribeBadge = screen.getByText("Scribe")
+    expect(
+      splBadge.compareDocumentPosition(scribeBadge) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it("adds a historical (ended) term through the add dialog", async () => {
+    const p1 = makePosition({ id: "p1", name: "Patrol Leader" })
+
+    render(
+      <MemberPositionsEditor
+        memberId="m1"
+        assignments={[]}
+        allPositions={[p1]}
+        canAssign={true}
+      />,
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: /add position/i }))
+    const dialog = screen.getByTestId("dialog-content")
+    await userEvent.click(within(dialog).getByText("Patrol Leader"))
+    fireEvent.change(within(dialog).getByLabelText("Start date"), {
+      target: { value: "2023-01-01" },
+    })
+    fireEvent.change(within(dialog).getByLabelText("End date"), {
+      target: { value: "2023-12-31" },
+    })
+    await userEvent.click(within(dialog).getByRole("button", { name: /^add position$/i }))
+
+    expect(mockAssign).toHaveBeenCalledWith(
+      { memberId: "m1", positionId: "p1", startDate: "2023-01-01", endDate: "2023-12-31" },
+      expect.anything(),
+    )
+  })
+
+  it("rejects an end date before the start date in the add dialog", async () => {
+    const p1 = makePosition({ id: "p1", name: "Patrol Leader" })
+
+    render(
+      <MemberPositionsEditor
+        memberId="m1"
+        assignments={[]}
+        allPositions={[p1]}
+        canAssign={true}
+      />,
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: /add position/i }))
+    const dialog = screen.getByTestId("dialog-content")
+    await userEvent.click(within(dialog).getByText("Patrol Leader"))
+    fireEvent.change(within(dialog).getByLabelText("Start date"), {
+      target: { value: "2024-06-01" },
+    })
+    fireEvent.change(within(dialog).getByLabelText("End date"), {
+      target: { value: "2024-01-01" },
+    })
+
+    expect(
+      within(dialog).getByText(/end date must be on or after start date/i),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByRole("button", { name: /^add position$/i })).toBeDisabled()
+    expect(mockAssign).not.toHaveBeenCalled()
+  })
+
+  it("requires a position selection before the add dialog can save", async () => {
+    const p1 = makePosition({ id: "p1", name: "Patrol Leader" })
+
+    render(
+      <MemberPositionsEditor
+        memberId="m1"
+        assignments={[]}
+        allPositions={[p1]}
+        canAssign={true}
+      />,
+    )
+
+    await userEvent.click(screen.getByRole("button", { name: /add position/i }))
+    const dialog = screen.getByTestId("dialog-content")
+    expect(within(dialog).getByRole("button", { name: /^add position$/i })).toBeDisabled()
+  })
+
+  it("reopens a term by clearing the end date in the edit dialog", async () => {
+    const p1 = makePosition({ id: "p1", name: "Patrol Leader" })
+    const ended = makeAssignment({
+      id: "a1",
+      position_id: "p1",
+      start_date: "2023-01-01",
+      end_date: "2023-12-31",
+      is_current: false,
+    })
+
+    render(
+      <MemberPositionsEditor
+        memberId="m1"
+        assignments={[ended]}
+        allPositions={[p1]}
+        canAssign={true}
+      />,
+    )
+
+    await openHistory()
+    await userEvent.click(screen.getByRole("button", { name: /edit patrol leader term dates/i }))
+
+    const dialog = screen.getByTestId("dialog-content")
+    fireEvent.change(within(dialog).getByLabelText("End date"), { target: { value: "" } })
+    await userEvent.click(within(dialog).getByRole("button", { name: /save dates/i }))
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      {
+        memberId: "m1",
+        assignmentId: "a1",
+        data: { start_date: "2023-01-01", end_date: null },
+      },
+      expect.anything(),
+    )
+  })
+
+  it("rejects an invalid range in the edit dialog", async () => {
+    const p1 = makePosition({ id: "p1", name: "Patrol Leader" })
+    const assignment = makeAssignment({ id: "a1", position_id: "p1", start_date: "2024-01-01" })
+
+    render(
+      <MemberPositionsEditor
+        memberId="m1"
+        assignments={[assignment]}
+        allPositions={[p1]}
+        canAssign={true}
+      />,
+    )
+
+    await openHistory()
+    await userEvent.click(screen.getByRole("button", { name: /edit patrol leader term dates/i }))
+
+    const dialog = screen.getByTestId("dialog-content")
+    fireEvent.change(within(dialog).getByLabelText("End date"), {
+      target: { value: "2023-06-30" },
+    })
+    expect(
+      within(dialog).getByText(/end date must be on or after start date/i),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByRole("button", { name: /save dates/i })).toBeDisabled()
+  })
+
+  it("closes the edit dialog on cancel without saving", async () => {
+    const p1 = makePosition({ id: "p1", name: "Patrol Leader" })
+    const assignment = makeAssignment({ id: "a1", position_id: "p1" })
+
+    render(
+      <MemberPositionsEditor
+        memberId="m1"
+        assignments={[assignment]}
+        allPositions={[p1]}
+        canAssign={true}
+      />,
+    )
+
+    await openHistory()
+    await userEvent.click(screen.getByRole("button", { name: /edit patrol leader term dates/i }))
+    await userEvent.click(
+      within(screen.getByTestId("dialog-content")).getByRole("button", { name: /cancel/i }),
+    )
+
+    expect(screen.queryByTestId("dialog-content")).not.toBeInTheDocument()
+    expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
   it("shows note when canAssign is true but no positions have been created", () => {
     render(
       <MemberPositionsEditor
