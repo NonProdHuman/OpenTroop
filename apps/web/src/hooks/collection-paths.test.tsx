@@ -3,12 +3,12 @@ import { renderHook, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import { useEvents, useEventTypes, useLocations, useCreateEvent } from "./use-events"
+import { useEvents, useEventTypes, useLocations, useCreateEvent, useTenantSettings } from "./use-events"
 import { useFunctionalRoles, useCreateFunctionalRole } from "./use-functional-roles"
 import { useGroups, useCreateGroup } from "./use-groups"
 import { useMembers, useCreateMember } from "./use-members"
 import { usePositions, useCreatePosition } from "./use-positions"
-import { useCreateRelationship } from "./use-relationships"
+import { useCreateRelationship, useRelationships } from "./use-relationships"
 
 const TENANT = "tenant-1"
 
@@ -57,6 +57,20 @@ describe("collection paths have no trailing slash", () => {
     await waitFor(() => expect(requestSpy).toHaveBeenCalled())
     expect(lastPath()).toBe(path)
     expect(lastPath().endsWith("/")).toBe(false)
+  })
+
+  // Query-string paths hide the same bug: `/foo/?bar=x` still 307-redirects to
+  // `/foo?bar=x` and drops the auth header. Regression guard for issue #109.
+  const queryStringHooks: [string, () => unknown, string][] = [
+    ["useRelationships", () => useRelationships("m1"), "/relationships?member_id=m1"],
+    ["useTenantSettings", useTenantSettings, "/tenant/settings"],
+  ]
+
+  it.each(queryStringHooks)("%s requests %s", async (_name, hook, path) => {
+    renderHook(() => hook(), { wrapper })
+    await waitFor(() => expect(requestSpy).toHaveBeenCalled())
+    expect(lastPath()).toBe(path)
+    expect(lastPath().split("?")[0].endsWith("/")).toBe(false)
   })
 
   const createHooks: [string, () => { mutate: (v: never) => void }, string][] = [
