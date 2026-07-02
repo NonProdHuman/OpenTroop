@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Numeric, String, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,6 +20,9 @@ if TYPE_CHECKING:
 
 class Event(SourceTracked, TrackedBase):
     __tablename__ = "events"
+    # RLS injects tenant_id into every query; leading with it keeps the hot
+    # date-ordered event list a single index range scan per tenant (GH-115).
+    __table_args__ = (Index("ix_events_tenant_scheduled_start", "tenant_id", "scheduled_start"),)
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     event_type_id: Mapped[uuid.UUID] = mapped_column(
@@ -90,6 +93,12 @@ class EventOrganizer(TrackedBase):
 
 class EventParticipant(SourceTracked, TrackedBase):
     __tablename__ = "event_participants"
+    # Hot paths: participants-per-event (event pages) and per-member RSVP state
+    # (iCal feed, member views) — both always tenant-scoped under RLS (GH-115).
+    __table_args__ = (
+        Index("ix_event_participants_tenant_event", "tenant_id", "event_id"),
+        Index("ix_event_participants_tenant_member", "tenant_id", "member_id"),
+    )
 
     # Derived per-request, never persisted (not a Mapped column ⇒ ignored by the mapper).
     # The router fills it via app.core.permission_slip before serialization.
