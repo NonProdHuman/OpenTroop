@@ -40,8 +40,8 @@ interface MemberPositionsEditorProps {
 function compareTerms(a: MemberPositionAssignment, b: MemberPositionAssignment): number {
   if (a.is_current !== b.is_current) return a.is_current ? -1 : 1
   if (a.start_date === b.start_date) return 0
-  if (a.start_date === null) return 1
-  if (b.start_date === null) return -1
+  if (a.start_date == null) return 1
+  if (b.start_date == null) return -1
   return a.start_date < b.start_date ? 1 : -1
 }
 
@@ -149,7 +149,7 @@ export function MemberPositionsEditor({
   const [historyOpen, setHistoryOpen] = useState(false)
 
   const positionById = new Map(allPositions.map((p) => [p.id, p]))
-  const memberName = (id: string | null) => {
+  const memberName = (id: string | null | undefined) => {
     if (!id) return null
     const m = allMembers.find((member) => member.id === id)
     return m ? `${m.first_name} ${m.last_name}` : null
