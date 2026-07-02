@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Field, Section } from "@/components/detail-helpers"
 import type { Member } from "@/types/api"
-import { formatDate } from "@/lib/format"
+import { formatDate, formatMemberName } from "@/lib/format"
 import { useMemberPositions } from "@/hooks/use-member-positions"
 import { usePositions } from "@/hooks/use-positions"
 import { useUpdateMember, useInviteMember, useMembers } from "@/hooks/use-members"
@@ -41,9 +41,7 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
 
   if (!member) return null
 
-  const displayName = member.nickname
-    ? `${member.first_name} "${member.nickname}" ${member.last_name}`
-    : `${member.first_name} ${member.last_name}`
+  const displayName = formatMemberName(member)
 
   const fullAddress = [
     member.address_line1,

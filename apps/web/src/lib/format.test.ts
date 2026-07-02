@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { formatEventWhen, formatMoney } from "./format"
+import { formatEventWhen, formatMemberName, formatMoney } from "./format"
 
 describe("formatMoney", () => {
   it("formats decimal strings as USD", () => {
@@ -40,5 +40,23 @@ describe("formatEventWhen", () => {
     // Jul 9 in any negative-offset zone. It must always read as Jul 10.
     const out = formatEventWhen("2026-07-10T00:00:00Z", "2026-07-10T00:00:00Z", true)
     expect(out).toContain("Jul 10")
+  })
+})
+
+describe("formatMemberName", () => {
+  it("renders first and last name", () => {
+    expect(formatMemberName({ first_name: "Robert", last_name: "Smith" })).toBe("Robert Smith")
+  })
+
+  it("renders the nickname in quotes when present", () => {
+    expect(
+      formatMemberName({ first_name: "Robert", last_name: "Smith", nickname: "Bob" }),
+    ).toBe('Robert "Bob" Smith')
+  })
+
+  it("ignores a null nickname", () => {
+    expect(
+      formatMemberName({ first_name: "Ada", last_name: "Lovelace", nickname: null }),
+    ).toBe("Ada Lovelace")
   })
 })

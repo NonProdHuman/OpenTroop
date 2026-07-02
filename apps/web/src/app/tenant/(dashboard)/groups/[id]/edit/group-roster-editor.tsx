@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { formatMemberName } from "@/lib/format"
 import { X } from "lucide-react"
 import { SectionTitle } from "@/components/form-helpers"
 import { buttonVariants } from "@/components/ui/button"
@@ -21,9 +22,7 @@ import { cn } from "@/lib/utils"
 import { useAddGroupMember, useRemoveGroupMember } from "@/hooks/use-groups"
 import type { Group, GroupType, Member } from "@/types/api"
 
-function displayName(m: { first_name: string; last_name: string; nickname: string | null }) {
-  return m.nickname ? `${m.first_name} "${m.nickname}" ${m.last_name}` : `${m.first_name} ${m.last_name}`
-}
+const displayName = formatMemberName
 
 // Manual (hand-added, removable) and rule-derived (display-only) member lists
 // for the group edit page.

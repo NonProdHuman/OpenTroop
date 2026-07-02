@@ -1,6 +1,7 @@
 "use client"
 
 import { Users } from "lucide-react"
+import { formatMemberName } from "@/lib/format"
 import { householdIds } from "@/lib/household"
 import { useSession } from "@/hooks/use-session"
 import { useRelationships } from "@/hooks/use-relationships"
@@ -9,9 +10,7 @@ import { useEventParticipants, useTenantSettings } from "@/hooks/use-events"
 import type { Event, Member } from "@/types/api"
 import { MemberRsvpRow } from "./member-rsvp-row"
 
-function memberName(m: Member) {
-  return `${m.first_name} ${m.last_name}`
-}
+const memberName = formatMemberName
 
 interface EventRsvpPanelProps {
   event: Event
