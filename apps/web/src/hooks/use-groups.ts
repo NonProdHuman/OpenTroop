@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
+import { queryKeys } from "@/lib/query-keys"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
@@ -10,7 +11,7 @@ export function useGroups() {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: [activeTenantId, "groups"],
+    queryKey: queryKeys.groups(activeTenantId),
     queryFn: () => request<Group[]>("/groups"),
     enabled: Boolean(activeTenantId),
   })
@@ -20,7 +21,7 @@ export function useGroup(id: string | null) {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: [activeTenantId, "groups", id],
+    queryKey: queryKeys.group(activeTenantId, id),
     queryFn: () => request<Group>(`/groups/${id}`),
     enabled: id !== null && Boolean(activeTenantId),
   })
@@ -31,7 +32,7 @@ export function useGroupMembers(groupId: string | null) {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: [activeTenantId, "group-members", groupId],
+    queryKey: queryKeys.groupMembers(activeTenantId, groupId),
     queryFn: () => request<Member[]>(`/groups/${groupId}/members`),
     enabled: groupId !== null && Boolean(activeTenantId),
   })
@@ -42,7 +43,7 @@ export function useGroupManualMembers(groupId: string | null) {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: [activeTenantId, "group-manual-members", groupId],
+    queryKey: queryKeys.groupManualMembers(activeTenantId, groupId),
     queryFn: () => request<GroupMemberRow[]>(`/groups/${groupId}/manual-members`),
     enabled: groupId !== null && Boolean(activeTenantId),
   })
@@ -60,7 +61,7 @@ export function useGroupRoster() {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: [activeTenantId, "group-roster"],
+    queryKey: queryKeys.groupRoster(activeTenantId),
     queryFn: () => request<GroupRosterEntry[]>("/groups/roster"),
     enabled: Boolean(activeTenantId),
   })
@@ -143,8 +144,8 @@ export function useCreateGroup() {
     mutationFn: (body: { name: string; group_type: string; color: string | null; description: string | null; rule_logic?: string; include_parents?: boolean; cc_parents_on_messages?: boolean }) =>
       request<Group>("/groups", { method: "POST", body: JSON.stringify(body) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups"] })
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-roster"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groups(activeTenantId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupRoster(activeTenantId) })
     },
   })
 }
@@ -157,12 +158,12 @@ export function useUpdateGroup() {
     mutationFn: ({ id, data }: { id: string; data: Partial<Pick<Group, "name" | "description" | "group_type" | "color" | "rule_logic" | "include_parents" | "cc_parents_on_messages">> }) =>
       request<Group>(`/groups/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups"] })
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups", id] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groups(activeTenantId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.group(activeTenantId, id) })
       // rule_logic and include_parents change resolved membership — refresh all
       // group-member caches (and everything derived from them: counts, rosters).
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-roster"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupMembers(activeTenantId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupRoster(activeTenantId) })
     },
   })
 }
@@ -174,8 +175,8 @@ export function useDeleteGroup() {
   return useMutation({
     mutationFn: (id: string) => request(`/groups/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "groups"] })
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-roster"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groups(activeTenantId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupRoster(activeTenantId) })
     },
   })
 }
@@ -193,9 +194,9 @@ export function useAddGroupMember() {
     onSuccess: () => {
       // Invalidate ALL group-member caches: the backend may silently remove
       // the member from a previous patrol, so every cached list could be stale.
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-roster"] })
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-manual-members"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupMembers(activeTenantId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupRoster(activeTenantId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupManualMembers(activeTenantId) })
     },
   })
 }
@@ -209,9 +210,9 @@ export function useRemoveGroupMember() {
       request(`/groups/${groupId}/members/${memberId}`, { method: "DELETE" }),
     onSuccess: () => {
       // Invalidate ALL group-member caches for consistency.
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-roster"] })
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-manual-members"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupMembers(activeTenantId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupRoster(activeTenantId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupManualMembers(activeTenantId) })
     },
   })
 }
@@ -222,7 +223,7 @@ export function useGroupRules(groupId: string | null) {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: [activeTenantId, "group-rules", groupId],
+    queryKey: queryKeys.groupRules(activeTenantId, groupId),
     queryFn: () => request<GroupRule[]>(`/groups/${groupId}/rules`),
     enabled: groupId !== null && Boolean(activeTenantId),
   })
@@ -239,10 +240,10 @@ export function useUpsertGroupRule() {
         body: JSON.stringify({ values }),
       }),
     onSuccess: (_data, { groupId }) => {
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-rules", groupId] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupRules(activeTenantId, groupId) })
       // Broad: other groups can depend on this one via group_member / parents-of rules.
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-roster"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupMembers(activeTenantId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupRoster(activeTenantId) })
     },
   })
 }
@@ -255,10 +256,10 @@ export function useDeleteGroupRule() {
     mutationFn: ({ groupId, dimension }: { groupId: string; dimension: string }) =>
       request(`/groups/${groupId}/rules/${dimension}`, { method: "DELETE" }),
     onSuccess: (_data, { groupId }) => {
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-rules", groupId] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupRules(activeTenantId, groupId) })
       // Broad: other groups can depend on this one via group_member / parents-of rules.
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-roster"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupMembers(activeTenantId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupRoster(activeTenantId) })
     },
   })
 }

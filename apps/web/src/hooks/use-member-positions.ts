@@ -1,6 +1,7 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
 import type { MemberPositionAssignment } from "@/types/api"
@@ -13,7 +14,7 @@ export function useMemberPositions(
   const { activeTenantId } = useActiveTenant()
   const history = opts.history ?? false
   return useQuery({
-    queryKey: [activeTenantId, "member-positions", memberId, history ? "history" : "current"],
+    queryKey: queryKeys.memberPositions(activeTenantId, memberId, history),
     queryFn: () =>
       request<MemberPositionAssignment[]>(
         `/members/${memberId}/positions${history ? "?current=false" : ""}`,
@@ -28,10 +29,10 @@ function useInvalidateMemberPositions() {
   const { activeTenantId } = useActiveTenant()
   const queryClient = useQueryClient()
   return (memberId: string) => {
-    queryClient.invalidateQueries({ queryKey: [activeTenantId, "member-positions", memberId] })
-    queryClient.invalidateQueries({ queryKey: [activeTenantId, "session"] })
+    queryClient.invalidateQueries({ queryKey: queryKeys.memberPositions(activeTenantId, memberId) })
+    queryClient.invalidateQueries({ queryKey: queryKeys.session(activeTenantId) })
     // Position rules drive dynamic group membership (e.g. PLC) — refresh group caches.
-    queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
+    queryClient.invalidateQueries({ queryKey: queryKeys.groupMembers(activeTenantId) })
   }
 }
 

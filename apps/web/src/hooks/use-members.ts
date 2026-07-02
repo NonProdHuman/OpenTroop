@@ -1,6 +1,7 @@
 "use client"
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
 import type { Member } from "@/types/api"
@@ -9,7 +10,7 @@ export function useMembers() {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: [activeTenantId, "members"],
+    queryKey: queryKeys.members(activeTenantId),
     queryFn: () => request<Member[]>("/members"),
     enabled: Boolean(activeTenantId),
   })
@@ -19,7 +20,7 @@ export function useMember(id: string | null) {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
   return useQuery({
-    queryKey: [activeTenantId, "members", id],
+    queryKey: queryKeys.member(activeTenantId, id),
     queryFn: () => request<Member>(`/members/${id}`),
     enabled: id !== null && Boolean(activeTenantId),
   })
@@ -36,7 +37,7 @@ export function useCreateMember() {
         body: JSON.stringify(body),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "members"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.members(activeTenantId) })
     },
   })
 }
@@ -52,12 +53,12 @@ export function useUpdateMember() {
         body: JSON.stringify(data),
       }),
     onSuccess: (updated) => {
-      queryClient.setQueryData([activeTenantId, "members", updated.id], updated)
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "members"] })
+      queryClient.setQueryData(queryKeys.member(activeTenantId, updated.id), updated)
+      queryClient.invalidateQueries({ queryKey: queryKeys.members(activeTenantId) })
       // If member_type changed (e.g. scout → adult), the backend removes them
       // from any patrol they were in. Invalidate all group-member caches so
       // the Groups page reflects that change without a manual reload.
-      queryClient.invalidateQueries({ queryKey: [activeTenantId, "group-members"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.groupMembers(activeTenantId) })
     },
   })
 }
