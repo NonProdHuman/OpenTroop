@@ -30,8 +30,13 @@ planned for mobile only). Instead it uses two purpose-built layers:
 
 - **`useApi()`** (`src/lib/api.ts`) — the central HTTP client. Wraps `fetch` with a Clerk
   `Bearer` token and the `X-Tenant-ID` header. Use this in all data hooks.
-- **`src/types/api.ts`** — hand-written TypeScript mirrors of the backend Pydantic schemas.
-  When you add or change a backend field, update this file to match.
+- **`src/types/api.ts`** — thin aliases into `src/types/api.generated.ts`, which is
+  **generated** from the backend OpenAPI spec by `pnpm gen:api` (root script → `scripts/gen-api.sh`).
+  Never hand-write shapes here. When a backend field changes, run `pnpm gen:api` and commit
+  the regenerated `api.generated.ts`; the generated file is the source of truth and CI fails
+  on drift (the `api-types` job regenerates and diffs it). `api.ts` only maps the
+  frontend-facing names (`Member`, `Event`, …) onto the backend schema components
+  (`MemberRead`, `EventRead`, …).
 
 All server state is managed with **TanStack React Query**. Data hooks live in
 `src/hooks/use-*.ts` and use `useQuery` / `useMutation`. Query keys are **prefixed with
@@ -61,7 +66,9 @@ export function useFoo() {
 }
 ```
 
-Add the corresponding type(s) to `src/types/api.ts`.
+If the hook needs a backend shape that isn't aliased yet, run `pnpm gen:api` to refresh
+`api.generated.ts`, then add a one-line alias in `src/types/api.ts`
+(e.g. `export type Foo = Schemas["FooRead"]`) — never hand-write the shape.
 
 > **No trailing slash on collection paths.** Backend collection routes are declared
 > at `""` (canonical `/foo`, not `/foo/`). Requesting `/foo/` makes the backend

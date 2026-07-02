@@ -17,6 +17,7 @@ export default defineConfig({
         "src/**/*.{test,spec}.{ts,tsx}",
         "src/test/**",
         "src/components/ui/**", // shadcn generated — not ours to test
+        "src/types/api.generated.ts", // generated from OpenAPI spec — not ours to test
       ],
     },
   },

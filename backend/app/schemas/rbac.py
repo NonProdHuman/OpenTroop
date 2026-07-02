@@ -31,6 +31,7 @@ class PositionUpdate(BaseModel):
 
 class PositionRead(PositionBase, TrackedRead):
     is_system: bool
+    is_default: bool
 
 
 # ---------------------------------------------------------------------------
