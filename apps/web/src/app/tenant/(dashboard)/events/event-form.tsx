@@ -114,7 +114,7 @@ export function makeEmptyForm(): FormState {
 
 /** Seed a form from an existing event (for the edit page). */
 export function toFormState(event: Event): FormState {
-  const str = (v: string | number | null) => (v == null ? "" : String(v))
+  const str = (v: string | number | null | undefined) => (v == null ? "" : String(v))
   // Convert a stored UTC instant back to the `datetime-local`/`date` input shape.
   const toInput = (iso: string, allDay: boolean) =>
     allDay ? `${iso.slice(0, 10)}T00:00` : toLocalInput(new Date(iso))

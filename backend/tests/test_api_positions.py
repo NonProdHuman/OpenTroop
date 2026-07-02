@@ -30,6 +30,17 @@ def test_create_position(client: TestClient) -> None:
     assert data["applies_to"] == "scout"
     assert data["is_system"] is False
     assert data["sort_order"] == 0
+    # is_default is exposed on PositionRead (the web UI badges/protects default
+    # positions); a freshly created position is never a default.
+    assert data["is_default"] is False
+
+
+def test_position_read_exposes_is_default(client: TestClient) -> None:
+    # The seeded "member" position is marked is_default=True (see conftest); the
+    # API must surface it so the frontend can badge and protect it.
+    positions = client.get("/positions/").json()
+    member_pos = next(p for p in positions if p["slug"] == "member")
+    assert member_pos["is_default"] is True
 
 
 def test_list_positions_sorted(client: TestClient) -> None:

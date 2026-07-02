@@ -99,7 +99,9 @@ pre-commit environment.
   the web API contract stabilizes. It will consume a generated TypeScript API client
   produced from the FastAPI OpenAPI spec (`openapi-typescript`); that package will be
   regenerated and added under `packages/` when mobile work actually begins. The web app
-  does not use it — it hand-maintains its types in `apps/web/src/types/api.ts`.
+  does not use it — its types in `apps/web/src/types/api.ts` are thin aliases into
+  `apps/web/src/types/api.generated.ts`, which is generated from the backend OpenAPI spec
+  by `pnpm gen:api`. CI fails if the committed generated file drifts from the backend.
 
 ### Sync-aware schema contract (critical)
 
