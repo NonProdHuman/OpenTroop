@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { formatMemberName } from "@/lib/format"
 import { useParams, useRouter } from "next/navigation"
 import { useMember, useMembers, useUpdateMember } from "@/hooks/use-members"
 import { useGroups, useMemberGroups } from "@/hooks/use-groups"
@@ -68,7 +69,7 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
     )
   }
 
-  const displayName = `${member.first_name} ${member.last_name}`
+  const displayName = formatMemberName(member)
 
   return (
     <>

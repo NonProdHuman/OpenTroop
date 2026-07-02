@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { formatMemberName } from "@/lib/format"
 import { AlertTriangle, Check, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -93,7 +94,7 @@ export function MemberRsvpRow({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">
-            {member.first_name} {member.last_name}
+            {formatMemberName(member)}
           </span>
           <span className="text-xs text-muted-foreground capitalize">{member.member_type}</span>
           {slipPending && (

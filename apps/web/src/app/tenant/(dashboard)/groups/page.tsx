@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { formatMemberName } from "@/lib/format"
 import { useRouter } from "next/navigation"
 import { Shield, Users, Lock, Plus, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
@@ -429,9 +430,7 @@ function AddMemberDialog({
             </CommandEmpty>
             <CommandGroup>
               {addableMembers.map((m) => {
-                const name = m.nickname
-                  ? `${m.first_name} "${m.nickname}" ${m.last_name}`
-                  : `${m.first_name} ${m.last_name}`
+                const name = formatMemberName(m)
                 return (
                   <CommandItem
                     key={m.id}

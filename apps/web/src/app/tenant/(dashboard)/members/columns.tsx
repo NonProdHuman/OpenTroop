@@ -1,6 +1,7 @@
 "use client"
 
 import { type ColumnDef } from "@tanstack/react-table"
+import { formatMemberName } from "@/lib/format"
 import type { Member, Group } from "@/types/api"
 import { Button } from "@/components/ui/button"
 import { ArrowUpDown } from "lucide-react"
@@ -57,9 +58,7 @@ export function buildColumns(
       ),
       cell: ({ row }) => {
         const m = row.original
-        const display = m.nickname
-          ? `${m.first_name} "${m.nickname}" ${m.last_name}`
-          : `${m.first_name} ${m.last_name}`
+        const display = formatMemberName(m)
         return <span className="font-medium">{display}</span>
       },
     },

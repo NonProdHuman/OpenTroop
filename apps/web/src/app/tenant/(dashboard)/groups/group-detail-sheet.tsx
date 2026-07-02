@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { formatMemberName } from "@/lib/format"
 import { useRouter } from "next/navigation"
 import { Shield, Users, Zap, Lock, Pencil, Trash2, X } from "lucide-react"
 import {
@@ -200,9 +201,7 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
             ) : (
               <ul className="space-y-1">
                 {members.map((m) => {
-                  const name = m.nickname
-                    ? `${m.first_name} "${m.nickname}" ${m.last_name}`
-                    : `${m.first_name} ${m.last_name}`
+                  const name = formatMemberName(m)
                   return (
                     <li key={m.id} className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-1.5 min-w-0">
@@ -272,9 +271,7 @@ export function GroupDetailSheet({ group, open, onOpenChange }: GroupDetailSheet
                         </CommandEmpty>
                         <CommandGroup>
                           {addableMembers.map((m) => {
-                            const name = m.nickname
-                              ? `${m.first_name} "${m.nickname}" ${m.last_name}`
-                              : `${m.first_name} ${m.last_name}`
+                            const name = formatMemberName(m)
                             return (
                               <CommandItem
                                 key={m.id}

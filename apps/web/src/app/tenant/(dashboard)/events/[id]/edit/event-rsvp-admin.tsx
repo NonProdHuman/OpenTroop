@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { formatMemberName } from "@/lib/format"
 import { Users } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,9 +20,7 @@ import { useRsvpDraft } from "@/hooks/use-rsvp-draft"
 import type { Event, EventParticipant, Member, RsvpStatus } from "@/types/api"
 import { CheckboxButton, RsvpStatusButtons } from "../../rsvp-controls"
 
-function memberName(m: Member) {
-  return `${m.first_name} ${m.last_name}`
-}
+const memberName = formatMemberName
 
 // ---------------------------------------------------------------------------
 // Local editable state for one member's RSVP (leader-managed subset)

@@ -65,3 +65,17 @@ export function formatMoney(value: string | number | null | undefined): string |
   if (Number.isNaN(n)) return null
   return `$${n.toFixed(2)}`
 }
+
+/**
+ * Canonical member display name. Nicknames always render, in quotes
+ * ('Robert "Bob" Smith') — decided once here so every screen agrees.
+ */
+export function formatMemberName(m: {
+  first_name: string
+  last_name: string
+  nickname?: string | null
+}): string {
+  return m.nickname
+    ? `${m.first_name} "${m.nickname}" ${m.last_name}`
+    : `${m.first_name} ${m.last_name}`
+}
