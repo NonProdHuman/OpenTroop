@@ -32,14 +32,20 @@ def decode_token(token: str) -> dict[str, Any]:
     """Validate a JWT against the configured JWKS. Raises HTTP 401 on any failure."""
     try:
         signing_key = _get_jwks_client().get_signing_key_from_jwt(token)
-        # Pass audience only when configured; PyJWT skips aud verification when
-        # audience=None, which is acceptable for deployments that don't use aud.
+        # Pass audience/issuer only when configured; PyJWT skips each verification
+        # when the parameter is None, which is acceptable for deployments that
+        # don't use aud or pin a single issuer. Standard claims must always be
+        # present — identity is keyed on (iss, sub), so a token missing either
+        # must be rejected here rather than failing later.
         audience: str | None = settings.auth_audience if settings.auth_audience else None
+        issuer: str | None = settings.auth_issuer if settings.auth_issuer else None
         return jwt.decode(
             token,
             signing_key.key,
             algorithms=["RS256", "ES256"],
             audience=audience,
+            issuer=issuer,
+            options={"require": ["exp", "iat", "iss", "sub"]},
         )
     except jwt.exceptions.PyJWTError as exc:
         # Log only the exception class, not the message — the message may contain
