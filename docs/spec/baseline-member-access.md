@@ -1,6 +1,6 @@
 # Baseline Member Access Spec
 
-**Status:** Draft
+**Status:** Implemented (see GH-140 for the closing audit)
 **Pillar:** Roster & Relationships (Pillar 1) — RBAC extension
 **Related:** [`roles-rbac.md`](roles-rbac.md) · [`members-screen.md`](members-screen.md) · [`event-rsvp-permission.md`](event-rsvp-permission.md) · [`position-history.md`](position-history.md)
 **Resolves:** the gap `event-rsvp-permission.md` explicitly deferred ("Broader gap noted:
