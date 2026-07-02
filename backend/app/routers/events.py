@@ -1,3 +1,4 @@
+import logging
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
@@ -9,13 +10,22 @@ from app.core.deps import (
     CurrentMemberDep,
     DbDep,
     MemberContextDep,
+    NotificationServiceDep,
     TenantDep,
     get_or_404,
     require,
     require_tenant_fk,
 )
+from app.core.event_notifications import (
+    build_cancellation_email,
+    build_permission_request_email,
+    cancellation_recipients,
+    event_when,
+    permission_request_recipients,
+)
 from app.core.event_visibility import event_visible_to_member, visibility_clause
 from app.core.groups import member_group_ids
+from app.core.notifications import EmailSendError
 from app.core.permission_slip import (
     DEFAULT_PERMISSION_MESSAGE,
     effective_permission_message,
@@ -35,6 +45,7 @@ from app.schemas.event import (
     EventAudienceCreate,
     EventAudienceRead,
     EventBase,
+    EventNotifyResult,
     EventOrganizerBase,
     EventOrganizerRead,
     EventParticipantBase,
@@ -45,6 +56,8 @@ from app.schemas.event import (
     EventRead,
     EventUpdate,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -534,3 +547,103 @@ def remove_participant(
     _require_can_act_for(member, member_id, db, is_manager=Permission.EVENT_WRITE in permissions)
     participant.is_deleted = True
     db.commit()
+
+
+@router.post(
+    "/{event_id}/cancel",
+    response_model=EventRead,
+    dependencies=[Depends(require(Permission.EVENT_WRITE))],
+)
+def cancel_event(
+    event_id: uuid.UUID,
+    tenant_id: TenantDep,
+    db: DbDep,
+    notification_service: NotificationServiceDep,
+) -> Event:
+    """Cancel an event and email everyone it was visible to (plus scouts' parents).
+
+    Cancellation commits before any email goes out — the record is the source of
+    truth and sends are best-effort. Firing again is a 409, so the notification
+    can never double-send.
+    """
+    event = get_or_404(db, Event, event_id, "Event not found")
+    if event.cancelled_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Event is already cancelled"
+        )
+    event.cancelled_at = datetime.now(UTC)
+    recipients = cancellation_recipients(event, db)
+    db.commit()
+    db.refresh(event)
+
+    tenant = db.get(Tenant, tenant_id)
+    tenant_name = tenant.name if tenant is not None else "your troop"
+    when = event_when(event)
+    for member in recipients:
+        assert member.email is not None  # _emailable guarantees it  # noqa: S101
+        message = build_cancellation_email(
+            to=member.email,
+            first_name=member.first_name,
+            event_name=event.name,
+            when=when,
+            tenant_name=tenant_name,
+        )
+        try:
+            notification_service.send_email(message)
+        except EmailSendError:
+            logger.warning(
+                "Cancellation email failed for member %s on event %s",
+                member.id.hex,
+                event_id.hex,
+            )
+    return event
+
+
+@router.post(
+    "/{event_id}/notify-permissions",
+    response_model=EventNotifyResult,
+    dependencies=[Depends(require(Permission.EVENT_WRITE))],
+)
+def notify_permission_requests(
+    event_id: uuid.UUID,
+    tenant_id: TenantDep,
+    db: DbDep,
+    notification_service: NotificationServiceDep,
+) -> EventNotifyResult:
+    """Email the parents of scout participants who still owe a permission slip.
+
+    Explicit admin action (not automatic on signup) so a leader controls when the
+    ask goes out and can re-send later; 409 when the event's type doesn't require
+    permission slips.
+    """
+    event = get_or_404(db, Event, event_id, "Event not found")
+    if not event.event_type.require_permission_slip:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This event's type does not require permission slips",
+        )
+
+    tenant = db.get(Tenant, tenant_id)
+    tenant_name = tenant.name if tenant is not None else "your troop"
+    when = event_when(event)
+    emails_sent = 0
+    for parent, scouts in permission_request_recipients(event, db).values():
+        assert parent.email is not None  # _emailable guarantees it  # noqa: S101
+        message = build_permission_request_email(
+            to=parent.email,
+            first_name=parent.first_name,
+            scout_names=[s.first_name for s in scouts],
+            event_name=event.name,
+            when=when,
+            tenant_name=tenant_name,
+        )
+        try:
+            notification_service.send_email(message)
+            emails_sent += 1
+        except EmailSendError:
+            logger.warning(
+                "Permission-request email failed for member %s on event %s",
+                parent.id.hex,
+                event_id.hex,
+            )
+    return EventNotifyResult(emails_sent=emails_sent)
