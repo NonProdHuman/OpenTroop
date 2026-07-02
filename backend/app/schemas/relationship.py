@@ -12,10 +12,6 @@ class MemberRelationshipBase(BaseModel):
     relationship_type: RelationshipType
 
 
-class MemberRelationshipCreate(MemberRelationshipBase):
-    tenant_id: uuid.UUID
-
-
 class MemberRelationshipUpdate(BaseModel):
     relationship_type: RelationshipType | None = None
 

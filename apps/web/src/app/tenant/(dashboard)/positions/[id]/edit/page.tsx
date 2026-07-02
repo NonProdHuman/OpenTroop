@@ -3,10 +3,10 @@
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { X, ChevronsUpDown } from "lucide-react"
+import { FormField, SectionTitle } from "@/components/form-helpers"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import {
   Select,
@@ -39,26 +39,6 @@ import {
 } from "@/hooks/use-positions"
 import { useFunctionalRoles } from "@/hooks/use-functional-roles"
 import type { Position, PositionScope } from "@/types/api"
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground pt-2">
-      {children}
-    </h2>
-  )
-}
-
-function FormField({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
-  return (
-    <div className="space-y-1.5">
-      <Label>
-        {label}
-        {required && <span className="text-destructive ml-0.5">*</span>}
-      </Label>
-      {children}
-    </div>
-  )
-}
 
 export default function PositionEditPage() {
   const { id } = useParams<{ id: string }>()

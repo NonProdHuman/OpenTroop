@@ -2,10 +2,10 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { FormField } from "@/components/form-helpers"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -22,26 +22,6 @@ function slugify(name: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
-}
-
-function FormField({
-  label,
-  children,
-  required,
-}: {
-  label: string
-  children: React.ReactNode
-  required?: boolean
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label>
-        {label}
-        {required && <span className="text-destructive ml-0.5">*</span>}
-      </Label>
-      {children}
-    </div>
-  )
 }
 
 export default function NewPositionPage() {
