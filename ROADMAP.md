@@ -69,11 +69,13 @@ Permission`) with `require()` guards on every route; OIDC/JWT auth with invite-c
 flow; multi-tenant provisioning and the platform (global) admin tier + control-plane API
 and UI; **Groups & Audiences** (the `Group` primitive that folds Patrol — manual +
 dynamic rule-based membership, `resolve_group_members`, dynamic rule editor); TWH XML
-full-dump importer (roster, events, leadership-as-position-terms, source provenance).
+full-dump importer (roster, events, leadership-as-position-terms, source provenance);
+automated invite-email delivery (rides the Pillar 5 notification service); baseline
+member access — every member holds a seeded "Member" position granting read access,
+with self/family contact+medical edit for positionless parents and scouts
+([`baseline-member-access.md`](docs/spec/baseline-member-access.md)).
 
-**Next up (see issues):** Scoutbook member-export import (BSA recharter format);
-automated invite-email delivery (blocked on Pillar 5 notification infra — until then
-provisioning returns the invite token for out-of-band delivery).
+**Next up (see issues):** Scoutbook member-export import (BSA recharter format).
 
 ---
 
@@ -152,17 +154,19 @@ At ~115 recipients per 40-scout troop, routine sends are ~1,400 emails/month per
 at 200 troops that is ~280,000/month. Infrastructure must handle this off the request
 path and without vendor lock-in.
 
-**Shipped groundwork:** `Member` notification-preference fields (`email_opt_out`,
-`email_bounced`, `sms_opt_in`) and the tenant-scoped settings surface (currently
-permission-slip language). Specs already drafted:
-[`messaging.md`](docs/spec/messaging.md),
+**Shipped groundwork:** the `NotificationService` abstraction (`EmailBackend` /
+`SMSBackend` protocols, `app/core/notifications.py`) with the `resend` email
+backend (plus an in-memory fake for tests) driving invite-email delivery today; `Member`
+notification-preference fields (`email_opt_out`, `email_bounced`, `sms_opt_in`); and
+the tenant-scoped settings surface (currently permission-slip language). Specs already
+drafted: [`messaging.md`](docs/spec/messaging.md),
 [`group-subscriptions.md`](docs/spec/group-subscriptions.md).
 
-**Next up (see issues):** `NotificationService` abstraction (`EmailBackend` / `SMSBackend`
-protocols); email backends (`smtp` / `resend` / `ses`) and optional SMS backends
-(`twilio` / `telnyx`); async send queue with per-tenant rate limiting; retry / dead-letter;
-bounce & complaint webhooks; a `TroopSettings`-style per-tenant notification config;
-push via FCM. Then the messaging features (group-targeted announcements, event-triggered
+**Next up (see issues):** further email backends (`smtp` / `ses`); optional SMS
+backends (`twilio` / `telnyx`); async send queue
+with per-tenant rate limiting; retry / dead-letter; bounce & complaint webhooks; a
+`TroopSettings`-style per-tenant notification config; push via FCM. Then the messaging
+features (group-targeted announcements, event-triggered
 notifications, digests, SMS opt-in, preference centre), the report builder (roster,
 advancement, swim-classification, PDF export, medical-form expiry tracking,
 TWH-compatible export), and the **Natural-Language Reports (Text-to-SQL)** layer
