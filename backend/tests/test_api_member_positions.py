@@ -1,8 +1,26 @@
 """API tests for /members/{member_id}/positions — dated position terms."""
 
-from fastapi.testclient import TestClient
+import uuid
 
-from tests.conftest import _ADMIN_MEMBER_IDS, TENANT_A
+from fastapi.testclient import TestClient
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.models.enums import Permission
+from app.models.member import Member
+from app.models.rbac import Position
+from app.models.user import User
+from tests.conftest import _ADMIN_MEMBER_IDS, TENANT_A, _seed_admin
+from tests.test_api_session import _assign as _assign_db
+from tests.test_api_session import (
+    _client_for,
+    _grant,
+    _make_functional_role,
+    _make_member,
+    _make_position,
+    _make_user,
+    _map,
+)
 
 
 def _create_member(client: TestClient, first_name: str = "Alice") -> dict:
@@ -141,3 +159,149 @@ def test_cannot_delete_default_member_assignment(client: TestClient) -> None:
     resp = client.delete(f"/members/{m['id']}/positions/{default_assignment_id}")
     assert resp.status_code == 409
     assert resp.json()["detail"] == "Default positions cannot be deleted"
+
+
+# ---------------------------------------------------------------------------
+# GH-175 Finding 1 — privileged-position guardrail + last-admin guard
+# ---------------------------------------------------------------------------
+
+
+def _admin_position_id(db: Session) -> uuid.UUID:
+    pos = db.scalar(
+        select(Position).where(Position.tenant_id == TENANT_A, Position.slug == "administrator")
+    )
+    assert pos is not None
+    return pos.id
+
+
+def _make_role_assign_holder(db: Session, email: str = "chair@test.com") -> tuple[User, Member]:
+    """A Membership-Chair-style member: holds role:assign but is *not* an admin."""
+    role = _make_functional_role(db, TENANT_A, f"member-admins-{email}")
+    _grant(db, TENANT_A, role, Permission.ROLE_ASSIGN)
+    _grant(db, TENANT_A, role, Permission.MEMBER_READ)
+    chair_pos = _make_position(db, TENANT_A, f"membership-chair-{email}")
+    _map(db, TENANT_A, chair_pos, role)
+    user = _make_user(db, uuid.uuid4(), email)
+    member = _make_member(db, TENANT_A, user.id)
+    _assign_db(db, TENANT_A, member, chair_pos)
+    return user, member
+
+
+def test_role_assign_holder_cannot_self_assign_admin_position(db_session: Session) -> None:
+    """The proven exploit: a Membership Chair must not be able to become Administrator."""
+    _seed_admin(db_session, TENANT_A)
+    admin_pos_id = _admin_position_id(db_session)
+    user, member = _make_role_assign_holder(db_session)
+    db_session.commit()
+
+    with _client_for(db_session, user, TENANT_A) as c:
+        r = c.post(f"/members/{member.id}/positions", json={"position_id": str(admin_pos_id)})
+    assert r.status_code == 403
+    assert "administrators" in r.json()["detail"].lower()
+
+
+def test_role_assign_holder_cannot_assign_admin_position_to_other(db_session: Session) -> None:
+    _seed_admin(db_session, TENANT_A)
+    admin_pos_id = _admin_position_id(db_session)
+    user, _ = _make_role_assign_holder(db_session)
+    target = _make_member(db_session, TENANT_A, _make_user(db_session, uuid.uuid4(), "t@t.com").id)
+    db_session.commit()
+
+    with _client_for(db_session, user, TENANT_A) as c:
+        r = c.post(f"/members/{target.id}/positions", json={"position_id": str(admin_pos_id)})
+    assert r.status_code == 403
+
+
+def test_role_assign_holder_cannot_assign_role_manage_position(db_session: Session) -> None:
+    """A custom non-admin position whose role grants role:manage is privileged too."""
+    _seed_admin(db_session, TENANT_A)
+    user, member = _make_role_assign_holder(db_session)
+    governance_role = _make_functional_role(db_session, TENANT_A, "governance")
+    _grant(db_session, TENANT_A, governance_role, Permission.ROLE_MANAGE)
+    governance_pos = _make_position(db_session, TENANT_A, "governance-chair")
+    _map(db_session, TENANT_A, governance_pos, governance_role)
+    db_session.commit()
+
+    with _client_for(db_session, user, TENANT_A) as c:
+        r = c.post(f"/members/{member.id}/positions", json={"position_id": str(governance_pos.id)})
+    assert r.status_code == 403
+
+
+def test_role_assign_holder_can_assign_ordinary_position(db_session: Session) -> None:
+    """No false positive: routine delegation (e.g. Treasurer) must keep working."""
+    _seed_admin(db_session, TENANT_A)
+    user, _ = _make_role_assign_holder(db_session)
+    finance_role = _make_functional_role(db_session, TENANT_A, "finance-admins")
+    _grant(db_session, TENANT_A, finance_role, Permission.FINANCE_READ)
+    _grant(db_session, TENANT_A, finance_role, Permission.FINANCE_WRITE)
+    treasurer = _make_position(db_session, TENANT_A, "treasurer")
+    _map(db_session, TENANT_A, treasurer, finance_role)
+    target = _make_member(db_session, TENANT_A, _make_user(db_session, uuid.uuid4(), "n@t.com").id)
+    db_session.commit()
+
+    with _client_for(db_session, user, TENANT_A) as c:
+        r = c.post(f"/members/{target.id}/positions", json={"position_id": str(treasurer.id)})
+    assert r.status_code == 201, r.text
+
+
+def test_role_assign_holder_cannot_edit_or_delete_admin_term(db_session: Session) -> None:
+    """A role:assign holder must not be able to end or delete an Administrator's term."""
+    _seed_admin(db_session, TENANT_A)
+    user, _ = _make_role_assign_holder(db_session)
+    db_session.commit()
+    admin_member_id = _ADMIN_MEMBER_IDS[TENANT_A]
+
+    with _client_for(db_session, user, TENANT_A) as c:
+        terms = c.get(f"/members/{admin_member_id}/positions").json()
+        admin_term_id = terms[0]["id"]
+        r_patch = c.patch(
+            f"/members/{admin_member_id}/positions/{admin_term_id}",
+            json={"end_date": "2020-01-01"},
+        )
+        r_delete = c.delete(f"/members/{admin_member_id}/positions/{admin_term_id}")
+    assert r_patch.status_code == 403
+    assert r_delete.status_code == 403
+
+
+def test_admin_can_assign_admin_position(client: TestClient, db_session: Session) -> None:
+    m = _create_member(client)
+    admin_pos_id = _admin_position_id(db_session)
+    r = client.post(f"/members/{m['id']}/positions", json={"position_id": str(admin_pos_id)})
+    assert r.status_code == 201, r.text
+
+
+def test_cannot_end_or_delete_last_admin_term(client: TestClient, db_session: Session) -> None:
+    """Ending or deleting the tenant's only Administrator term returns 409."""
+    admin_member_id = _ADMIN_MEMBER_IDS[TENANT_A]
+    terms = client.get(f"/members/{admin_member_id}/positions").json()
+    admin_term_id = terms[0]["id"]
+
+    r_patch = client.patch(
+        f"/members/{admin_member_id}/positions/{admin_term_id}", json={"end_date": "2020-01-01"}
+    )
+    assert r_patch.status_code == 409
+    assert "last administrator" in r_patch.json()["detail"]
+
+    r_delete = client.delete(f"/members/{admin_member_id}/positions/{admin_term_id}")
+    assert r_delete.status_code == 409
+    assert "last administrator" in r_delete.json()["detail"]
+
+
+def test_can_end_admin_term_when_second_admin_exists(
+    client: TestClient, db_session: Session
+) -> None:
+    admin_member_id = _ADMIN_MEMBER_IDS[TENANT_A]
+    admin_pos_id = _admin_position_id(db_session)
+
+    # Promote a second admin, then ending the first admin's term is allowed.
+    second = _create_member(client, "Second")
+    r = client.post(f"/members/{second['id']}/positions", json={"position_id": str(admin_pos_id)})
+    assert r.status_code == 201
+
+    terms = client.get(f"/members/{admin_member_id}/positions").json()
+    admin_term_id = terms[0]["id"]
+    r_patch = client.patch(
+        f"/members/{admin_member_id}/positions/{admin_term_id}", json={"end_date": "2020-01-01"}
+    )
+    assert r_patch.status_code == 200
+    assert r_patch.json()["is_current"] is False

@@ -20,11 +20,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 
 from app.core.deps import AdminDbDep, SuperadminDep, get_platform_admin
+from app.core.permissions import admin_assignments
 from app.core.provisioning import invite_admin_member, provision_tenant
 from app.core.tenant_context import unscoped
 from app.models.enums import PlatformRole
 from app.models.member import Member
-from app.models.rbac import FunctionalRole, MemberPositionAssignment, PositionFunctionalRole
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.schemas.platform import (
@@ -148,31 +148,6 @@ def unsuspend_tenant(tenant_id: uuid.UUID, db: AdminDbDep, actor: SuperadminDep)
 # ---------------------------------------------------------------------------
 
 
-def _admin_assignments(db: AdminDbDep, tenant_id: uuid.UUID) -> Sequence[MemberPositionAssignment]:
-    """Active assignments of admin-conferring positions to members.
-
-    A member is a tenant admin when they hold a position mapped to an is_admin
-    functional role. Returns the underlying ``MemberPositionAssignment`` rows.
-    """
-    with unscoped():
-        return db.scalars(
-            select(MemberPositionAssignment)
-            .join(
-                PositionFunctionalRole,
-                PositionFunctionalRole.position_id == MemberPositionAssignment.position_id,
-            )
-            .join(FunctionalRole, FunctionalRole.id == PositionFunctionalRole.functional_role_id)
-            .where(
-                MemberPositionAssignment.tenant_id == tenant_id,
-                MemberPositionAssignment.is_deleted.is_(False),
-                PositionFunctionalRole.is_deleted.is_(False),
-                FunctionalRole.is_admin.is_(True),
-                FunctionalRole.is_deleted.is_(False),
-            )
-            .distinct()
-        ).all()
-
-
 @router.get("/tenants/{tenant_id}/admins", response_model=list[TenantAdminRead])
 def list_tenant_admins(tenant_id: uuid.UUID, db: AdminDbDep) -> list[TenantAdminRead]:
     """List the members holding an administrator role in the tenant."""
@@ -180,7 +155,7 @@ def list_tenant_admins(tenant_id: uuid.UUID, db: AdminDbDep) -> list[TenantAdmin
     admins: list[TenantAdminRead] = []
     seen: set[uuid.UUID] = set()
     with unscoped():
-        for assignment in _admin_assignments(db, tenant_id):
+        for assignment in admin_assignments(tenant_id, db):
             member = db.get(Member, assignment.member_id)
             if member is None or member.is_deleted or member.id in seen:
                 continue
@@ -238,7 +213,7 @@ def revoke_tenant_admin(
     tenant's last remaining administrator (a troop must keep at least one).
     """
     with unscoped():
-        assignments = _admin_assignments(db, tenant_id)
+        assignments = admin_assignments(tenant_id, db)
         target = [a for a in assignments if a.member_id == member_id]
         if not target:
             raise HTTPException(
