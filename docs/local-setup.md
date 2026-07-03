@@ -201,3 +201,32 @@ All run from `backend/`:
 | `uv run import-twh <tenant-id> <file>` | Import a TWH XML export into an existing tenant |
 | `uv run reset-tenant <tenant-id>` | Clear imported data for one tenant (keep admin) |
 | `uv run reset-db` | Nuclear: drop all tables + re-migrate |
+| `uv run seed-dev-data --email you@example.com [--reset]` | Provision the deterministic `demo` tenant (20 scouts, 15 adults, patrols, groups, 11 events) for the dev verification loop — see below |
+
+---
+
+## Dev verification loop: seed → run → e2e
+
+One-command realistic data plus Playwright smoke tests (GH-171), so a UI change
+can be verified end-to-end instead of stopping at `tsc` + unit tests:
+
+```bash
+# 1. Start the stack (Postgres + backend + web)
+./start.sh
+
+# 2. Seed the demo tenant, linked to your signed-in dev user
+cd backend && uv run seed-dev-data --email you@example.com --reset
+
+# 3. Browse it at http://demo.localhost:3000, or run the smoke tests:
+pnpm --filter web e2e
+```
+
+The seed is deterministic (fixed names, dates relative to today) and `--reset`
+tears the demo tenant down and rebuilds it, so it is always safe to re-run.
+
+The e2e suite authenticates through Clerk Testing Tokens (`@clerk/testing`).
+It needs, in `apps/web/.env.local` or the shell: your Clerk dev-instance keys
+(already there if the app runs) plus `E2E_CLERK_USER_EMAIL` /
+`E2E_CLERK_USER_PASSWORD` for a password-strategy test user in that instance —
+use the same address you passed to `--email` so the user lands as the demo
+tenant's admin. First run: `pnpm --filter web exec playwright install chromium`.
