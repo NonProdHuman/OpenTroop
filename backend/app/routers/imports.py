@@ -33,7 +33,8 @@ _CHUNK_SIZE = 64 * 1024
 
 
 class _Readable(Protocol):
-    def read(self, size: int, /) -> bytes: ...
+    def read(self, size: int, /) -> bytes:
+        """Read up to *size* bytes."""
 
 
 def _read_capped(stream: _Readable, limit: int, detail: str) -> bytes:
