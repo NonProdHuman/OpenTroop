@@ -20,6 +20,7 @@ dependencies = [
     "tzdata>=2024.1",
     # HTTP client used by ResendEmailBackend (app/core/notifications.py).
     "httpx2>=0.28",
+    "defusedxml>=0.7",
 ]
 
 [dependency-groups]
@@ -31,6 +32,7 @@ dev = [
     "pip-audit>=2.7",
     "faker>=25.0",
     "pytest-cov>=7.1.0",
+    "types-defusedxml>=0.7.0.20260504",
 ]
 
 [tool.pytest.ini_options]

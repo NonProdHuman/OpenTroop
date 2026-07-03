@@ -3,7 +3,10 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
+
+from app.core.config import settings
 
 _FIXTURE = Path(__file__).parent / "fixtures" / "sample_twh_minimal.xml"
 
@@ -163,3 +166,93 @@ def test_import_zip_without_xml_returns_422(client: TestClient) -> None:
     )
     assert r.status_code == 422
     assert "No XML file found inside ZIP archive" in r.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# GH-175 Finding 2 — size caps (413) and defensive XML parsing (422)
+# ---------------------------------------------------------------------------
+
+
+def test_import_oversized_upload_returns_413(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "twh_import_max_upload_bytes", 1024)
+    r = client.post(
+        "/import/twh",
+        files={"file": ("export.xml", b"x" * 2048, "application/xml")},
+    )
+    assert r.status_code == 413
+    assert "maximum" in r.json()["detail"].lower()
+
+
+def test_import_gzip_bomb_returns_413(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A few-KB gzip that expands past the decompression cap must be rejected."""
+    import gzip
+
+    monkeypatch.setattr(settings, "twh_import_max_decompressed_bytes", 64 * 1024)
+    bomb = gzip.compress(b"\x00" * (1024 * 1024))  # ~1 MiB of zeros → ~1 KiB gzipped
+    assert len(bomb) < 8 * 1024, "test premise: the compressed bomb itself is tiny"
+
+    r = client.post(
+        "/import/twh",
+        files={"file": ("export.xml.gz", bomb, "application/gzip")},
+    )
+    assert r.status_code == 413
+
+
+def test_import_zip_bomb_entry_returns_413(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import io
+    import zipfile
+
+    monkeypatch.setattr(settings, "twh_import_max_decompressed_bytes", 64 * 1024)
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("export.xml", b"\x00" * (1024 * 1024))
+
+    r = client.post(
+        "/import/twh",
+        files={"file": ("export.zip", zip_buffer.getvalue(), "application/zip")},
+    )
+    assert r.status_code == 413
+
+
+def test_import_zip_too_many_entries_returns_413(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import io
+    import zipfile
+
+    monkeypatch.setattr(settings, "twh_import_max_zip_entries", 4)
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for i in range(5):
+            zf.writestr(f"file{i}.txt", b"x")
+
+    r = client.post(
+        "/import/twh",
+        files={"file": ("many.zip", zip_buffer.getvalue(), "application/zip")},
+    )
+    assert r.status_code == 413
+    assert "entries" in r.json()["detail"]
+
+
+def test_import_invalid_zip_returns_422(client: TestClient) -> None:
+    r = client.post(
+        "/import/twh",
+        files={"file": ("bad.zip", b"not a zip archive at all", "application/zip")},
+    )
+    assert r.status_code == 422
+    assert "Invalid ZIP archive" in r.json()["detail"]
+
+
+def test_import_xml_with_entities_returns_422(client: TestClient) -> None:
+    """defusedxml must reject entity declarations (XXE / billion-laughs vector)."""
+    hostile = b'<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY bomb "boom">]><foo>&bomb;</foo>'
+    r = client.post(
+        "/import/twh",
+        files={"file": ("evil.xml", hostile, "application/xml")},
+    )
+    assert r.status_code == 422
+    assert "Invalid XML" in r.json()["detail"]
