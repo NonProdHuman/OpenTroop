@@ -10,12 +10,14 @@ no caller or signature changes. v1 ships only the functional-role source.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, date, datetime
 
 from sqlalchemy import ColumnElement, and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.enums import Permission
+from app.models.member import Member
 from app.models.rbac import (
     FunctionalRole,
     FunctionalRolePermission,
@@ -85,6 +87,88 @@ def resolve_permissions(member_id: uuid.UUID, session: Session) -> frozenset[Per
         # _permissions_via_positions(member_id, session),  # future: direct position grants
     ]
     return frozenset().union(*sources)
+
+
+def member_is_admin(member_id: uuid.UUID, session: Session) -> bool:
+    """True iff the member *currently* holds a position mapped to an ``is_admin`` role.
+
+    Structural check, distinct from ``resolve_permissions`` — an admin's resolved set
+    is *all* permissions, which can't be told apart from a custom role that merely
+    grants everything. Guardrails on privileged position writes need the structural
+    fact, so this walks the same live-position → functional-role hops directly.
+    """
+    functional_role_ids = _member_functional_role_ids(member_id, session)
+    return bool(functional_role_ids) and _has_admin_role(functional_role_ids, session)
+
+
+def position_is_privileged(position_id: uuid.UUID, tenant_id: uuid.UUID, session: Session) -> bool:
+    """True iff assigning this position confers admin or meta-governance power.
+
+    A position is privileged when any live mapping reaches a live functional role
+    that is ``is_admin`` or grants ``Permission.ROLE_MANAGE``. Writes to terms of a
+    privileged position are restricted to administrators (``member_is_admin``) so a
+    ``role:assign`` holder cannot escalate themselves (GH-175 Finding 1).
+    """
+    return (
+        session.scalars(
+            select(FunctionalRole.id)
+            .join(
+                PositionFunctionalRole,
+                PositionFunctionalRole.functional_role_id == FunctionalRole.id,
+            )
+            .outerjoin(
+                FunctionalRolePermission,
+                FunctionalRolePermission.functional_role_id == FunctionalRole.id,
+            )
+            .where(
+                PositionFunctionalRole.position_id == position_id,
+                PositionFunctionalRole.tenant_id == tenant_id,
+                or_(
+                    FunctionalRole.is_admin.is_(True),
+                    FunctionalRolePermission.permission == Permission.ROLE_MANAGE,
+                ),
+            )
+        ).first()
+        is not None
+    )
+
+
+def admin_assignments(tenant_id: uuid.UUID, session: Session) -> Sequence[MemberPositionAssignment]:
+    """Current assignments that make a member a tenant administrator.
+
+    The single definition of "who is a tenant admin" — a live (current, non-deleted)
+    term for a position mapped to an ``is_admin`` functional role, held by a
+    non-deleted member. Shared by the platform control plane (revoke last-admin
+    guard) and the tenant-facing term endpoints (their mirror guard), so the two
+    paths cannot drift. Predicates are explicit rather than relying on the automatic
+    tenant/soft-delete scoping because the platform side calls this under
+    ``unscoped()``.
+    """
+    return session.scalars(
+        select(MemberPositionAssignment)
+        .join(Member, Member.id == MemberPositionAssignment.member_id)
+        .join(Position, Position.id == MemberPositionAssignment.position_id)
+        .join(
+            PositionFunctionalRole,
+            PositionFunctionalRole.position_id == MemberPositionAssignment.position_id,
+        )
+        .join(FunctionalRole, FunctionalRole.id == PositionFunctionalRole.functional_role_id)
+        .where(
+            MemberPositionAssignment.tenant_id == tenant_id,
+            current_assignment_clause(),
+            Member.is_deleted.is_(False),
+            Position.is_deleted.is_(False),
+            PositionFunctionalRole.is_deleted.is_(False),
+            FunctionalRole.is_admin.is_(True),
+            FunctionalRole.is_deleted.is_(False),
+        )
+        .distinct()
+    ).all()
+
+
+def admin_member_ids(tenant_id: uuid.UUID, session: Session) -> set[uuid.UUID]:
+    """Distinct members currently holding an admin-conferring term in the tenant."""
+    return {a.member_id for a in admin_assignments(tenant_id, session)}
 
 
 def _member_functional_role_ids(member_id: uuid.UUID, session: Session) -> set[uuid.UUID]:
