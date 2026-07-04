@@ -6,6 +6,7 @@ import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
 import type {
   AdvancementQueue,
+  AdvancementScout,
   Completion,
   CompletionStatus,
   MemberAdvancement,
@@ -42,6 +43,16 @@ export function useMemberAdvancement(memberId: string | null) {
     queryKey: queryKeys.memberAdvancement(activeTenantId, memberId),
     queryFn: () => request<MemberAdvancement>(`/members/${memberId}/advancement`),
     enabled: memberId !== null && Boolean(activeTenantId),
+  })
+}
+
+export function useAdvancementScouts() {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  return useQuery({
+    queryKey: queryKeys.advancementScouts(activeTenantId),
+    queryFn: () => request<AdvancementScout[]>("/advancement/scouts"),
+    enabled: Boolean(activeTenantId),
   })
 }
 

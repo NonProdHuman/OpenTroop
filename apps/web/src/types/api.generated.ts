@@ -97,6 +97,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/advancement/scouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Viewable Scouts
+         * @description Scouts the caller may view advancement for — the viewer-page picker (GH-191).
+         *
+         *     ``advancement:read`` holders see every scout; everyone else sees themselves
+         *     (if a scout) plus their direct wards — the same baseline-access rule
+         *     ``_may_view`` applies to the per-member progress view.
+         */
+        get: operations["list_viewable_scouts_advancement_scouts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/claim": {
         parameters: {
             query?: never;
@@ -1455,6 +1479,33 @@ export interface components {
             completions: components["schemas"]["CompletionRead"][];
             /** Merit Badges */
             merit_badges: components["schemas"]["MemberMeritBadgeRead"][];
+        };
+        /**
+         * AdvancementScoutRead
+         * @description A scout the caller may view advancement for — the viewer-page picker row.
+         *
+         *     Deliberately self-contained (name, patrol, current rank) so parents and
+         *     scouts without ``member:read`` never need the members API to render the
+         *     picker. See GH-191.
+         */
+        AdvancementScoutRead: {
+            current_rank_code: components["schemas"]["RankCode"] | null;
+            /** Current Rank Name */
+            current_rank_name: string | null;
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name: string;
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+            membership_status: components["schemas"]["MemberStatus"];
+            /** Nickname */
+            nickname: string | null;
+            /** Patrol Name */
+            patrol_name: string | null;
         };
         /** Body_import_twh_import_twh_post */
         Body_import_twh_import_twh_post: {
@@ -4331,6 +4382,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RequirementSetDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_viewable_scouts_advancement_scouts_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdvancementScoutRead"][];
                 };
             };
             /** @description Validation Error */

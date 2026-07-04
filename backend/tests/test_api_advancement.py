@@ -9,7 +9,11 @@ from sqlalchemy.orm import Session
 from app.models import (
     AdvancementMode,
     CompletionStatus,
+    Group,
+    GroupMember,
+    GroupType,
     Member,
+    MemberRankProgress,
     MemberRelationship,
     MemberType,
     MeritBadge,
@@ -461,3 +465,150 @@ def test_settings_expose_advancement_mode(client: TestClient, db_session: Sessio
     r = client.patch("/tenant/settings", json={"advancement_mode": "scout_reported"})
     assert r.status_code == 200
     assert r.json()["advancement_mode"] == "scout_reported"
+
+
+# ---------------------------------------------------------------------------
+# Viewer: scout picker (GH-191)
+# ---------------------------------------------------------------------------
+
+
+def _picker(client_: TestClient, headers: dict[str, str] | None = None) -> list[dict[str, object]]:
+    r = client_.get("/advancement/scouts", headers=headers or {})
+    assert r.status_code == 200, r.text
+    body: list[dict[str, object]] = r.json()
+    return body
+
+
+def test_picker_reader_sees_all_scouts_no_adults(client: TestClient, db_session: Session) -> None:
+    _Catalog(db_session)
+    _scout(db_session, first="Zoe")
+    _scout(db_session, first="Abe")
+    adult = Member(
+        tenant_id=TENANT_A, first_name="Al", last_name="Adult", member_type=MemberType.ADULT
+    )
+    db_session.add(adult)
+    db_session.flush()
+
+    rows = _picker(client)
+    # The admin fixture's own Member row is an adult too — scouts only, sorted.
+    assert [r["first_name"] for r in rows] == ["Abe", "Zoe"]
+    assert all(r["patrol_name"] is None and r["current_rank_code"] is None for r in rows)
+
+
+def test_picker_scopes_to_self_and_wards(claim_client: TestClient, db_session: Session) -> None:
+    _Catalog(db_session)
+    child = _scout(db_session, first="Kid")
+    _scout(db_session, first="Other")
+    parent = Member(
+        tenant_id=TENANT_A,
+        first_name="Pat",
+        last_name="Parent",
+        member_type=MemberType.ADULT,
+        user_id=NEW_USER_ID,
+    )
+    db_session.add(parent)
+    db_session.flush()
+    db_session.add(
+        MemberRelationship(
+            tenant_id=TENANT_A,
+            from_member_id=parent.id,
+            to_member_id=child.id,
+            relationship_type=RelationshipType.GUARDIAN_OF,
+        )
+    )
+    db_session.flush()
+
+    rows = _picker(claim_client, _tenant_a_headers())
+    assert [r["member_id"] for r in rows] == [str(child.id)]
+
+
+def test_picker_scout_sees_only_self(claim_client: TestClient, db_session: Session) -> None:
+    _Catalog(db_session)
+    me = _scout(db_session, user_id=NEW_USER_ID)
+    _scout(db_session, first="Other")
+    rows = _picker(claim_client, _tenant_a_headers())
+    assert [r["member_id"] for r in rows] == [str(me.id)]
+
+
+def test_picker_unrelated_adult_sees_nothing(claim_client: TestClient, db_session: Session) -> None:
+    _Catalog(db_session)
+    _scout(db_session)
+    adult = Member(
+        tenant_id=TENANT_A,
+        first_name="Lone",
+        last_name="Adult",
+        member_type=MemberType.ADULT,
+        user_id=NEW_USER_ID,
+    )
+    db_session.add(adult)
+    db_session.flush()
+    assert _picker(claim_client, _tenant_a_headers()) == []
+
+
+def test_picker_patrol_and_current_rank(client: TestClient, db_session: Session) -> None:
+    cat = _Catalog(db_session)
+    scout = _scout(db_session)
+    higher = Rank(code=RankCode.SECOND_CLASS, name="Second Class", sort_order=3)
+    patrol = Group(tenant_id=TENANT_A, name="Foxes", group_type=GroupType.PATROL)
+    db_session.add_all([higher, patrol])
+    db_session.flush()
+    db_session.add(GroupMember(tenant_id=TENANT_A, group_id=patrol.id, member_id=scout.id))
+    # Two completed ranks — the picker reports the highest sort_order one.
+    db_session.add_all(
+        [
+            MemberRankProgress(
+                tenant_id=TENANT_A,
+                member_id=scout.id,
+                rank_id=cat.rank.id,
+                requirement_set_id=cat.set_2025.id,
+                completed_date=DATE,
+            ),
+            MemberRankProgress(
+                tenant_id=TENANT_A,
+                member_id=scout.id,
+                rank_id=higher.id,
+                requirement_set_id=cat.set_2025.id,
+                completed_date=DATE,
+            ),
+        ]
+    )
+    # An in-progress rank row (no BOR date) on another scout must not count.
+    other = _scout(db_session, first="Working")
+    db_session.add(
+        MemberRankProgress(
+            tenant_id=TENANT_A,
+            member_id=other.id,
+            rank_id=cat.rank.id,
+            requirement_set_id=cat.set_2025.id,
+        )
+    )
+    db_session.flush()
+
+    by_name = {r["first_name"]: r for r in _picker(client)}
+    assert by_name["Sam"]["patrol_name"] == "Foxes"
+    assert by_name["Sam"]["current_rank_code"] == "second_class"
+    assert by_name["Sam"]["current_rank_name"] == "Second Class"
+    assert by_name["Working"]["current_rank_code"] is None
+
+
+def test_picker_excludes_soft_deleted_and_disabled_mode(
+    client: TestClient, db_session: Session
+) -> None:
+    _Catalog(db_session)
+    gone = _scout(db_session, first="Gone")
+    gone.is_deleted = True
+    _scout(db_session, first="Here")
+    db_session.flush()
+    assert [r["first_name"] for r in _picker(client)] == ["Here"]
+
+    _set_mode(db_session, AdvancementMode.DISABLED)
+    assert client.get("/advancement/scouts").status_code == 404
+
+
+def test_picker_tenant_isolation(
+    client: TestClient, other_client: TestClient, db_session: Session
+) -> None:
+    _Catalog(db_session)
+    _scout(db_session)
+    assert len(_picker(client)) == 1
+    assert _picker(other_client) == []

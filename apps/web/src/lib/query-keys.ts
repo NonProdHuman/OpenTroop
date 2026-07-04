@@ -70,6 +70,7 @@ export const queryKeys = {
   memberAdvancement: (t: TenantId, memberId: string | null) =>
     [t, "member-advancement", memberId] as const,
   advancementQueue: (t: TenantId) => [t, "advancement-queue"] as const,
+  advancementScouts: (t: TenantId) => [t, "advancement-scouts"] as const,
 
   // ── Tenant settings ───────────────────────────────────────────────────────
   tenantSettings: (t: TenantId) => [t, "tenant-settings"] as const,

@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.enums import CompletionStatus, RankCode, RecordedVia
+from app.models.enums import CompletionStatus, MemberStatus, RankCode, RecordedVia
 from app.schemas.base import PlatformRead, TrackedRead
 from app.schemas.types import UtcDateTime
 
@@ -200,3 +200,23 @@ class AdvancementQueueRead(BaseModel):
 
     completions: list[CompletionRead]
     merit_badges: list[MemberMeritBadgeRead]
+
+
+class AdvancementScoutRead(BaseModel):
+    """A scout the caller may view advancement for — the viewer-page picker row.
+
+    Deliberately self-contained (name, patrol, current rank) so parents and
+    scouts without ``member:read`` never need the members API to render the
+    picker. See GH-191.
+    """
+
+    member_id: uuid.UUID
+    first_name: str
+    last_name: str
+    nickname: str | None
+    membership_status: MemberStatus
+    patrol_name: str | None
+    # Current rank = highest sort_order with a recorded board-of-review date;
+    # null for scouts with no completed rank yet.
+    current_rank_code: RankCode | None
+    current_rank_name: str | None
