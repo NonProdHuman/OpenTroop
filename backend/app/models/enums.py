@@ -115,6 +115,48 @@ class RuleDimension(enum.StrEnum):
     RANK = "rank"  # Phase 2 — no-op until Pillar 4 advancement model
 
 
+class CompletionStatus(enum.StrEnum):
+    """Workflow state of a reported advancement completion (GH-92).
+
+    REPORTED — entered by a scout/parent (mode ``scout_reported``); awaiting the
+               advancement chair's approval.
+    APPROVED — counts toward the rank. Direct chair entry and auto-credits are
+               born approved.
+    REJECTED — reviewed and declined; may be re-reported with new evidence.
+
+    Revocation is the soft-delete tombstone, not a status — a revoked auto-credit
+    must never be re-created by the engine, which treats any existing row
+    (including deleted) as "do not re-create".
+    """
+
+    REPORTED = "reported"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class RecordedVia(enum.StrEnum):
+    """How an advancement completion row came to exist (GH-92)."""
+
+    MANUAL = "manual"  # entered by a person (self-report or chair entry)
+    AUTO = "auto"  # auto-credit engine crossed a metric threshold
+    IMPORT = "import"  # Scoutbook import
+    REMAP = "remap"  # copied across requirement sets on a version-election switch
+
+
+class AdvancementMode(enum.StrEnum):
+    """Per-tenant switch for the advancement workflow (GH-92).
+
+    DISABLED       — nav hidden; advancement endpoints 404; auto-credit inert.
+    CHAIR_ENTRY    — only ``advancement:record`` holders write; entries are born
+                     approved. The default for new tenants.
+    SCOUT_REPORTED — scouts/parents self-report; the approval queue is active.
+    """
+
+    DISABLED = "disabled"
+    CHAIR_ENTRY = "chair_entry"
+    SCOUT_REPORTED = "scout_reported"
+
+
 class RankCode(enum.StrEnum):
     """The seven sequential Scouts BSA ranks (Pillar 4, see GH-92).
 

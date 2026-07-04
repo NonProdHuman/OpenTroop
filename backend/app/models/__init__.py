@@ -1,8 +1,18 @@
 """ORM models. Importing this package registers every table on ``Base.metadata``."""
 
-from app.models.advancement import MeritBadge, Rank, Requirement, RequirementSet
+from app.models.advancement import (
+    MemberMeritBadge,
+    MemberRankProgress,
+    MemberRequirementCompletion,
+    MeritBadge,
+    Rank,
+    Requirement,
+    RequirementSet,
+)
 from app.models.base import Base, PlatformBase, TrackedBase
 from app.models.enums import (
+    AdvancementMode,
+    CompletionStatus,
     GroupType,
     MemberStatus,
     MemberType,
@@ -12,6 +22,7 @@ from app.models.enums import (
     PlatformRole,
     PositionScope,
     RankCode,
+    RecordedVia,
     RelationshipType,
     RsvpStatus,
     RuleDimension,
@@ -62,6 +73,12 @@ __all__ = [
     "RequirementSet",
     "Requirement",
     "MeritBadge",
+    "MemberRankProgress",
+    "MemberRequirementCompletion",
+    "MemberMeritBadge",
+    "AdvancementMode",
+    "CompletionStatus",
+    "RecordedVia",
     "RankCode",
     "MetricKind",
     "MetricWindow",

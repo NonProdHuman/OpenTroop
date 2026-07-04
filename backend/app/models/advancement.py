@@ -21,15 +21,26 @@ this module is deliberately catalog-only.
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import PlatformBase
-from app.models.enums import RankCode
+from app.models.base import PlatformBase, SourceTracked, TrackedBase
+from app.models.enums import CompletionStatus, RankCode, RecordedVia
 from app.models.types import JsonObjectList
 
 
@@ -140,3 +151,154 @@ class MeritBadge(PlatformBase):
     name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     eagle_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_discontinued: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class MemberRankProgress(SourceTracked, TrackedBase):
+    """A member's progress on one rank — and their requirement-version election.
+
+    One row per (member, rank), created lazily on first completion (or explicit
+    start / election change). ``requirement_set_id`` is the **version election**:
+    the set of requirements this scout is finishing the rank under (defaults to
+    the latest set effective at creation; switchable by ``advancement:approve``,
+    which remaps completions via ``stable_key`` — see
+    ``app.core.advancement.switch_election``).
+
+    ``completed_date`` is the board-of-review date — the official rank date and
+    the tenure anchor for the next rank's ``since_rank`` metrics.
+    ``awarded_date`` is the Court of Honor presentation. "All leaf requirements
+    complete" is computed, never stored.
+    """
+
+    __tablename__ = "member_rank_progress"
+    __table_args__ = (
+        Index(
+            "uix_member_rank_progress_member_rank",
+            "tenant_id",
+            "member_id",
+            "rank_id",
+            unique=True,
+            postgresql_where=text("NOT is_deleted"),
+            sqlite_where=text("is_deleted = 0"),
+        ),
+        Index("ix_member_rank_progress_tenant_member", "tenant_id", "member_id"),
+    )
+
+    member_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("members.id"), nullable=False, index=True
+    )
+    rank_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ranks.id"), nullable=False)
+    requirement_set_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("requirement_sets.id"), nullable=False
+    )
+    completed_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    awarded_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    synced_to_scoutbook_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    rank: Mapped[Rank] = relationship("Rank")
+    requirement_set: Mapped[RequirementSet] = relationship("RequirementSet")
+
+
+class MemberRequirementCompletion(SourceTracked, TrackedBase):
+    """One leaf requirement completed (or reported) by one member.
+
+    Only **leaf** requirements get rows — container completion is derived from
+    children. Soft delete is **revocation**: the auto-credit engine treats any
+    existing row, deleted included, as "do not re-create", so a revoked
+    auto-credit stays revoked.
+    """
+
+    __tablename__ = "member_requirement_completions"
+    __table_args__ = (
+        Index(
+            "uix_member_req_completions_member_req",
+            "tenant_id",
+            "member_id",
+            "requirement_id",
+            unique=True,
+            postgresql_where=text("NOT is_deleted"),
+            sqlite_where=text("is_deleted = 0"),
+        ),
+        Index("ix_member_req_completions_tenant_member", "tenant_id", "member_id"),
+    )
+
+    member_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("members.id"), nullable=False, index=True
+    )
+    requirement_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("requirements.id"), nullable=False, index=True
+    )
+    date_completed: Mapped[date] = mapped_column(Date, nullable=False)
+    status: Mapped[CompletionStatus] = mapped_column(
+        SAEnum(CompletionStatus, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=CompletionStatus.REPORTED,
+    )
+    reported_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("members.id"), nullable=True
+    )
+    approved_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("members.id"), nullable=True
+    )
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    recorded_via: Mapped[RecordedVia] = mapped_column(
+        SAEnum(RecordedVia, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=RecordedVia.MANUAL,
+    )
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    synced_to_scoutbook_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    requirement: Mapped[Requirement] = relationship("Requirement")
+
+
+class MemberMeritBadge(SourceTracked, TrackedBase):
+    """A member's merit badge record — completions (and in-progress partials).
+
+    Phase 1/2 tracks the badge as a whole; per-requirement merit badge tracking
+    is deferred (the counselor owns it). A row with a null ``date_completed`` is
+    a partial in progress. Same report → approve workflow as requirement
+    completions; soft delete is revocation.
+    """
+
+    __tablename__ = "member_merit_badges"
+    __table_args__ = (
+        Index(
+            "uix_member_merit_badges_member_badge",
+            "tenant_id",
+            "member_id",
+            "merit_badge_id",
+            unique=True,
+            postgresql_where=text("NOT is_deleted"),
+            sqlite_where=text("is_deleted = 0"),
+        ),
+        Index("ix_member_merit_badges_tenant_member", "tenant_id", "member_id"),
+    )
+
+    member_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("members.id"), nullable=False, index=True
+    )
+    merit_badge_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("merit_badges.id"), nullable=False)
+    date_started: Mapped[date | None] = mapped_column(Date, nullable=True)
+    date_completed: Mapped[date | None] = mapped_column(Date, nullable=True)
+    counselor_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[CompletionStatus] = mapped_column(
+        SAEnum(CompletionStatus, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=CompletionStatus.REPORTED,
+    )
+    reported_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("members.id"), nullable=True
+    )
+    approved_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("members.id"), nullable=True
+    )
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    synced_to_scoutbook_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    merit_badge: Mapped[MeritBadge] = relationship("MeritBadge")

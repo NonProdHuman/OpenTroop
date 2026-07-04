@@ -3,9 +3,11 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import DateTime, String, Text, UniqueConstraint
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import PlatformBase
+from app.models.enums import AdvancementMode
 
 
 class Tenant(PlatformBase):
@@ -30,3 +32,11 @@ class Tenant(PlatformBase):
     # Customizable parental permission-slip language shown before a parent clicks "I Agree".
     # Static text (no merge fields). Null ⇒ a built-in default is shown (see DEFAULT_PERMISSION_MESSAGE).
     permission_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Advancement workflow switch (GH-92): disabled / chair_entry / scout_reported.
+    # Governs whether the advancement endpoints exist for this tenant and whether
+    # scouts/parents may self-report. Default for new tenants: chair_entry.
+    advancement_mode: Mapped[AdvancementMode] = mapped_column(
+        SAEnum(AdvancementMode, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=AdvancementMode.CHAIR_ENTRY,
+    )
