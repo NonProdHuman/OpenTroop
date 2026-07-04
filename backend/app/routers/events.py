@@ -6,6 +6,11 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
+from app.core.advancement import (
+    apply_auto_credits,
+    auto_credit_enabled,
+    recompute_member_advancement,
+)
 from app.core.deps import (
     CurrentMemberDep,
     DbDep,
@@ -60,6 +65,28 @@ from app.schemas.event import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/events", tags=["events"])
+
+# Participant / event fields whose changes feed the advancement auto-credit
+# engine (GH-92). Kept next to the handlers that consult them.
+_ADVANCEMENT_PARTICIPANT_FIELDS = frozenset(
+    {
+        "attended",
+        "community_service_hours_override",
+        "conservation_hours_override",
+        "hiking_miles_override",
+        "camping_nights_override",
+    }
+)
+_ADVANCEMENT_EVENT_FIELDS = frozenset(
+    {
+        "community_service_hours",
+        "conservation_hours",
+        "hiking_miles",
+        "camping_nights",
+        "event_type_id",
+        "scheduled_start",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -141,6 +168,21 @@ def update_event(event_id: uuid.UUID, body: EventUpdate, tenant_id: TenantDep, d
         setattr(event, k, v)
     db.commit()
     db.refresh(event)
+    # Editing an event's activity metrics moves every attendee's advancement
+    # meters (GH-92): re-run auto-credit for each attended member. Bounded by
+    # troop size; one commit for the batch.
+    if updates.keys() & _ADVANCEMENT_EVENT_FIELDS and auto_credit_enabled(tenant_id, db):
+        attendee_ids = db.scalars(
+            select(EventParticipant.member_id).where(
+                EventParticipant.event_id == event.id,
+                EventParticipant.attended.is_(True),
+            )
+        ).all()
+        credited = False
+        for attendee_id in attendee_ids:
+            credited = bool(apply_auto_credits(attendee_id, db)) or credited
+        if credited:
+            db.commit()
     return event
 
 
@@ -480,6 +522,10 @@ def update_participant(
         setattr(participant, k, v)
     db.commit()
     db.refresh(participant)
+    # Attendance and per-person activity overrides feed the advancement
+    # auto-credit engine (GH-92) — recompute this member synchronously.
+    if updates.keys() & _ADVANCEMENT_PARTICIPANT_FIELDS:
+        recompute_member_advancement(member_id, tenant_id, db)
     target = db.get(Member, participant.member_id)
     return _with_permission_status(participant, event, _tenant_message(db, tenant_id), target)
 

@@ -155,6 +155,20 @@ class ElectionResult(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class MetricProgress(BaseModel):
+    """One evaluated metric condition — the UI progress meter datum.
+
+    ``value`` is None when the window anchor is unavailable (e.g. a since_rank
+    condition before the previous rank's board of review is recorded).
+    """
+
+    kind: str
+    window: str
+    threshold: float
+    value: float | None
+    met: bool
+
+
 class RequirementProgress(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -162,6 +176,8 @@ class RequirementProgress(BaseModel):
     completion: CompletionRead | None
     # Derived completeness: approved leaves; containers when all children complete.
     is_complete: bool
+    # Live meters for metric-bearing requirements (GH-92) — always computed fresh.
+    metrics_progress: list[MetricProgress] = []
 
 
 class MemberRankView(BaseModel):
