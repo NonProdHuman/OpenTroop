@@ -23,6 +23,7 @@ from sqlalchemy import ColumnElement, and_, or_, select
 from app.core.deps import DbDep, MemberContextDep, TenantDep, require
 from app.core.event_visibility import visibility_clause
 from app.core.groups import member_group_ids
+from app.core.relationships import family_member_ids
 from app.core.tenant_context import include_deleted
 from app.models.enums import Permission
 from app.models.event import Event, EventParticipant
@@ -108,14 +109,21 @@ def _event_visibility_for(ctx: MemberContextDep, db: DbDep) -> ColumnElement[boo
     return visibility_clause(member_group_ids(member.id, db))
 
 
-@router.get(
-    "/members",
-    response_model=SyncMembersPage,
-    dependencies=[Depends(require(Permission.MEMBER_READ))],
-)
+def _family_scope(ctx: MemberContextDep, db: DbDep) -> frozenset[uuid.UUID] | None:
+    """Member-stream narrowing: ``member:read`` mirrors the roster; everyone
+    else mirrors their household (self + wards + co-parents) so family RSVP
+    works offline (GH-153 §C3 / the interactive baseline-access rule)."""
+    actor, permissions = ctx
+    if Permission.MEMBER_READ in permissions:
+        return None
+    return family_member_ids(actor.id, db)
+
+
+@router.get("/members", response_model=SyncMembersPage)
 def sync_members(
     tenant_id: TenantDep,
     db: DbDep,
+    ctx: MemberContextDep,
     since_seq: int = Query(default=0, ge=0),
     since_id: uuid.UUID | None = None,
     limit: int = _LIMIT,
@@ -124,7 +132,11 @@ def sync_members(
 
     ``since_seq=0`` (the default) is the initial full sync.
     """
-    page, next_seq, next_id, has_more = _pull_page(Member, db, since_seq, since_id, limit)
+    family = _family_scope(ctx, db)
+    extra = Member.id.in_(family) if family is not None else None
+    page, next_seq, next_id, has_more = _pull_page(
+        Member, db, since_seq, since_id, limit, extra_clause=extra
+    )
     return SyncMembersPage(
         items=[MemberRead.model_validate(m) for m in page],
         next_since_seq=next_seq,
@@ -133,20 +145,28 @@ def sync_members(
     )
 
 
-@router.get(
-    "/member_relationships",
-    response_model=SyncMemberRelationshipsPage,
-    dependencies=[Depends(require(Permission.MEMBER_READ))],
-)
+@router.get("/member_relationships", response_model=SyncMemberRelationshipsPage)
 def sync_member_relationships(
     tenant_id: TenantDep,
     db: DbDep,
+    ctx: MemberContextDep,
     since_seq: int = Query(default=0, ge=0),
     since_id: uuid.UUID | None = None,
     limit: int = _LIMIT,
 ) -> SyncMemberRelationshipsPage:
+    """Family edges follow the member stream's scope: full for ``member:read``,
+    household-touching edges for everyone else."""
+    family = _family_scope(ctx, db)
+    extra = (
+        or_(
+            MemberRelationship.from_member_id.in_(family),
+            MemberRelationship.to_member_id.in_(family),
+        )
+        if family is not None
+        else None
+    )
     page, next_seq, next_id, has_more = _pull_page(
-        MemberRelationship, db, since_seq, since_id, limit
+        MemberRelationship, db, since_seq, since_id, limit, extra_clause=extra
     )
     return SyncMemberRelationshipsPage(
         items=[MemberRelationshipRead.model_validate(r) for r in page],
