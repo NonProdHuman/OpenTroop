@@ -187,7 +187,7 @@ jobs:
         run: pnpm gen:api
 
       - name: Fail if generated types are stale
-        run: git diff --exit-code apps/web/src/types/api.generated.ts
+        run: git diff --exit-code apps/web/src/types/api.generated.ts packages/api-types/index.ts
 
   secrets-scan:
     name: Secrets scan (gitleaks)

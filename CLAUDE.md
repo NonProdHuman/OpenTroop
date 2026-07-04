@@ -105,13 +105,13 @@ pre-commit environment.
   root domain (e.g. `opentroop.app`) serves the landing page, the `admin` subdomain
   serves the platform control plane, and any other subdomain
   (e.g. `troop123.opentroop.app`) serves that tenant's dashboard.
-- **Mobile** (`apps/mobile/`): Expo (React Native) — stub, to be scaffolded once
-  the web API contract stabilizes. It will consume a generated TypeScript API client
-  produced from the FastAPI OpenAPI spec (`openapi-typescript`); that package will be
-  regenerated and added under `packages/` when mobile work actually begins. The web app
-  does not use it — its types in `apps/web/src/types/api.ts` are thin aliases into
-  `apps/web/src/types/api.generated.ts`, which is generated from the backend OpenAPI spec
-  by `pnpm gen:api`. CI fails if the committed generated file drifts from the backend.
+- **Mobile** (`apps/mobile/`): Expo (React Native), iOS first — Mobile v1 underway
+  (phases in GH-93; offline data-layer spec in GH-153). It consumes
+  `packages/api-types` (`@opentroop/api-types`), generated from the FastAPI OpenAPI
+  spec by the same `pnpm gen:api` run that produces the web app's
+  `apps/web/src/types/api.generated.ts` (thin aliases in `apps/web/src/types/api.ts`;
+  the web app keeps its own copy for import-path stability). CI fails if either
+  committed generated file drifts from the backend.
 
 ### Sync-aware schema contract (critical)
 

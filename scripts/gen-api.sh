@@ -14,6 +14,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SPEC_FILE="$(mktemp -t opentroop-openapi.XXXXXX.json)"
 OUT_FILE="$REPO_ROOT/apps/web/src/types/api.generated.ts"
+PKG_OUT_FILE="$REPO_ROOT/packages/api-types/index.ts"
 trap 'rm -f "$SPEC_FILE"' EXIT
 
 export APP_DOMAIN="${APP_DOMAIN:-opentroop.local}"
@@ -34,4 +35,9 @@ BANNER="/* eslint-disable */
 "
 printf '%s\n' "$BANNER" | cat - "$OUT_FILE" > "$OUT_FILE.tmp" && mv "$OUT_FILE.tmp" "$OUT_FILE"
 
+# The shared @opentroop/api-types package (consumed by apps/mobile) is the same
+# generated output — one spec export, two committed copies, both drift-checked.
+cp "$OUT_FILE" "$PKG_OUT_FILE"
+
 echo "OK: wrote $OUT_FILE"
+echo "OK: wrote $PKG_OUT_FILE"
