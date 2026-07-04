@@ -115,6 +115,57 @@ class RuleDimension(enum.StrEnum):
     RANK = "rank"  # Phase 2 — no-op until Pillar 4 advancement model
 
 
+class RankCode(enum.StrEnum):
+    """The seven sequential Scouts BSA ranks (Pillar 4, see GH-92).
+
+    Scout–First Class may be worked simultaneously but are earned in sequence;
+    ordering lives on ``Rank.sort_order``, this enum is the stable identifier.
+    Eagle Palms are deferred (not a rank row).
+    """
+
+    SCOUT = "scout"
+    TENDERFOOT = "tenderfoot"
+    SECOND_CLASS = "second_class"
+    FIRST_CLASS = "first_class"
+    STAR = "star"
+    LIFE = "life"
+    EAGLE = "eagle"
+
+
+class MetricKind(enum.StrEnum):
+    """Countable quantity a catalog requirement can be measured against (GH-92).
+
+    Stored in ``Requirement.metrics`` JSON conditions; each maps to data OpenTroop
+    already tracks (event activity metrics × attendance, position terms, merit
+    badges, rank dates). See ``app/core/advancement.py`` (Phase 3) for evaluation.
+    """
+
+    CAMPING_NIGHTS = "camping_nights"
+    SERVICE_HOURS = "service_hours"
+    CONSERVATION_HOURS = "conservation_hours"
+    HIKING_MILES = "hiking_miles"
+    ACTIVITY_COUNT = "activity_count"
+    TENURE_MONTHS = "tenure_months"
+    POR_MONTHS = "por_months"
+    MERIT_BADGE_COUNT = "merit_badge_count"
+    MERIT_BADGE_COUNT_EAGLE_REQUIRED = "merit_badge_count_eagle_required"
+
+
+class MetricWindow(enum.StrEnum):
+    """Time window a metric condition accumulates over (GH-92).
+
+    ANY           — all recorded history.
+    SINCE_JOINING — anchored at the member's troop joining (fallback: earliest
+                    attendance).
+    SINCE_RANK    — anchored at the previous rank's board-of-review date
+                    (``MemberRankProgress.completed_date``).
+    """
+
+    ANY = "any"
+    SINCE_JOINING = "since_joining"
+    SINCE_RANK = "since_rank"
+
+
 class PositionScope(enum.StrEnum):
     """Which kind of member a Position may be assigned to.
 

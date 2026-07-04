@@ -1,13 +1,17 @@
 """ORM models. Importing this package registers every table on ``Base.metadata``."""
 
+from app.models.advancement import MeritBadge, Rank, Requirement, RequirementSet
 from app.models.base import Base, PlatformBase, TrackedBase
 from app.models.enums import (
     GroupType,
     MemberStatus,
     MemberType,
+    MetricKind,
+    MetricWindow,
     Permission,
     PlatformRole,
     PositionScope,
+    RankCode,
     RelationshipType,
     RsvpStatus,
     RuleDimension,
@@ -54,6 +58,13 @@ __all__ = [
     "Tenant",
     "User",
     "Identity",
+    "Rank",
+    "RequirementSet",
+    "Requirement",
+    "MeritBadge",
+    "RankCode",
+    "MetricKind",
+    "MetricWindow",
     "GroupType",
     "MemberStatus",
     "MemberType",

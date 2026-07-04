@@ -1,0 +1,694 @@
+{
+  "badges": [
+    {
+      "name": "American Business",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "American Cultures",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "American Heritage",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "American Labor",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Animal Science",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Animation",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Archaeology",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Archery",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Architecture",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Art",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Astronomy",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Athletics",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Automotive Maintenance",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Aviation",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Backpacking",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Basketry",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Bird Study",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Bugling",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Camping",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Canoeing",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Chemistry",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Chess",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Citizenship in Society",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Citizenship in the Community",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Citizenship in the Nation",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Citizenship in the World",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Climbing",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Coin Collecting",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Collections",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Communication",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Composite Materials",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Cooking",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Crime Prevention",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Cycling",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Dentistry",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Digital Technology",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Disabilities Awareness",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Dog Care",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Drafting",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Electricity",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Electronics",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Emergency Preparedness",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Energy",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Engineering",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Entrepreneurship",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Environmental Science",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Exploration",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Family Life",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Farm Mechanics",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Fingerprinting",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Fire Safety",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "First Aid",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Fish and Wildlife Management",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Fishing",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Fly-Fishing",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Forestry",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Game Design",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Gardening",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Genealogy",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Geocaching",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Geology",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Golf",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Graphic Arts",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Health Care Professions",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Hiking",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Home Repairs",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Horsemanship",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Indian Lore",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Insect Study",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Inventing",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Journalism",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Kayaking",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Landscape Architecture",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Law",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Leatherwork",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Lifesaving",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Mammal Study",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Metalwork",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Mining in Society",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Model Design and Building",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Motorboating",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Moviemaking",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Music",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Nature",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Nuclear Science",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Oceanography",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Orienteering",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Painting",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Personal Fitness",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Personal Management",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Pets",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Photography",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Pioneering",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Plant Science",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Plumbing",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Pottery",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Programming",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Public Health",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Public Speaking",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Pulp and Paper",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Radio",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Railroading",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Reading",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Reptile and Amphibian Study",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Rifle Shooting",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Robotics",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Rowing",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Safety",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Salesmanship",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Scholarship",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Scouting Heritage",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Scuba Diving",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Sculpture",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Search and Rescue",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Shotgun Shooting",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Signs, Signals, and Codes",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Skating",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Small-Boat Sailing",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Snow Sports",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Soil and Water Conservation",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Space Exploration",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Sports",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Stamp Collecting",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Surveying",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Sustainability",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Swimming",
+      "eagle_required": true,
+      "is_discontinued": false
+    },
+    {
+      "name": "Textile",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Theater",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Traffic Safety",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Truck Transportation",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Veterinary Medicine",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Water Sports",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Weather",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Welding",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Whitewater",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Wilderness Survival",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Wood Carving",
+      "eagle_required": false,
+      "is_discontinued": false
+    },
+    {
+      "name": "Woodwork",
+      "eagle_required": false,
+      "is_discontinued": false
+    }
+  ]
+}
