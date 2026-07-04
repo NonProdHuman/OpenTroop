@@ -112,7 +112,7 @@ class RuleDimension(enum.StrEnum):
     OA_ACTIVE = "oa_active"
     POSITION = "position"
     GROUP_MEMBER = "group_member"
-    RANK = "rank"  # Phase 2 — no-op until Pillar 4 advancement model
+    RANK = "rank"  # current rank (highest completed) — see app/core/groups.py
 
 
 class CompletionStatus(enum.StrEnum):

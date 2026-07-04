@@ -193,8 +193,8 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   presence of the rule is the predicate, `values` is null/empty), `position` (members
   *currently* holding any of the named positions, e.g. PLC = PL/SPL/ASM/SM — termed-out
   members drop out), `group_member` (group-of-groups: members of the referenced group(s),
-  resolved recursively with a cycle guard), and `rank` (Phase 2 — no-op until the Pillar 4
-  advancement model exists). Multiple values for a dimension are stored as a JSON list in
+  resolved recursively with a cycle guard), and `rank` (members whose *current rank* —
+  highest completed — matches; live since Pillar 4 shipped). Multiple values for a dimension are stored as a JSON list in
   `values`.
 - `resolve_group_members(group_id, session)` in `app/core/groups.py` — evaluates each rule
   via `evaluate_rule` (one function per dimension), combines the rule sets per `rule_logic`,
