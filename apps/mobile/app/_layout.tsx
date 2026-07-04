@@ -6,6 +6,8 @@ import { tokenCache } from "@clerk/clerk-expo/token-cache"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { CLERK_PUBLISHABLE_KEY } from "@/lib/env"
 import { TenantProvider } from "@/lib/tenant-context"
+import { SyncProvider } from "@/lib/sync-context"
+import { AppLockGate } from "@/lib/app-lock"
 
 const queryClient = new QueryClient()
 
@@ -26,8 +28,12 @@ export default function RootLayout() {
     <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
       <QueryClientProvider client={queryClient}>
         <TenantProvider>
-          <StatusBar style="auto" />
-          <Stack screenOptions={{ headerShown: false }} />
+          <SyncProvider>
+            <AppLockGate>
+              <StatusBar style="auto" />
+              <Stack screenOptions={{ headerShown: false }} />
+            </AppLockGate>
+          </SyncProvider>
         </TenantProvider>
       </QueryClientProvider>
     </ClerkProvider>

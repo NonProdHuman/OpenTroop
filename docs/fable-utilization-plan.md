@@ -26,8 +26,8 @@ the work itself live in their tracking issues per repo convention.*
 | **Mobile v1 — M1** server sync surface | `Syncable` + `/sync/*` for event_types, locations, events, participants, relationships | ✅ merged | PR #194 |
 | **Mobile v1 — M2** shared types | `packages/api-types` from the gen-api pipeline + CI drift | ✅ merged | PR #195 |
 | **Mobile v1 — M3** Expo scaffold | #93: apps/mobile shell, Clerk, troop switcher, CI | ✅ merged | this PR |
-| **Mobile v1 — M4** offline data layer | #153 design: mirror + pull loop + command queue, Node-tested | ✅ merged | this PR |
-| **Mobile v1 — M5** v1 screens | roster/events/attendance/RSVP on the mirror; Face ID app lock | ⏳ next | — |
+| **Mobile v1 — M4** offline data layer | #153 design: mirror + pull loop + command queue, Node-tested | ✅ merged | PR #197 |
+| **Mobile v1 — M5** v1 screens | roster/events/attendance/RSVP on the mirror; Face ID app lock | ✅ merged | this PR |
 
 **Resume-here notes:** *(keep this current — most recent first)*
 - 2026-07-04 (final): **entire train merged** — #180, #181, #183, #184, #185, #186,
