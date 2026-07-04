@@ -42,3 +42,37 @@ class JsonList(TypeDecorator[list[str] | None]):
         if isinstance(value, list):
             return value
         return json.loads(value)  # type: ignore[no-any-return]
+
+
+class JsonObjectList(TypeDecorator[list[dict[str, Any]] | None]):
+    """A JSON list of objects — native JSON on Postgres, serialized TEXT on SQLite.
+
+    Same dialect strategy as :class:`JsonList`; used for structured condition
+    lists such as ``Requirement.metrics`` (see ``docs`` in GH-92).
+    """
+
+    impl = Text
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect: Any) -> Any:  # noqa: ANN401
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(JSON())
+        return dialect.type_descriptor(Text())
+
+    def process_bind_param(
+        self,
+        value: list[dict[str, Any]] | None,
+        dialect: Any,  # noqa: ANN401
+    ) -> str | None:
+        if value is None:
+            return None
+        if dialect.name == "postgresql":
+            return value  # type: ignore[return-value]  # native JSON handles it
+        return json.dumps(value)
+
+    def process_result_value(self, value: Any, dialect: Any) -> list[dict[str, Any]] | None:  # noqa: ANN401
+        if value is None:
+            return None
+        if isinstance(value, list):
+            return value
+        return json.loads(value)  # type: ignore[no-any-return]

@@ -53,6 +53,10 @@ class Position(SourceTracked, TrackedBase):
     is_system: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Whether terms in this position accrue the advancement por_months metric
+    # ("serve actively in a position of responsibility", GH-92). Seeded True for
+    # the BSA POR list (SPL, PL, scribe, …); troop-configurable for custom positions.
+    counts_for_por: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     functional_role_links: Mapped[list[PositionFunctionalRole]] = relationship(
         "PositionFunctionalRole",
