@@ -5,9 +5,16 @@ import uuid
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models.enums import MemberType
-from app.models.member import Member
-from tests.conftest import TENANT_A
+from app.models.enums import MemberType, Permission, RelationshipType
+from app.models.member import Member, MemberRelationship
+from app.models.rbac import (
+    FunctionalRole,
+    FunctionalRolePermission,
+    MemberPositionAssignment,
+    Position,
+    PositionFunctionalRole,
+)
+from tests.conftest import NEW_USER_ID, TENANT_A
 
 
 def _create_member(client: TestClient, first_name: str) -> dict:
@@ -132,3 +139,196 @@ def test_sync_is_tenant_scoped(client: TestClient, other_client: TestClient) -> 
 def test_sync_requires_member_read(claim_client: TestClient) -> None:
     r = claim_client.get("/sync/members", headers={"X-Tenant-ID": str(TENANT_A)})
     assert r.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Mobile v1 streams: event_types, locations, events, participants, relationships
+# (GH-153 follow-ups / GH-93 M1)
+# ---------------------------------------------------------------------------
+
+
+def _pull_entity(client: TestClient, entity: str, **params: object) -> dict:
+    r = client.get(f"/sync/{entity}", params=params)  # type: ignore[arg-type]
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def _event_type(client: TestClient, name: str = "Hike") -> dict:
+    r = client.post("/event-types/", json={"name": name})
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def _event(client: TestClient, event_type_id: str, name: str = "Outing") -> dict:
+    r = client.post(
+        "/events/",
+        json={
+            "name": name,
+            "event_type_id": event_type_id,
+            "scheduled_start": "2026-07-10T09:00:00Z",
+            "scheduled_end": "2026-07-12T17:00:00Z",
+        },
+    )
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def _seed_reader(db: Session) -> Member:
+    """A member linked to NEW_USER_ID holding only event:read in TENANT_A."""
+    role = FunctionalRole(tenant_id=TENANT_A, name="Reader", slug="reader")
+    db.add(role)
+    db.flush()
+    db.add(
+        FunctionalRolePermission(
+            tenant_id=TENANT_A, functional_role_id=role.id, permission=Permission.EVENT_READ
+        )
+    )
+    position = Position(tenant_id=TENANT_A, name="Reader Position", slug="reader-position")
+    db.add(position)
+    db.flush()
+    db.add(
+        PositionFunctionalRole(
+            tenant_id=TENANT_A, position_id=position.id, functional_role_id=role.id
+        )
+    )
+    reader = Member(
+        tenant_id=TENANT_A,
+        user_id=NEW_USER_ID,
+        first_name="Reader",
+        last_name="One",
+        member_type=MemberType.ADULT,
+    )
+    db.add(reader)
+    db.flush()
+    db.add(
+        MemberPositionAssignment(tenant_id=TENANT_A, member_id=reader.id, position_id=position.id)
+    )
+    db.commit()
+    return reader
+
+
+def _tenant_a(client: TestClient) -> dict[str, str]:
+    return {"X-Tenant-ID": str(TENANT_A)}
+
+
+def test_sync_event_types_and_locations_stream(client: TestClient) -> None:
+    et = _event_type(client, "Campout")
+    r = client.post("/locations/", json={"name": "Camp Ridge"})
+    assert r.status_code == 201, r.text
+    loc = r.json()
+
+    types_page = _pull_entity(client, "event_types")
+    assert et["id"] in [t["id"] for t in types_page["items"]]
+    locs_page = _pull_entity(client, "locations")
+    assert [item["id"] for item in locs_page["items"]] == [loc["id"]]
+
+    # Tombstones flow past an existing cursor.
+    cursor = locs_page
+    deleted = client.delete(f"/locations/{loc['id']}")
+    assert deleted.status_code == 204
+    delta = _pull_entity(
+        client, "locations", since_seq=cursor["next_since_seq"], since_id=cursor["next_since_id"]
+    )
+    assert [item["id"] for item in delta["items"]] == [loc["id"]]
+    assert delta["items"][0]["is_deleted"] is True
+
+
+def test_sync_events_visibility_filter(
+    client: TestClient, claim_client: TestClient, db_session: Session
+) -> None:
+    et = _event_type(client)
+    troop_event = _event(client, et["id"], name="Troop-wide")
+    scoped_event = _event(client, et["id"], name="Wolf-only")
+    group = client.post("/groups", json={"name": "Wolf", "group_type": "custom"}).json()
+    r = client.post(f"/events/{scoped_event['id']}/audiences", json={"group_id": group["id"]})
+    assert r.status_code == 201
+
+    _seed_reader(db_session)
+
+    # Manager (event:write) receives everything.
+    admin_ids = [e["id"] for e in _pull_entity(client, "events")["items"]]
+    assert {troop_event["id"], scoped_event["id"]} <= set(admin_ids)
+
+    # The reader is not in the audience group: only the troop-wide event flows.
+    reader_page = claim_client.get("/sync/events", headers=_tenant_a(client))
+    assert reader_page.status_code == 200, reader_page.text
+    reader_ids = [e["id"] for e in reader_page.json()["items"]]
+    assert troop_event["id"] in reader_ids
+    assert scoped_event["id"] not in reader_ids
+
+
+def test_sync_event_participants_scoped_to_visible_events(
+    client: TestClient, claim_client: TestClient, db_session: Session
+) -> None:
+    et = _event_type(client)
+    troop_event = _event(client, et["id"], name="Troop-wide")
+    scoped_event = _event(client, et["id"], name="Hidden")
+    group = client.post("/groups", json={"name": "Bear", "group_type": "custom"}).json()
+    audience = client.post(
+        f"/events/{scoped_event['id']}/audiences", json={"group_id": group["id"]}
+    )
+    assert audience.status_code == 201
+
+    scout = Member(
+        tenant_id=TENANT_A, first_name="Sam", last_name="Scout", member_type=MemberType.SCOUT
+    )
+    db_session.add(scout)
+    db_session.commit()
+    for event in (troop_event, scoped_event):
+        r = client.post(f"/events/{event['id']}/participants", json={"member_id": str(scout.id)})
+        assert r.status_code == 201, r.text
+
+    _seed_reader(db_session)
+
+    admin_events = {p["event_id"] for p in _pull_entity(client, "event_participants")["items"]}
+    assert {troop_event["id"], scoped_event["id"]} <= admin_events
+
+    reader_page = claim_client.get("/sync/event_participants", headers=_tenant_a(client))
+    assert reader_page.status_code == 200, reader_page.text
+    reader_events = {p["event_id"] for p in reader_page.json()["items"]}
+    assert troop_event["id"] in reader_events
+    assert scoped_event["id"] not in reader_events
+
+
+def test_sync_member_relationships_stream(client: TestClient, db_session: Session) -> None:
+    parent = Member(
+        tenant_id=TENANT_A, first_name="Pat", last_name="Parent", member_type=MemberType.ADULT
+    )
+    child = Member(
+        tenant_id=TENANT_A, first_name="Kid", last_name="Parent", member_type=MemberType.SCOUT
+    )
+    db_session.add_all([parent, child])
+    db_session.flush()
+    rel = MemberRelationship(
+        tenant_id=TENANT_A,
+        from_member_id=parent.id,
+        to_member_id=child.id,
+        relationship_type=RelationshipType.PARENT_OF,
+    )
+    db_session.add(rel)
+    db_session.commit()
+
+    page = _pull_entity(client, "member_relationships")
+    assert [item["id"] for item in page["items"]] == [str(rel.id)]
+    assert page["items"][0]["relationship_type"] == "parent_of"
+
+
+def test_sync_streams_require_permissions(claim_client: TestClient, client: TestClient) -> None:
+    # NEW_USER_ID has no Member row here — every stream must refuse.
+    for entity in (
+        "members",
+        "member_relationships",
+        "event_types",
+        "locations",
+        "events",
+        "event_participants",
+    ):
+        r = claim_client.get(f"/sync/{entity}", headers=_tenant_a(client))
+        assert r.status_code == 403, entity
+
+
+def test_sync_streams_tenant_isolated(client: TestClient, other_client: TestClient) -> None:
+    et = _event_type(client)
+    _event(client, et["id"], name="A-only")
+    assert _pull_entity(other_client, "events")["items"] == []
+    assert _pull_entity(other_client, "event_types")["items"] == []
