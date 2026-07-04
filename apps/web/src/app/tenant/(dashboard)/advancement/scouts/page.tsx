@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { formatMemberName } from "@/lib/format"
 import { useAdvancementScouts } from "@/hooks/use-advancement"
 import { MemberAdvancementView } from "@/components/advancement/member-advancement-view"
 import { ScoutPicker } from "@/components/advancement/scout-picker"
