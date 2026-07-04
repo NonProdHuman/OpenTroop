@@ -308,6 +308,28 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   `electronic_permission_by_id` (FK → members), `electronic_permission_signature`.
   Setting `attended` via PATCH is gated: returns 409 if `Event.attendance_taken` is False.
 
+**Advancement (Pillar 4, GH-92).** Platform-global catalog (`Rank`, `RequirementSet` —
+one complete copy of a rank's requirements per BSA version year, `Requirement` with
+curated cross-version `stable_key`s + JSON metric conditions + `auto_credit`,
+`MeritBadge`) seeded from `backend/data/advancement/` by `uv run seed-advancement`
+(idempotent upsert; text corrections update in place). Tenant-scoped tracking:
+`MemberRankProgress` (per-(member, rank); carries the **version election** and
+BOR/awarded dates), `MemberRequirementCompletion` (leaves only; report→approve
+workflow via `CompletionStatus`; soft delete = revocation), `MemberMeritBadge`.
+`Tenant.advancement_mode` (disabled/chair_entry/scout_reported) gates the whole
+`/advancement` + `/members/{id}/advancement` + `/merit-badges` surface (404 when
+disabled) and whether scouts/parents may self-report. Domain logic in
+`app/core/advancement.py`: election defaulting, version-switch remap by `stable_key`
+(history never rewritten; copies land `recorded_via=remap`), container/leaf
+derivation, `compute_member_metrics` (attended events × overrides, badge counts,
+POR-term interval union) and `apply_auto_credits` — records approved/`auto`
+completions when all metric conditions pass; **never re-creates** (any existing row,
+revoked included, blocks) and **never auto-revokes**. Recompute triggers run
+synchronously on attendance/override/event-metric/badge/rank-date writes;
+`uv run recompute-advancement` covers pure time-passage thresholds. The `GroupRule`
+`rank` dimension resolves on current rank (highest completed). Scoutbook CSV
+import/export is the remaining #92 phase (needs sample files).
+
 Enums live in `app/models/enums.py` and are shared between ORM models and schemas.
 
 ### Auth architecture

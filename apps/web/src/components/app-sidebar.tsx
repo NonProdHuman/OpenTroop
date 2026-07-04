@@ -67,7 +67,7 @@ const tenantNavItems: NavItem[] = [
   },
   { title: "Events", url: "/events", icon: CalendarDays, requires: "event:read" },
   { title: "Messaging", icon: MessageSquare, disabledMessage: "Coming soon" },
-  { title: "Advancement", icon: Star, disabledMessage: "Coming soon" },
+  { title: "Advancement", url: "/advancement", icon: Star, requires: "advancement:read" },
   { title: "Reports", icon: BarChart3, disabledMessage: "Coming soon" },
   {
     title: "Admin",

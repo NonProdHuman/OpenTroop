@@ -15,14 +15,26 @@ the work itself live in their tracking issues per repo convention.*
 |---|---|---|---|
 | Docs sync + this plan | ROADMAP/README/CLAUDE.md refresh; #175 closed | ✅ merged | PR #180 |
 | 0 — Edge security | #116 origin secret + rate limiting + WAF TF; #117 admin auth belt | ✅ merged (`terraform apply` pending — Jeff) | PR #181 |
-| 1 — Advancement catalog | Global Rank/RequirementSet/Requirement/MeritBadge models, seed data + CLI, `counts_for_por` / `counts_as_activity`, migration | 🔍 in review | PR #183 (`claude/phase1-advancement-catalog`) |
-| 2 — Advancement tracking | MemberRankProgress / MemberRequirementCompletion / MemberMeritBadge, workflow, `advancement_mode`, API | ✅ implemented — PR after Phase 1 merges | `claude/phase2-advancement-tracking` |
-| 3 — Auto-credit engine | `app/core/advancement.py`, recompute triggers, CLI | ⬜ not started | — |
-| 4 — Advancement UI | Member tab, approval queue, settings toggle | ⬜ not started | — |
+| 1 — Advancement catalog | Global Rank/RequirementSet/Requirement/MeritBadge models, seed data + CLI, `counts_for_por` / `counts_as_activity`, migration | ✅ merged | PR #183 |
+| 2 — Advancement tracking | MemberRankProgress / MemberRequirementCompletion / MemberMeritBadge, workflow, `advancement_mode`, API | 🔍 in review | PR #184 (`claude/phase2-advancement-tracking`) |
+| 3 — Auto-credit engine | metrics + thresholds + triggers + `recompute-advancement` CLI | ✅ implemented — PR after #184 | `claude/phase3-auto-credit` |
+| 4 — Advancement UI | Member progress page, approval queue, settings mode toggle, sidebar | ✅ implemented — PR after phase 3/6 | `claude/phase4-advancement-ui` |
 | 5 — Scoutbook CSV | import/export | 🚫 blocked — needs sample files from Jeff | — |
-| 6 — GroupRule `rank` dimension | dynamic groups by rank | ⬜ not started | — |
+| 6 — GroupRule `rank` dimension | dynamic groups by current rank | ✅ implemented — PR after phase 3 | `claude/phase6-rank-dimension` |
 
 **Resume-here notes:** *(keep this current — most recent first)*
+- 2026-07-04 (later still): **all planned phases are code-complete.** Branch stack:
+  phase2 → phase3 → phase6 → phase4, each already merged forward; PR train is
+  sequential (merge #184 → PR phase3 → PR phase6 → PR phase4 — each branch diff
+  against develop shrinks to its own phase once its parent merges). This file's
+  final state + ROADMAP/CLAUDE.md Pillar-4 updates ride the phase4 PR.
+  **Jeff's follow-ups:** (1) `terraform apply` for edge security (#181, see
+  terraform/README.md); (2) verify `backend/data/advancement/ranks-2025.json`
+  against the official BSA PDF (transcribed from model knowledge — see the file's
+  README; corrections = edit + `uv run seed-advancement`); (3) Scoutbook sample
+  export/import files to unblock Phase 5; (4) run `uv run seed-advancement` as a
+  deploy step / after migrating. Remaining #92 scope: Phase 5 only. #169 can be
+  closed when Phase 5 lands or re-scoped to it.
 - 2026-07-04 (later): #181 merged (edge security — **Jeff still owes the
   `terraform apply`**, see terraform/README.md "Edge security rollout"). Phase 1
   (catalog + seed data + `seed-advancement` CLI) is PR #183. Phase 2 (tracking

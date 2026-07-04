@@ -132,23 +132,30 @@ export; multi-day event bars in the month view. Deferred: universal sign-up slot
 
 ## Pillar 4 — Advancement & Requirements
 
-**Status: 🔜 Next up — spec drafted, ready to implement.** · Milestone: *Pillar 4 — Advancement*
+**Status: 🚧 Active — core shipped.** · Milestone: *Pillar 4 — Advancement*
 
 The most complex domain. BSA advancement has a strict hierarchy
 (program → rank → requirements → sub-requirements), merit badges with counselor
 sign-offs, and Eagle project tracking. **Scoutbook is the authoritative record; this
 pillar syncs with it, it does not replace it.**
 
-**Designed:** the full data-model spec lives in issue #92 (versioned, platform-global
-requirements catalog; per-scout, per-rank version election; report → approve workflow;
-automatic crediting of countable requirements from event attendance; Scoutbook CSV
-import/export). Implementation is tracked in #169.
+**Shipped (per the #92 spec):** the platform-global requirements catalog (`Rank` /
+`RequirementSet` — one complete copy per BSA version year / `Requirement` with curated
+`stable_key`s and metric conditions / `MeritBadge`), curated 2025 seed data +
+`seed-advancement` CLI; tenant-scoped tracking (`MemberRankProgress` with per-rank
+version election, `MemberRequirementCompletion`, `MemberMeritBadge`) with the
+report → approve workflow and per-tenant `advancement_mode`
+(disabled/chair_entry/scout_reported); version-switch remap via `stable_key`; the
+**auto-credit engine** (completions recorded automatically from attended events'
+activity metrics, badge counts; live progress meters; never re-create, never
+auto-revoke) + `recompute-advancement` CLI; the advancement UI (member progress page,
+approval queue, settings mode toggle); and the `GroupRule` `rank` dimension ("First
+Class and above" dynamic groups).
 
-**Next up (see issues):** implement per the #92 spec — catalog models + seed pipeline,
-tracking models + workflow, auto-credit engine, advancement UI, Scoutbook CSV
-import/export (the one step still awaiting real sample files), and lighting up the
-`GroupRule` `rank` dimension. Deferred: Eagle project workflow, counselor management,
-purchasing/awarding pipeline, #123 browser-extension sync.
+**Next up (see issues):** Scoutbook CSV import/export (needs real sample files —
+the #92 open item); verify the transcribed requirement text against the official PDF.
+Deferred: Eagle project workflow, counselor management, purchasing/awarding pipeline,
+#123 browser-extension sync.
 
 ---
 
