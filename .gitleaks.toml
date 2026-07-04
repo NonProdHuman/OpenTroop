@@ -17,8 +17,14 @@ title = "OpenTroop gitleaks config"
 useDefault = true
 
 [allowlist]
-description = "Intentional placeholder secrets (test fixtures, not real credentials)"
+description = "Intentional placeholder secrets (test fixtures, not real credentials) and curated reference data"
 regexes = [
   # backend/tests/test_edge_security.py — origin-auth shared-secret fixture
   '''edge-secret-0123456789abcdef0123456789abcdef''',
+]
+paths = [
+  # Advancement catalog seed data (GH-92): "stable_key" values are BSA
+  # requirement identifier slugs (e.g. tenderfoot.7b-service), not secrets —
+  # the field name plus slug entropy false-positives the generic-api-key rule.
+  '''backend/data/advancement/.*\.json''',
 ]
