@@ -19,6 +19,7 @@
       "edgeToEdgeEnabled": true
     },
     "plugins": [
+      "expo-notifications",
       "expo-router",
       "expo-secure-store",
       "expo-sqlite",

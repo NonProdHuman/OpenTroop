@@ -1110,6 +1110,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notifications/push-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register Push Token
+         * @description Idempotent upsert. A token re-registered by a different user (device
+         *     changed hands) re-points to the new member.
+         */
+        post: operations["register_push_token_notifications_push_tokens_post"];
+        /**
+         * Unregister Push Token
+         * @description Sign-out cleanup — removes the caller's registration of this token.
+         */
+        delete: operations["unregister_push_token_notifications_push_tokens_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/platform/admins": {
         parameters: {
             query?: never;
@@ -3673,6 +3698,20 @@ export interface components {
             name?: string | null;
             /** Sort Order */
             sort_order?: number | null;
+        };
+        /** PushTokenRead */
+        PushTokenRead: {
+            /** Platform */
+            platform: string | null;
+            /** Token */
+            token: string;
+        };
+        /** PushTokenRegister */
+        PushTokenRegister: {
+            /** Platform */
+            platform?: string | null;
+            /** Token */
+            token: string;
         };
         /**
          * RankCode
@@ -7061,6 +7100,74 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MeritBadgeRead"][];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_push_token_notifications_push_tokens_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushTokenRegister"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushTokenRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unregister_push_token_notifications_push_tokens_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushTokenRegister"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
