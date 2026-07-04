@@ -224,7 +224,8 @@ def test_sync_event_types_and_locations_stream(client: TestClient) -> None:
 
     # Tombstones flow past an existing cursor.
     cursor = locs_page
-    assert client.delete(f"/locations/{loc['id']}").status_code == 204
+    deleted = client.delete(f"/locations/{loc['id']}")
+    assert deleted.status_code == 204
     delta = _pull_entity(
         client, "locations", since_seq=cursor["next_since_seq"], since_id=cursor["next_since_id"]
     )
@@ -263,12 +264,10 @@ def test_sync_event_participants_scoped_to_visible_events(
     troop_event = _event(client, et["id"], name="Troop-wide")
     scoped_event = _event(client, et["id"], name="Hidden")
     group = client.post("/groups", json={"name": "Bear", "group_type": "custom"}).json()
-    assert (
-        client.post(
-            f"/events/{scoped_event['id']}/audiences", json={"group_id": group["id"]}
-        ).status_code
-        == 201
+    audience = client.post(
+        f"/events/{scoped_event['id']}/audiences", json={"group_id": group["id"]}
     )
+    assert audience.status_code == 201
 
     scout = Member(
         tenant_id=TENANT_A, first_name="Sam", last_name="Scout", member_type=MemberType.SCOUT
