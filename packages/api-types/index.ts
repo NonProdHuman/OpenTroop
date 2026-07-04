@@ -1498,7 +1498,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Sync Member Relationships */
+        /**
+         * Sync Member Relationships
+         * @description Family edges follow the member stream's scope: full for ``member:read``,
+         *     household-touching edges for everyone else.
+         */
         get: operations["sync_member_relationships_sync_member_relationships_get"];
         put?: never;
         post?: never;
