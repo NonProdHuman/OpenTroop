@@ -2,5 +2,43 @@
   "name": "@opentroop/mobile",
   "version": "0.1.0",
   "private": true,
-  "description": "OpenTroop native iOS/Android app (Expo) — to be scaffolded once the web API contract stabilizes"
+  "description": "OpenTroop mobile app (Expo / React Native, iOS first) \u2014 offline-first client, GH-93",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo start --ios",
+    "android": "expo start --android",
+    "lint": "eslint app src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@clerk/clerk-expo": "^2.19.31",
+    "@opentroop/api-types": "workspace:*",
+    "@react-native-community/netinfo": "^12.0.1",
+    "@tanstack/react-query": "^5.101.2",
+    "expo": "~57.0.2",
+    "expo-auth-session": "~57.0.1",
+    "expo-constants": "~57.0.3",
+    "expo-crypto": "~57.0.0",
+    "expo-linking": "~57.0.1",
+    "expo-local-authentication": "~57.0.0",
+    "expo-router": "~57.0.3",
+    "expo-secure-store": "~57.0.0",
+    "expo-sqlite": "~57.0.0",
+    "expo-status-bar": "~57.0.0",
+    "expo-web-browser": "~57.0.0",
+    "react": "19.2.7",
+    "react-native": "0.86.0",
+    "react-native-safe-area-context": "~5.8.0",
+    "react-native-screens": "~4.25.2"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.0",
+    "eslint": "^9",
+    "eslint-config-expo": "~57.0.0",
+    "typescript": "~5.9.2",
+    "vitest": "^4.1.9"
+  }
 }
