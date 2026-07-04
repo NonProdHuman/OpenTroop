@@ -3336,6 +3336,25 @@ export interface components {
             updated_at: string;
         };
         /**
+         * MetricProgress
+         * @description One evaluated metric condition — the UI progress meter datum.
+         *
+         *     ``value`` is None when the window anchor is unavailable (e.g. a since_rank
+         *     condition before the previous rank's board of review is recorded).
+         */
+        MetricProgress: {
+            /** Kind */
+            kind: string;
+            /** Met */
+            met: boolean;
+            /** Threshold */
+            threshold: number;
+            /** Value */
+            value: number | null;
+            /** Window */
+            window: string;
+        };
+        /**
          * Permission
          * @description All capabilities that can be granted to a Role.
          *
@@ -3644,6 +3663,11 @@ export interface components {
             completion: components["schemas"]["CompletionRead"] | null;
             /** Is Complete */
             is_complete: boolean;
+            /**
+             * Metrics Progress
+             * @default []
+             */
+            metrics_progress: components["schemas"]["MetricProgress"][];
             requirement: components["schemas"]["RequirementRead"];
         };
         /** RequirementRead */

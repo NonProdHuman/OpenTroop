@@ -23,7 +23,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
 from app.core.advancement import (
+    apply_auto_credits,
+    compute_member_metrics,
     derive_completion_map,
+    evaluate_requirement_metrics,
     get_or_create_progress,
     get_progress,
     latest_requirement_set,
@@ -61,6 +64,7 @@ from app.schemas.advancement import (
     MemberMeritBadgeUpdate,
     MemberRankView,
     MeritBadgeRead,
+    MetricProgress,
     RankProgressRead,
     RankProgressUpdate,
     RankRead,
@@ -92,6 +96,12 @@ ModeDep = Annotated[AdvancementMode, Depends(get_advancement_mode)]
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+def _recompute(member_id: uuid.UUID, db: DbDep) -> None:
+    """Post-write auto-credit pass (GH-92). ModeDep already excluded ``disabled``."""
+    if apply_auto_credits(member_id, db):
+        db.commit()
 
 
 def _may_view(actor: Member, perms: frozenset[Permission], target_id: uuid.UUID, db: DbDep) -> bool:
@@ -180,6 +190,7 @@ def member_advancement(
     if not _may_view(actor, perms, member_id, db):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
+    member_metrics = compute_member_metrics(member_id, db)
     rank_views: list[MemberRankView] = []
     for rank in ordered_ranks(db):
         progress = get_progress(member_id, rank.id, db)
@@ -208,6 +219,20 @@ def member_advancement(
                             CompletionRead.model_validate(by_req[r.id]) if r.id in by_req else None
                         ),
                         is_complete=complete_map.get(r.id, False),
+                        metrics_progress=[
+                            MetricProgress(
+                                kind=c.kind,
+                                window=c.window,
+                                threshold=c.threshold,
+                                value=c.value,
+                                met=c.met,
+                            )
+                            for c in evaluate_requirement_metrics(
+                                r, member_id, rank, member_metrics, db
+                            )
+                        ]
+                        if r.metrics
+                        else [],
                     )
                     for r in requirements
                 ],
@@ -453,6 +478,10 @@ def update_rank_progress(
         progress.awarded_date = fields["awarded_date"]
     db.commit()
     db.refresh(progress)
+    if "completed_date" in fields:
+        # A recorded board-of-review date anchors the next rank's since_rank
+        # windows — tenure/POR/service meters may now be satisfiable.
+        _recompute(member_id, db)
     return RankProgressRead.model_validate(progress)
 
 
@@ -521,6 +550,8 @@ def create_member_merit_badge(
 
     db.commit()
     db.refresh(record)
+    if record.status is CompletionStatus.APPROVED:
+        _recompute(member_id, db)
     return MemberMeritBadgeRead.model_validate(record)
 
 
@@ -553,6 +584,9 @@ def update_member_merit_badge(
 
     db.commit()
     db.refresh(record)
+    # Approved badges move the Star/Life merit-badge-count meters (GH-92).
+    if record.status is CompletionStatus.APPROVED:
+        _recompute(record.member_id, db)
     return MemberMeritBadgeRead.model_validate(record)
 
 
