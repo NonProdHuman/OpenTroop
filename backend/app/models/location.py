@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from sqlalchemy import String, Text
+from sqlalchemy import Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import SourceTracked, TrackedBase
+from app.models.base import SourceTracked, Syncable, TrackedBase
 
 
-class Location(SourceTracked, TrackedBase):
+class Location(SourceTracked, Syncable, TrackedBase):
     __tablename__ = "locations"
+    __table_args__ = (Index("ix_locations_tenant_sync_seq", "tenant_id", "sync_seq"),)
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     street1: Mapped[str | None] = mapped_column(String(255), nullable=True)

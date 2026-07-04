@@ -1414,6 +1414,100 @@ export interface paths {
         patch: operations["update_relationship_relationships__rel_id__patch"];
         trace?: never;
     };
+    "/sync/event_participants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sync Event Participants
+         * @description Pull participants of events the caller can see (GH-153).
+         *
+         *     Mirrors the interactive gate: any ``event:read`` member receives all
+         *     participants of visible events (no field trimming — GH-153 default 3).
+         */
+        get: operations["sync_event_participants_sync_event_participants_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sync/event_types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sync Event Types */
+        get: operations["sync_event_types_sync_event_types_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sync/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sync Events
+         * @description Pull events, narrowed by the caller's audience visibility (GH-153).
+         */
+        get: operations["sync_events_sync_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sync/locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sync Locations */
+        get: operations["sync_locations_sync_locations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sync/member_relationships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sync Member Relationships */
+        get: operations["sync_member_relationships_sync_member_relationships_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sync/members": {
         parameters: {
             query?: never;
@@ -1425,8 +1519,7 @@ export interface paths {
          * Sync Members
          * @description Pull members changed since the ``(since_seq, since_id)`` cursor.
          *
-         *     ``since_seq=0`` (the default) is the initial full sync. Tenant scoping is
-         *     automatic; the soft-delete filter is deliberately lifted so tombstones flow.
+         *     ``since_seq=0`` (the default) is the initial full sync.
          */
         get: operations["sync_members_sync_members_get"];
         put?: never;
@@ -3894,13 +3987,64 @@ export interface components {
          * @enum {string}
          */
         SwimClassification: "nonswimmer" | "beginner" | "swimmer";
+        /** SyncEventParticipantsPage */
+        SyncEventParticipantsPage: {
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["EventParticipantRead"][];
+            /** Next Since Id */
+            next_since_id: string | null;
+            /** Next Since Seq */
+            next_since_seq: number;
+        };
+        /** SyncEventTypesPage */
+        SyncEventTypesPage: {
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["EventTypeRead"][];
+            /** Next Since Id */
+            next_since_id: string | null;
+            /** Next Since Seq */
+            next_since_seq: number;
+        };
+        /** SyncEventsPage */
+        SyncEventsPage: {
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["EventRead"][];
+            /** Next Since Id */
+            next_since_id: string | null;
+            /** Next Since Seq */
+            next_since_seq: number;
+        };
+        /** SyncLocationsPage */
+        SyncLocationsPage: {
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["LocationRead"][];
+            /** Next Since Id */
+            next_since_id: string | null;
+            /** Next Since Seq */
+            next_since_seq: number;
+        };
+        /** SyncMemberRelationshipsPage */
+        SyncMemberRelationshipsPage: {
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["MemberRelationshipRead"][];
+            /** Next Since Id */
+            next_since_id: string | null;
+            /** Next Since Seq */
+            next_since_seq: number;
+        };
         /**
          * SyncMembersPage
          * @description One page of the members change stream, tombstones included.
-         *
-         *     ``next_since_seq`` / ``next_since_id`` are the ``(sync_seq, id)`` keyset cursor of
-         *     the last row returned — the client echoes them back verbatim on the next call.
-         *     When ``items`` is empty they echo the request's own cursor.
          */
         SyncMembersPage: {
             /** Has More */
@@ -7674,6 +7818,181 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberRelationshipRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_event_participants_sync_event_participants_get: {
+        parameters: {
+            query?: {
+                since_seq?: number;
+                since_id?: string | null;
+                limit?: number;
+            };
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncEventParticipantsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_event_types_sync_event_types_get: {
+        parameters: {
+            query?: {
+                since_seq?: number;
+                since_id?: string | null;
+                limit?: number;
+            };
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncEventTypesPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_events_sync_events_get: {
+        parameters: {
+            query?: {
+                since_seq?: number;
+                since_id?: string | null;
+                limit?: number;
+            };
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncEventsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_locations_sync_locations_get: {
+        parameters: {
+            query?: {
+                since_seq?: number;
+                since_id?: string | null;
+                limit?: number;
+            };
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncLocationsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_member_relationships_sync_member_relationships_get: {
+        parameters: {
+            query?: {
+                since_seq?: number;
+                since_id?: string | null;
+                limit?: number;
+            };
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncMemberRelationshipsPage"];
                 };
             };
             /** @description Validation Error */

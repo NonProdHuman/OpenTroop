@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from sqlalchemy import Boolean, String, UniqueConstraint
+from sqlalchemy import Boolean, Index, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import SourceTracked, TrackedBase
+from app.models.base import SourceTracked, Syncable, TrackedBase
 
 
-class EventType(SourceTracked, TrackedBase):
+class EventType(SourceTracked, Syncable, TrackedBase):
     __tablename__ = "event_types"
-    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uix_event_types_tenant_name"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name", name="uix_event_types_tenant_name"),
+        Index("ix_event_types_tenant_sync_seq", "tenant_id", "sync_seq"),
+    )
 
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     color: Mapped[str | None] = mapped_column(String(7), nullable=True)

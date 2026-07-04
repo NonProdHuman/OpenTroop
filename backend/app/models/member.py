@@ -125,7 +125,7 @@ class Member(SourceTracked, Syncable, TrackedBase):
     )
 
 
-class MemberRelationship(SourceTracked, TrackedBase):
+class MemberRelationship(SourceTracked, Syncable, TrackedBase):
     """Directional family link between two members.
 
     from_member holds the named role (parent_of, guardian_of); to_member is the child/ward.
@@ -133,6 +133,7 @@ class MemberRelationship(SourceTracked, TrackedBase):
     """
 
     __tablename__ = "member_relationships"
+    __table_args__ = (Index("ix_member_relationships_tenant_sync_seq", "tenant_id", "sync_seq"),)
 
     from_member_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("members.id"), nullable=False, index=True

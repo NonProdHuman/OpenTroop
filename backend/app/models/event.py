@@ -9,7 +9,7 @@ from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Numeric, Stri
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import SourceTracked, TrackedBase
+from app.models.base import SourceTracked, Syncable, TrackedBase
 from app.models.enums import PermissionSlipStatus, RsvpStatus
 
 if TYPE_CHECKING:
@@ -18,11 +18,14 @@ if TYPE_CHECKING:
     from app.models.member import Member
 
 
-class Event(SourceTracked, TrackedBase):
+class Event(SourceTracked, Syncable, TrackedBase):
     __tablename__ = "events"
     # RLS injects tenant_id into every query; leading with it keeps the hot
     # date-ordered event list a single index range scan per tenant (GH-115).
-    __table_args__ = (Index("ix_events_tenant_scheduled_start", "tenant_id", "scheduled_start"),)
+    __table_args__ = (
+        Index("ix_events_tenant_scheduled_start", "tenant_id", "scheduled_start"),
+        Index("ix_events_tenant_sync_seq", "tenant_id", "sync_seq"),
+    )
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     event_type_id: Mapped[uuid.UUID] = mapped_column(
@@ -91,13 +94,14 @@ class EventOrganizer(TrackedBase):
     member: Mapped[Member] = relationship()
 
 
-class EventParticipant(SourceTracked, TrackedBase):
+class EventParticipant(SourceTracked, Syncable, TrackedBase):
     __tablename__ = "event_participants"
     # Hot paths: participants-per-event (event pages) and per-member RSVP state
     # (iCal feed, member views) — both always tenant-scoped under RLS (GH-115).
     __table_args__ = (
         Index("ix_event_participants_tenant_event", "tenant_id", "event_id"),
         Index("ix_event_participants_tenant_member", "tenant_id", "member_id"),
+        Index("ix_event_participants_tenant_sync_seq", "tenant_id", "sync_seq"),
     )
 
     # Derived per-request, never persisted (not a Mapped column ⇒ ignored by the mapper).
