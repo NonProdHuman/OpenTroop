@@ -229,11 +229,14 @@ Filed under the *Future Domains* milestone.
 
 ## Mobile Applications
 
-**Status: 🧊 Future — groundwork started; apps after the API contract stabilizes.** · Milestone: *Mobile*
+**Status: 🚧 In Progress — Mobile v1 campaign underway (iOS first).** · Milestone: *Mobile*
 
-Native iOS (Swift/SwiftUI) and Android (Kotlin/Compose) apps are the offline-sync clients
-for Pillars 1–4 — developed in parallel once each pillar's API contract stabilizes, not as
-a separate phase.
+The mobile app is a single **Expo (React Native)** codebase — chosen for maximum code
+sharing with the TypeScript web stack (OpenAPI-generated types, a pure-TS sync engine)
+while keeping native capabilities first-class via Expo modules (Face ID app lock,
+push notifications, keychain). iOS ships first; Android follows from the same code.
+The framework decision and phase map (M0–M5) live in issue #93; the earlier
+"native Swift/Kotlin" note here predated that decision.
 
 **Shipped groundwork:** the pull-sync protocol spec
 ([`sync-protocol.md`](docs/spec/sync-protocol.md)) with the `Syncable` mixin
@@ -241,9 +244,14 @@ a separate phase.
 the offline data-layer design (full local mirror per tenant + replayable-action
 outbox) is drafted in issue #153.
 
-**Open work (see issues):** REST-vs-GraphQL API review; formalize the #153 offline
-data-layer spec; extend `Syncable` to events/groups; the client apps (Expo scaffold
-#93 is the tracked starting point); push-notification integration.
+**Shipped groundwork (cont.):** the REST-vs-GraphQL review and the offline
+data-layer design (per-tenant SQLite mirror + replayable command queue) are settled
+in the #153 spec.
+
+**Open work (see issues):** the M1–M5 phases in #93 — extend `Syncable` to
+events/participants/relationships, the shared `packages/api-types` pipeline, the Expo
+scaffold, the offline data layer, and the v1 screens; push-notification integration
+(#82) follows v1.
 
 ---
 
