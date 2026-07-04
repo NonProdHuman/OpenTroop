@@ -32,3 +32,11 @@ cloudflare_zone_id   = "your_cloudflare_zone_id"
 
 # Optional, generated when omitted.
 # app_secret = "change-me"
+# origin_shared_secret = "change-me"
+
+# Edge security (GH-116 / GH-117) — see README "Edge security rollout".
+# cloudflare_waf_enabled        = true   # requires Pro plan
+# cloudflare_rate_limit_enabled = true   # plan limits apply
+# cf_access_enabled        = true
+# cf_access_team_domain    = "yourteam"  # yourteam.cloudflareaccess.com
+# cf_access_allowed_emails = ["you@example.com"]

@@ -55,6 +55,13 @@ resource "cloudflare_workers_script" "proxy" {
       name = "WEB_ORIGIN"
       type = "plain_text"
       text = google_cloud_run_v2_service.web.uri
+    },
+    {
+      # GH-116: the Worker stamps every proxied request with this secret so the
+      # backend can reject traffic that reached the raw *.run.app origin directly.
+      name = "ORIGIN_SHARED_SECRET"
+      type = "secret_text"
+      text = local.origin_shared_secret
     }
   ]
 }

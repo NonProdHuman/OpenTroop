@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.core.edge_security import OriginAuthMiddleware, RateLimitMiddleware
 from app.routers import (
     advancement,
     auth,
@@ -24,6 +25,10 @@ from app.routers import (
 )
 
 app = FastAPI(title=settings.app_name)
+
+# App-layer rate limiting (GH-116). Added before CORS so preflights short-circuit in
+# CORSMiddleware without consuming budget; inert unless RATE_LIMIT_ENABLED=true.
+app.add_middleware(RateLimitMiddleware)
 
 # Compute regex for CORS origins based on app_domain.
 # Allows https://opentroop.app and https://<one-label>.opentroop.app — a single
@@ -46,6 +51,10 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Tenant-ID"],
 )
+
+# Outermost belt (GH-116): when ORIGIN_SHARED_SECRET is set, reject any request that
+# didn't traverse the edge proxy before touching CORS, routing, or the database.
+app.add_middleware(OriginAuthMiddleware)
 
 app.include_router(groups.router)
 app.include_router(members.router)

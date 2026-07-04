@@ -341,6 +341,49 @@ variable "cloudflare_api_record_name" {
   default     = null
 }
 
+variable "origin_shared_secret" {
+  description = "Shared secret the Cloudflare Worker injects as X-Origin-Auth so the API can reject direct *.run.app traffic (GH-116). Generated when omitted."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "api_rate_limit_enabled" {
+  description = "Enable the API's in-process per-tenant/per-IP rate limiting (RATE_LIMIT_ENABLED). App-layer backstop behind the Cloudflare rules."
+  type        = bool
+  default     = true
+}
+
+variable "cloudflare_waf_enabled" {
+  description = "Deploy the Cloudflare Managed + OWASP Core WAF rulesets on the zone (GH-116). Requires a Cloudflare Pro plan or higher."
+  type        = bool
+  default     = false
+}
+
+variable "cloudflare_rate_limit_enabled" {
+  description = "Deploy Cloudflare rate-limiting rules for the calendar-feed and auth hot paths (GH-116). Plan limits apply — the Free plan allows one rate-limiting rule with a 10s period; the values used here assume Pro or higher."
+  type        = bool
+  default     = false
+}
+
+variable "cf_access_enabled" {
+  description = "Put the platform control plane (admin subdomain + /platform API paths) behind a Cloudflare Access application (GH-117). Requires a Zero Trust team on the account."
+  type        = bool
+  default     = false
+}
+
+variable "cf_access_team_domain" {
+  description = "Cloudflare Zero Trust team domain prefix (e.g. \"myteam\" for myteam.cloudflareaccess.com). Required when cf_access_enabled."
+  type        = string
+  default     = null
+}
+
+variable "cf_access_allowed_emails" {
+  description = "Staff email addresses allowed through the platform Cloudflare Access policy. Required when cf_access_enabled."
+  type        = list(string)
+  default     = []
+}
+
 variable "api_ingress" {
   description = "Ingress traffic policy for the API service. Can be INGRESS_TRAFFIC_ALL, INGRESS_TRAFFIC_INTERNAL_ONLY, or INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER."
   type        = string

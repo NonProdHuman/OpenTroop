@@ -311,13 +311,13 @@ class MemberMetrics:
         cutoff = anchor or date.min
         if kind in _EVENT_KINDS:
             return sum(values.get(kind, 0.0) for d, values in self.events if d >= cutoff)
-        if kind is MetricKind.MERIT_BADGE_COUNT:
+        if kind == MetricKind.MERIT_BADGE_COUNT:
             return float(self.badge_count)
-        if kind is MetricKind.MERIT_BADGE_COUNT_EAGLE_REQUIRED:
+        if kind == MetricKind.MERIT_BADGE_COUNT_EAGLE_REQUIRED:
             return float(self.badge_count_eagle_required)
-        if kind is MetricKind.TENURE_MONTHS:
+        if kind == MetricKind.TENURE_MONTHS:
             return _months_between(anchor, self.today) if anchor else 0.0
-        if kind is MetricKind.POR_MONTHS:
+        if kind == MetricKind.POR_MONTHS:
             return _merged_interval_months(self.por_intervals, cutoff, self.today)
         return 0.0  # pragma: no cover — enum is exhaustive today
 
@@ -465,9 +465,9 @@ def evaluate_requirement_metrics(
         threshold = float(condition["threshold"])
         anchor: date | None = None
         available = True
-        if window is MetricWindow.SINCE_JOINING:
+        if window == MetricWindow.SINCE_JOINING:
             anchor = _joining_anchor(member_id, session, metrics)
-        elif window is MetricWindow.SINCE_RANK:
+        elif window == MetricWindow.SINCE_RANK:
             anchor, available = _previous_rank_anchor(member_id, rank, session)
         if not available:
             results.append(ConditionProgress(kind.value, window.value, threshold, None, False))
@@ -578,7 +578,7 @@ def auto_credit_enabled(tenant_id: uuid.UUID, session: Session) -> bool:
 
     tenant = session.get(Tenant, tenant_id)
     mode = tenant.advancement_mode if tenant is not None else AdvancementMode.CHAIR_ENTRY
-    return mode is not AdvancementMode.DISABLED
+    return mode != AdvancementMode.DISABLED
 
 
 def recompute_member_advancement(
