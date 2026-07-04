@@ -77,5 +77,33 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     email_from_address: str = ""
 
+    # --- Edge security (GH-116 / GH-117) ---
+
+    # Shared secret proving a request traversed the trusted edge proxy — the
+    # Cloudflare Worker injects it as X-Origin-Auth; requests hitting the raw
+    # Cloud Run URL directly lack it and are rejected (403). Empty (default)
+    # disables the check for dev and self-hosted deployments with no edge proxy.
+    # This is the precondition that makes TRUST_FORWARDED_HOST=true sound.
+    origin_shared_secret: str = ""
+
+    # Allow the X-Tenant-ID header as a tenant-resolution fallback. SaaS production
+    # sets this False (subdomain-only) so raw tenant UUIDs are not a probing oracle;
+    # dev, tests, and self-hosted keep the header for tooling.
+    allow_tenant_id_header: bool = True
+
+    # In-process app-layer rate limiting (per instance, fixed one-minute windows).
+    # The Cloudflare edge rules are the first belt; this backstop still applies when
+    # the edge is bypassed or absent. See app/core/edge_security.py.
+    rate_limit_enabled: bool = False
+    rate_limit_per_minute: int = 600  # per resolved tenant key (or per IP when none)
+    rate_limit_calendar_per_minute: int = 60  # per client IP on /calendar/* (token guessing)
+    rate_limit_auth_per_minute: int = 30  # per client IP on /auth/* (invite-token spray)
+
+    # Cloudflare Access belt for the platform control plane (GH-117). When the team
+    # domain is set, /platform/* additionally requires a valid Cf-Access-Jwt-Assertion
+    # issued by <team>.cloudflareaccess.com (audience pinned when cf_access_aud set).
+    cf_access_team_domain: str = ""  # e.g. "myteam" for myteam.cloudflareaccess.com
+    cf_access_aud: str = ""
+
 
 settings = Settings()  # type: ignore[call-arg]

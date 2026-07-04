@@ -3,6 +3,13 @@ resource "random_password" "app_secret" {
   special = true
 }
 
+# X-Origin-Auth shared secret (GH-116). No special characters — it travels in an
+# HTTP header and must survive any intermediary's header handling unmodified.
+resource "random_password" "origin_secret" {
+  length  = 48
+  special = false
+}
+
 resource "google_project_service" "required" {
   for_each = toset([
     "artifactregistry.googleapis.com",
@@ -122,6 +129,29 @@ resource "google_cloud_run_v2_service" "api" {
       env {
         name  = "TRUST_FORWARDED_HOST"
         value = var.cloudflare_enabled ? "true" : "false"
+      }
+
+      # SaaS behind Cloudflare resolves tenants by subdomain only — the raw-UUID
+      # X-Tenant-ID fallback would otherwise be a tenant existence-probing oracle
+      # (GH-116). Kept enabled for direct/self-host deployments and local tooling.
+      env {
+        name  = "ALLOW_TENANT_ID_HEADER"
+        value = var.cloudflare_enabled ? "false" : "true"
+      }
+
+      env {
+        name  = "RATE_LIMIT_ENABLED"
+        value = var.api_rate_limit_enabled ? "true" : "false"
+      }
+
+      env {
+        name  = "CF_ACCESS_TEAM_DOMAIN"
+        value = var.cf_access_enabled ? coalesce(var.cf_access_team_domain, "") : ""
+      }
+
+      env {
+        name  = "CF_ACCESS_AUD"
+        value = var.cf_access_enabled && var.cloudflare_enabled ? cloudflare_zero_trust_access_application.platform[0].aud : ""
       }
 
       env {

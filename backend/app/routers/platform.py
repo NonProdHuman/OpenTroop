@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 
+from app.core.cf_access import require_cf_access
 from app.core.deps import AdminDbDep, SuperadminDep, get_platform_admin
 from app.core.permissions import admin_assignments
 from app.core.provisioning import invite_admin_member, provision_tenant
@@ -36,10 +37,13 @@ from app.schemas.platform import (
 )
 from app.schemas.tenant import TenantProvision, TenantProvisioned, TenantRead
 
+# The Cloudflare Access belt (GH-117) runs first: an independent, staff-SSO-issued
+# assertion is required *in addition to* the platform role, so a compromised
+# tenant-plane token alone never reaches the control plane. No-op when unconfigured.
 router = APIRouter(
     prefix="/platform",
     tags=["platform"],
-    dependencies=[Depends(get_platform_admin)],
+    dependencies=[Depends(require_cf_access), Depends(get_platform_admin)],
 )
 
 # Control-plane writes are high-consequence and cross-tenant; every one is logged
