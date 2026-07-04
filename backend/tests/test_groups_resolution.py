@@ -306,3 +306,120 @@ def test_cycle_detection(db_session) -> None:
     # Resolving either should not crash and should union both members cleanly
     assert resolve_group_members(group_a.id, session) == frozenset({member_a.id, member_b.id})
     assert resolve_group_members(group_b.id, session) == frozenset({member_a.id, member_b.id})
+
+
+# ---------------------------------------------------------------------------
+# RANK dimension (GH-92 Phase 6) — current rank drives dynamic membership
+# ---------------------------------------------------------------------------
+
+
+def _rank_fixture(db_session):
+    from datetime import date
+
+    from app.models.advancement import MemberRankProgress, Rank, RequirementSet
+    from app.models.enums import RankCode
+
+    ranks = {}
+    for code, order in [
+        (RankCode.TENDERFOOT, 2),
+        (RankCode.FIRST_CLASS, 4),
+        (RankCode.STAR, 5),
+    ]:
+        rank = Rank(code=code, name=code.value.replace("_", " ").title(), sort_order=order)
+        db_session.add(rank)
+        db_session.flush()
+        req_set = RequirementSet(rank_id=rank.id, version="2025")
+        db_session.add(req_set)
+        db_session.flush()
+        ranks[code] = (rank, req_set)
+
+    def earn(member_id, code, when=date(2026, 1, 1)):
+        rank, req_set = ranks[code]
+        db_session.add(
+            MemberRankProgress(
+                tenant_id=_TENANT,
+                member_id=member_id,
+                rank_id=rank.id,
+                requirement_set_id=req_set.id,
+                completed_date=when,
+            )
+        )
+        db_session.flush()
+
+    return ranks, earn
+
+
+def test_rank_rule_matches_current_rank(db_session):
+    from app.core.groups import evaluate_rule
+    from app.models.enums import RuleDimension
+
+    _, earn = _rank_fixture(db_session)
+    tf_scout = _member(db_session, "Tessa", MemberType.SCOUT)
+    fc_scout = _member(db_session, "Fiona", MemberType.SCOUT)
+    star_scout = _member(db_session, "Stan", MemberType.SCOUT)
+    no_rank = _member(db_session, "Newbie", MemberType.SCOUT)
+
+    from app.models.enums import RankCode
+
+    earn(tf_scout.id, RankCode.TENDERFOOT)
+    # Current rank is the highest completed — Fiona holds TF and FC.
+    earn(fc_scout.id, RankCode.TENDERFOOT)
+    earn(fc_scout.id, RankCode.FIRST_CLASS)
+    earn(star_scout.id, RankCode.STAR)
+
+    # "First Class and above" lists the qualifying codes.
+    result = evaluate_rule(RuleDimension.RANK, ["first_class", "star", "life", "eagle"], db_session)
+    assert result == {fc_scout.id, star_scout.id}
+    assert no_rank.id not in result
+
+    # A completed-but-superseded rank no longer matches.
+    result_tf = evaluate_rule(RuleDimension.RANK, ["tenderfoot"], db_session)
+    assert result_tf == {tf_scout.id}
+
+
+def test_rank_rule_in_group_resolution(db_session):
+    from app.core.groups import resolve_group_members
+    from app.models.enums import RankCode, RuleDimension
+    from app.models.group import Group, GroupRule
+
+    _, earn = _rank_fixture(db_session)
+    fc_scout = _member(db_session, "Fiona", MemberType.SCOUT)
+    other = _member(db_session, "Olive", MemberType.SCOUT)
+    earn(fc_scout.id, RankCode.FIRST_CLASS)
+
+    group = Group(tenant_id=_TENANT, name="First Class Corps")
+    db_session.add(group)
+    db_session.flush()
+    db_session.add(
+        GroupRule(
+            tenant_id=_TENANT,
+            group_id=group.id,
+            dimension=RuleDimension.RANK,
+            values=["first_class"],
+        )
+    )
+    db_session.flush()
+
+    resolved = resolve_group_members(group.id, db_session)
+    assert fc_scout.id in resolved
+    assert other.id not in resolved
+
+
+def test_rank_rule_write_validation(client, db_session):
+    from app.models.group import Group
+
+    group = Group(tenant_id=_TENANT, name="Rankers")
+    db_session.add(group)
+    db_session.commit()
+
+    ok = client.put(
+        f"/groups/{group.id}/rules/rank",
+        json={"values": ["first_class", "star"]},
+    )
+    assert ok.status_code in (200, 201), ok.text
+
+    bad = client.put(
+        f"/groups/{group.id}/rules/rank",
+        json={"values": ["super-scout"]},
+    )
+    assert bad.status_code == 400
