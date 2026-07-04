@@ -329,6 +329,18 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   overwrites the header (the Cloudflare Worker does; Terraform wires this). Nested
   subdomains are rejected to prevent Host-header spoofing. A **suspended** tenant
   (`Tenant.suspended_at` set) is rejected with 403 on both resolution paths.
+- **Edge security belts** (`app/core/edge_security.py`, `app/core/cf_access.py` —
+  GH-116/GH-117; all inert by default for dev/self-host): when `ORIGIN_SHARED_SECRET`
+  is set, every request must carry the Worker-injected `X-Origin-Auth` header (403
+  otherwise, `/health` exempt) — the precondition that makes `TRUST_FORWARDED_HOST=true`
+  sound. `ALLOW_TENANT_ID_HEADER=false` (SaaS prod) makes tenant resolution
+  subdomain-only so raw tenant UUIDs aren't a probing oracle. `RATE_LIMIT_ENABLED`
+  turns on in-process fixed-window limits (per-tenant bucket, tighter per-IP buckets
+  on `/calendar/*` and `/auth/*`). When `CF_ACCESS_TEAM_DOMAIN` is set, `/platform/*`
+  additionally requires a valid `Cf-Access-Jwt-Assertion` (Cloudflare Access staff
+  SSO), independent of `PlatformAdminDep`. Edge-side counterparts (Worker header
+  injection, WAF/rate-limit rulesets, the Access app) live in `terraform/` — see
+  `terraform/README.md` "Edge security rollout".
 - **FastAPI dependencies** (`app/core/deps.py`): `TenantDep`, `DbDep`,
   `CurrentUserDep` — wire these into route handlers to enforce auth and tenant scope.
   `require(permission)` — dependency factory used as `dependencies=[Depends(require(Permission.X))]`
