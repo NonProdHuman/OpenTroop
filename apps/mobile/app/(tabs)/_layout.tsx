@@ -36,6 +36,14 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="advancement"
+        options={{
+          title: "Advancement",
+          headerTitle: activeTenant.tenant_name,
+          tabBarIcon: () => <TabIcon glyph="⭐" />,
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{ title: "Settings", tabBarIcon: () => <TabIcon glyph="⚙️" /> }}
       />
