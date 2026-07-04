@@ -24,7 +24,7 @@ from app.core.notifications import EmailMessage
 
 # Deliberate reuse: relationships.py is the single home of the family-edge
 # rules (see its module docstring); these helpers are internal to the app core.
-from app.core.relationships import _children_of, _parents_of
+from app.core.relationships import _parents_of, children_of
 from app.models.enums import MemberType
 from app.models.event import Event, EventParticipant
 from app.models.event_audience import EventAudience
@@ -116,7 +116,7 @@ def permission_request_recipients(
 
     result: dict[uuid.UUID, tuple[Member, list[Member]]] = {}
     for parent in parents:
-        their_pending = [scouts[c] for c in _children_of(parent.id, session) if c in scouts]
+        their_pending = [scouts[c] for c in children_of(parent.id, session) if c in scouts]
         if their_pending:
             result[parent.id] = (parent, their_pending)
     return result

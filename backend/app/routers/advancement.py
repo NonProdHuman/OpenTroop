@@ -38,7 +38,7 @@ from app.core.advancement import (
     switch_election,
 )
 from app.core.deps import DbDep, MemberContextDep, TenantDep, get_or_404
-from app.core.relationships import is_guardian_of
+from app.core.relationships import children_of, is_guardian_of
 from app.models.advancement import (
     MemberMeritBadge,
     MemberRankProgress,
@@ -48,11 +48,21 @@ from app.models.advancement import (
     Requirement,
     RequirementSet,
 )
-from app.models.enums import AdvancementMode, CompletionStatus, Permission, RecordedVia
+from app.models.enums import (
+    AdvancementMode,
+    CompletionStatus,
+    GroupType,
+    MemberType,
+    Permission,
+    RankCode,
+    RecordedVia,
+)
+from app.models.group import Group, GroupMember
 from app.models.member import Member
 from app.models.tenant import Tenant
 from app.schemas.advancement import (
     AdvancementQueueRead,
+    AdvancementScoutRead,
     CompletionCreate,
     CompletionRead,
     CompletionUpdate,
@@ -174,6 +184,74 @@ def list_merit_badges(mode: ModeDep, ctx: MemberContextDep, db: DbDep) -> list[M
         select(MeritBadge).where(MeritBadge.is_deleted.is_(False)).order_by(MeritBadge.name)
     )
     return [MeritBadgeRead.model_validate(b) for b in badges]
+
+
+# ---------------------------------------------------------------------------
+# Viewer: scout picker
+# ---------------------------------------------------------------------------
+
+
+@router.get("/advancement/scouts", response_model=list[AdvancementScoutRead])
+def list_viewable_scouts(
+    mode: ModeDep, ctx: MemberContextDep, db: DbDep
+) -> list[AdvancementScoutRead]:
+    """Scouts the caller may view advancement for — the viewer-page picker (GH-191).
+
+    ``advancement:read`` holders see every scout; everyone else sees themselves
+    (if a scout) plus their direct wards — the same baseline-access rule
+    ``_may_view`` applies to the per-member progress view.
+    """
+    actor, perms = ctx
+    query = select(Member).where(Member.member_type == MemberType.SCOUT)
+    if Permission.ADVANCEMENT_READ not in perms:
+        query = query.where(Member.id.in_(children_of(actor.id, db) | {actor.id}))
+    scouts = db.scalars(query.order_by(Member.last_name, Member.first_name)).all()
+    if not scouts:
+        return []
+    scout_ids = [m.id for m in scouts]
+
+    patrol_by_member: dict[uuid.UUID, str] = {}
+    patrol_rows = db.execute(
+        select(GroupMember.member_id, Group.name)
+        .join(Group, Group.id == GroupMember.group_id)
+        .where(Group.group_type == GroupType.PATROL, GroupMember.member_id.in_(scout_ids))
+    ).all()
+    for member_id, group_name in patrol_rows:
+        patrol_by_member[member_id] = group_name
+
+    # Current rank per scout: highest sort_order with a board-of-review date —
+    # the same rule as the GroupRule rank dimension (app/core/groups.py).
+    rank_rows = db.execute(
+        select(MemberRankProgress.member_id, Rank.code, Rank.name, Rank.sort_order)
+        .join(Rank, Rank.id == MemberRankProgress.rank_id)
+        .where(
+            MemberRankProgress.member_id.in_(scout_ids),
+            MemberRankProgress.completed_date.is_not(None),
+            Rank.is_deleted.is_(False),
+        )
+    ).all()
+    current_rank: dict[uuid.UUID, tuple[int, str, str]] = {}
+    for member_id, code, name, sort_order in rank_rows:
+        best = current_rank.get(member_id)
+        if best is None or sort_order > best[0]:
+            current_rank[member_id] = (sort_order, code, name)
+
+    out: list[AdvancementScoutRead] = []
+    for m in scouts:
+        rank = current_rank.get(m.id)
+        out.append(
+            AdvancementScoutRead(
+                member_id=m.id,
+                first_name=m.first_name,
+                last_name=m.last_name,
+                nickname=m.nickname,
+                membership_status=m.membership_status,
+                patrol_name=patrol_by_member.get(m.id),
+                current_rank_code=RankCode(rank[1]) if rank else None,
+                current_rank_name=rank[2] if rank else None,
+            )
+        )
+    return out
 
 
 # ---------------------------------------------------------------------------
