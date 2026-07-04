@@ -34,6 +34,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("tenant_id", "token", name="uq_push_tokens_tenant_token"),
     )
+    op.create_index("ix_push_tokens_is_deleted", "push_tokens", ["is_deleted"])
     op.create_index("ix_push_tokens_tenant_id", "push_tokens", ["tenant_id"])
     op.create_index("ix_push_tokens_tenant_member", "push_tokens", ["tenant_id", "member_id"])
     rls.enable_rls_for(op, "push_tokens")
@@ -43,4 +44,5 @@ def downgrade() -> None:
     rls.disable_rls_for(op, "push_tokens")
     op.drop_index("ix_push_tokens_tenant_member", table_name="push_tokens")
     op.drop_index("ix_push_tokens_tenant_id", table_name="push_tokens")
+    op.drop_index("ix_push_tokens_is_deleted", table_name="push_tokens")
     op.drop_table("push_tokens")
