@@ -27,7 +27,10 @@ the work itself live in their tracking issues per repo convention.*
 | **Mobile v1 — M2** shared types | `packages/api-types` from the gen-api pipeline + CI drift | ✅ merged | PR #195 |
 | **Mobile v1 — M3** Expo scaffold | #93: apps/mobile shell, Clerk, troop switcher, CI | ✅ merged | this PR |
 | **Mobile v1 — M4** offline data layer | #153 design: mirror + pull loop + command queue, Node-tested | ✅ merged | PR #197 |
-| **Mobile v1 — M5** v1 screens | roster/events/attendance/RSVP on the mirror; Face ID app lock | ✅ merged | this PR |
+| **Mobile v1 — M5** v1 screens | roster/events/attendance/RSVP on the mirror; Face ID app lock | ✅ merged | PR #198 |
+| Family-scoped sync | offline RSVP for members without member:read (self + wards + co-parents mirror) | ✅ merged | PR #199 |
+| Push notifications (#82) | Expo Push Service backend + PushToken registration + mobile opt-in toggle | ✅ merged | PR #200 |
+| Mobile advancement tab | scout picker, rank view, completion entry with dates (online surface) | ✅ merged | PR #201 |
 
 **Resume-here notes:** *(keep this current — most recent first)*
 - 2026-07-04 (final): **entire train merged** — #180, #181, #183, #184, #185, #186,
