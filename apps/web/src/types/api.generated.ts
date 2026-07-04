@@ -10,6 +10,93 @@
  */
 
 export interface paths {
+    "/advancement/completions/{completion_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Completion */
+        delete: operations["revoke_completion_advancement_completions__completion_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Completion */
+        patch: operations["update_completion_advancement_completions__completion_id__patch"];
+        trace?: never;
+    };
+    "/advancement/merit-badges/{record_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Member Merit Badge */
+        delete: operations["revoke_member_merit_badge_advancement_merit_badges__record_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Member Merit Badge */
+        patch: operations["update_member_merit_badge_advancement_merit_badges__record_id__patch"];
+        trace?: never;
+    };
+    "/advancement/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Approval Queue */
+        get: operations["approval_queue_advancement_queue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/advancement/ranks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Ranks */
+        get: operations["list_ranks_advancement_ranks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/advancement/requirement-sets/{set_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Requirement Set */
+        get: operations["get_requirement_set_advancement_requirement_sets__set_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/claim": {
         parameters: {
             query?: never;
@@ -809,6 +896,74 @@ export interface paths {
         patch: operations["update_member_members__member_id__patch"];
         trace?: never;
     };
+    "/members/{member_id}/advancement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Member Advancement */
+        get: operations["member_advancement_members__member_id__advancement_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/members/{member_id}/advancement/completions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Completion */
+        post: operations["create_completion_members__member_id__advancement_completions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/members/{member_id}/advancement/ranks/{rank_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Rank Progress */
+        patch: operations["update_rank_progress_members__member_id__advancement_ranks__rank_id__patch"];
+        trace?: never;
+    };
+    "/members/{member_id}/advancement/ranks/{rank_id}/election": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Election */
+        put: operations["set_election_members__member_id__advancement_ranks__rank_id__election_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/members/{member_id}/invite": {
         parameters: {
             query?: never;
@@ -828,6 +983,23 @@ export interface paths {
          *     email was sent, so an admin can share the link manually.
          */
         post: operations["invite_member_members__member_id__invite_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/members/{member_id}/merit-badges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Member Merit Badge */
+        post: operations["create_member_merit_badge_members__member_id__merit_badges_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -895,6 +1067,23 @@ export interface paths {
          *     administrator term is refused (409).
          */
         patch: operations["update_position_term_members__member_id__positions__assignment_id__patch"];
+        trace?: never;
+    };
+    "/merit-badges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Merit Badges */
+        get: operations["list_merit_badges_merit_badges_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/platform/admins": {
@@ -1246,6 +1435,27 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AdvancementMode
+         * @description Per-tenant switch for the advancement workflow (GH-92).
+         *
+         *     DISABLED       — nav hidden; advancement endpoints 404; auto-credit inert.
+         *     CHAIR_ENTRY    — only ``advancement:record`` holders write; entries are born
+         *                      approved. The default for new tenants.
+         *     SCOUT_REPORTED — scouts/parents self-report; the approval queue is active.
+         * @enum {string}
+         */
+        AdvancementMode: "disabled" | "chair_entry" | "scout_reported";
+        /**
+         * AdvancementQueueRead
+         * @description Pending approvals (mode ``scout_reported``).
+         */
+        AdvancementQueueRead: {
+            /** Completions */
+            completions: components["schemas"]["CompletionRead"][];
+            /** Merit Badges */
+            merit_badges: components["schemas"]["MemberMeritBadgeRead"][];
+        };
         /** Body_import_twh_import_twh_post */
         Body_import_twh_import_twh_post: {
             /** File */
@@ -1276,6 +1486,117 @@ export interface components {
             feed_path?: string | null;
             /** Token */
             token?: string | null;
+        };
+        /** CompletionCreate */
+        CompletionCreate: {
+            /**
+             * Date Completed
+             * Format: date
+             */
+            date_completed: string;
+            /** Note */
+            note?: string | null;
+            /**
+             * Requirement Id
+             * Format: uuid
+             */
+            requirement_id: string;
+        };
+        /** CompletionRead */
+        CompletionRead: {
+            /** Approved At */
+            approved_at: string | null;
+            /** Approved By Id */
+            approved_by_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Date Completed
+             * Format: date
+             */
+            date_completed: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+            /** Note */
+            note: string | null;
+            recorded_via: components["schemas"]["RecordedVia"];
+            /** Reported By Id */
+            reported_by_id: string | null;
+            /**
+             * Requirement Id
+             * Format: uuid
+             */
+            requirement_id: string;
+            status: components["schemas"]["CompletionStatus"];
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * CompletionStatus
+         * @description Workflow state of a reported advancement completion (GH-92).
+         *
+         *     REPORTED — entered by a scout/parent (mode ``scout_reported``); awaiting the
+         *                advancement chair's approval.
+         *     APPROVED — counts toward the rank. Direct chair entry and auto-credits are
+         *                born approved.
+         *     REJECTED — reviewed and declined; may be re-reported with new evidence.
+         *
+         *     Revocation is the soft-delete tombstone, not a status — a revoked auto-credit
+         *     must never be re-created by the engine, which treats any existing row
+         *     (including deleted) as "do not re-create".
+         * @enum {string}
+         */
+        CompletionStatus: "reported" | "approved" | "rejected";
+        /**
+         * CompletionUpdate
+         * @description Chair edits. ``status`` transitions need ``advancement:approve``;
+         *     date/note edits need ``advancement:record``.
+         */
+        CompletionUpdate: {
+            /** Date Completed */
+            date_completed?: string | null;
+            /** Note */
+            note?: string | null;
+            status?: components["schemas"]["CompletionStatus"] | null;
+        };
+        /** ElectionResult */
+        ElectionResult: {
+            progress: components["schemas"]["RankProgressRead"];
+            /** Remapped */
+            remapped: number;
+            /** Skipped Existing */
+            skipped_existing: number;
+            /** Unmatched */
+            unmatched: string[];
+        };
+        /** ElectionUpdate */
+        ElectionUpdate: {
+            /**
+             * Requirement Set Id
+             * Format: uuid
+             */
+            requirement_set_id: string;
         };
         /** EventAudienceCreate */
         EventAudienceCreate: {
@@ -2403,6 +2724,18 @@ export interface components {
             /** Website Url */
             website_url?: string | null;
         };
+        /** MemberAdvancementRead */
+        MemberAdvancementRead: {
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+            /** Merit Badges */
+            merit_badges: components["schemas"]["MemberMeritBadgeRead"][];
+            /** Ranks */
+            ranks: components["schemas"]["MemberRankView"][];
+        };
         /** MemberBase */
         MemberBase: {
             /** Address Line1 */
@@ -2522,6 +2855,78 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** MemberMeritBadgeCreate */
+        MemberMeritBadgeCreate: {
+            /** Counselor Name */
+            counselor_name?: string | null;
+            /** Date Completed */
+            date_completed?: string | null;
+            /** Date Started */
+            date_started?: string | null;
+            /**
+             * Merit Badge Id
+             * Format: uuid
+             */
+            merit_badge_id: string;
+        };
+        /** MemberMeritBadgeRead */
+        MemberMeritBadgeRead: {
+            /** Approved At */
+            approved_at: string | null;
+            /** Approved By Id */
+            approved_by_id: string | null;
+            /** Counselor Name */
+            counselor_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Date Completed */
+            date_completed: string | null;
+            /** Date Started */
+            date_started: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+            /**
+             * Merit Badge Id
+             * Format: uuid
+             */
+            merit_badge_id: string;
+            /** Reported By Id */
+            reported_by_id: string | null;
+            status: components["schemas"]["CompletionStatus"];
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** MemberMeritBadgeUpdate */
+        MemberMeritBadgeUpdate: {
+            /** Counselor Name */
+            counselor_name?: string | null;
+            /** Date Completed */
+            date_completed?: string | null;
+            /** Date Started */
+            date_started?: string | null;
+            status?: components["schemas"]["CompletionStatus"] | null;
+        };
         /** MemberPositionAssignmentCreate */
         MemberPositionAssignmentCreate: {
             /** Assigned By Id */
@@ -2592,6 +2997,16 @@ export interface components {
             end_date?: string | null;
             /** Start Date */
             start_date?: string | null;
+        };
+        /** MemberRankView */
+        MemberRankView: {
+            /** Is Complete */
+            is_complete: boolean;
+            progress: components["schemas"]["RankProgressRead"] | null;
+            rank: components["schemas"]["RankRead"];
+            requirement_set: components["schemas"]["RequirementSetRead"];
+            /** Requirements */
+            requirements: components["schemas"]["RequirementProgress"][];
         };
         /** MemberRead */
         MemberRead: {
@@ -2894,6 +3309,32 @@ export interface components {
             /** Tenant Slug */
             tenant_slug: string;
         };
+        /** MeritBadgeRead */
+        MeritBadgeRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Eagle Required */
+            eagle_required: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Is Discontinued */
+            is_discontinued: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /**
          * Permission
          * @description All capabilities that can be granted to a Role.
@@ -3067,6 +3508,128 @@ export interface components {
             sort_order?: number | null;
         };
         /**
+         * RankCode
+         * @description The seven sequential Scouts BSA ranks (Pillar 4, see GH-92).
+         *
+         *     Scout–First Class may be worked simultaneously but are earned in sequence;
+         *     ordering lives on ``Rank.sort_order``, this enum is the stable identifier.
+         *     Eagle Palms are deferred (not a rank row).
+         * @enum {string}
+         */
+        RankCode: "scout" | "tenderfoot" | "second_class" | "first_class" | "star" | "life" | "eagle";
+        /** RankProgressRead */
+        RankProgressRead: {
+            /** Awarded Date */
+            awarded_date: string | null;
+            /** Completed Date */
+            completed_date: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+            /**
+             * Rank Id
+             * Format: uuid
+             */
+            rank_id: string;
+            /**
+             * Requirement Set Id
+             * Format: uuid
+             */
+            requirement_set_id: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * RankProgressUpdate
+         * @description Board-of-review / Court-of-Honor dates (``advancement:approve``).
+         */
+        RankProgressUpdate: {
+            /** Awarded Date */
+            awarded_date?: string | null;
+            /** Completed Date */
+            completed_date?: string | null;
+        };
+        /** RankRead */
+        RankRead: {
+            code: components["schemas"]["RankCode"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Name */
+            name: string;
+            /** Sort Order */
+            sort_order: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** RankWithSets */
+        RankWithSets: {
+            code: components["schemas"]["RankCode"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Name */
+            name: string;
+            /** Requirement Sets */
+            requirement_sets: components["schemas"]["RequirementSetRead"][];
+            /** Sort Order */
+            sort_order: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * RecordedVia
+         * @description How an advancement completion row came to exist (GH-92).
+         * @enum {string}
+         */
+        RecordedVia: "manual" | "auto" | "import" | "remap";
+        /**
          * RelationshipType
          * @description Nature of a relationship between two members.
          *
@@ -3076,6 +3639,118 @@ export interface components {
          * @enum {string}
          */
         RelationshipType: "parent_of" | "guardian_of" | "sibling_of" | "other";
+        /** RequirementProgress */
+        RequirementProgress: {
+            completion: components["schemas"]["CompletionRead"] | null;
+            /** Is Complete */
+            is_complete: boolean;
+            requirement: components["schemas"]["RequirementRead"];
+        };
+        /** RequirementRead */
+        RequirementRead: {
+            /** Auto Credit */
+            auto_credit: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Label */
+            label: string;
+            /** Letter */
+            letter: string;
+            /** Metrics */
+            metrics: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Number */
+            number: string;
+            /** Parent Id */
+            parent_id: string | null;
+            /**
+             * Requirement Set Id
+             * Format: uuid
+             */
+            requirement_set_id: string;
+            /** Sort Order */
+            sort_order: number;
+            /** Stable Key */
+            stable_key: string | null;
+            /** Text */
+            text: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** RequirementSetDetail */
+        RequirementSetDetail: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Effective Date */
+            effective_date: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /**
+             * Rank Id
+             * Format: uuid
+             */
+            rank_id: string;
+            /** Requirements */
+            requirements: components["schemas"]["RequirementRead"][];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: string;
+        };
+        /** RequirementSetRead */
+        RequirementSetRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Effective Date */
+            effective_date: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /**
+             * Rank Id
+             * Format: uuid
+             */
+            rank_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: string;
+        };
         /**
          * RsvpStatus
          * @description A member's explicit response to an event invitation.
@@ -3315,11 +3990,13 @@ export interface components {
          * @description Tenant-scoped, member-readable settings (the troop's configurable text/options).
          */
         TenantSettingsRead: {
+            advancement_mode: components["schemas"]["AdvancementMode"];
             /** Permission Message */
             permission_message: string;
         };
         /** TenantSettingsUpdate */
         TenantSettingsUpdate: {
+            advancement_mode?: components["schemas"]["AdvancementMode"] | null;
             /** Permission Message */
             permission_message?: string | null;
         };
@@ -3412,6 +4089,237 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    revoke_completion_advancement_completions__completion_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                completion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_completion_advancement_completions__completion_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                completion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompletionUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompletionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_member_merit_badge_advancement_merit_badges__record_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_member_merit_badge_advancement_merit_badges__record_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberMeritBadgeUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberMeritBadgeRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approval_queue_advancement_queue_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdvancementQueueRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_ranks_advancement_ranks_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RankWithSets"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_requirement_set_advancement_requirement_sets__set_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                set_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequirementSetDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     claim_member_auth_claim_post: {
         parameters: {
             query?: never;
@@ -5522,6 +6430,152 @@ export interface operations {
             };
         };
     };
+    member_advancement_members__member_id__advancement_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberAdvancementRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_completion_members__member_id__advancement_completions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompletionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompletionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_rank_progress_members__member_id__advancement_ranks__rank_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                member_id: string;
+                rank_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RankProgressUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RankProgressRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_election_members__member_id__advancement_ranks__rank_id__election_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                member_id: string;
+                rank_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ElectionUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElectionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     invite_member_members__member_id__invite_post: {
         parameters: {
             query?: never;
@@ -5542,6 +6596,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberInviteRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_member_merit_badge_members__member_id__merit_badges_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberMeritBadgeCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberMeritBadgeRead"];
                 };
             };
             /** @description Validation Error */
@@ -5684,6 +6775,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberPositionAssignmentRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_merit_badges_merit_badges_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeritBadgeRead"][];
                 };
             };
             /** @description Validation Error */

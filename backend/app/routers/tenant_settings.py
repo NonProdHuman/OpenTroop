@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.deps import DbDep, TenantDep, require
 from app.core.permission_slip import DEFAULT_PERMISSION_MESSAGE, effective_permission_message
-from app.models.enums import Permission
+from app.models.enums import AdvancementMode, Permission
 from app.models.tenant import Tenant
 from app.schemas.tenant import TenantSettingsRead, TenantSettingsUpdate
 
@@ -28,7 +28,8 @@ def get_settings(tenant_id: TenantDep, db: DbDep) -> TenantSettingsRead:
     message = (
         effective_permission_message(tenant) if tenant is not None else DEFAULT_PERMISSION_MESSAGE
     )
-    return TenantSettingsRead(permission_message=message)
+    mode = tenant.advancement_mode if tenant is not None else AdvancementMode.CHAIR_ENTRY
+    return TenantSettingsRead(permission_message=message, advancement_mode=mode)
 
 
 @router.patch(
@@ -42,8 +43,14 @@ def update_settings(
     tenant = db.get(Tenant, tenant_id)
     if tenant is None or tenant.is_deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
-    if "permission_message" in body.model_dump(exclude_unset=True):
+    fields = body.model_dump(exclude_unset=True)
+    if "permission_message" in fields:
         tenant.permission_message = body.permission_message
+    if "advancement_mode" in fields and body.advancement_mode is not None:
+        tenant.advancement_mode = body.advancement_mode
     db.commit()
     db.refresh(tenant)
-    return TenantSettingsRead(permission_message=effective_permission_message(tenant))
+    return TenantSettingsRead(
+        permission_message=effective_permission_message(tenant),
+        advancement_mode=tenant.advancement_mode,
+    )

@@ -3,6 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.models.enums import AdvancementMode
 from app.schemas.base import PlatformRead
 
 
@@ -35,11 +36,14 @@ class TenantSettingsRead(BaseModel):
     # The effective permission language shown to parents — the troop's text or the
     # built-in default when unset. Always populated.
     permission_message: str
+    # Advancement workflow switch (GH-92): disabled / chair_entry / scout_reported.
+    advancement_mode: AdvancementMode
 
 
 class TenantSettingsUpdate(BaseModel):
     # Set to null to fall back to the built-in default permission language.
     permission_message: str | None = None
+    advancement_mode: AdvancementMode | None = None
 
 
 class TenantProvisioned(TenantRead):

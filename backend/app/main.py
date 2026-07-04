@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.routers import (
+    advancement,
     auth,
     calendar,
     event_types,
@@ -61,6 +62,7 @@ app.include_router(calendar.router)
 app.include_router(imports.router)
 app.include_router(tenant_settings.router)
 app.include_router(sync.router)
+app.include_router(advancement.router)
 
 
 @app.get("/health")
