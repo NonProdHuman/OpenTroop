@@ -4,6 +4,28 @@
 [GitHub Issues](../../issues). This is a working proposal, not a spec — the specs for
 the work itself live in their tracking issues per repo convention.*
 
+## Progress tracker (live)
+
+> Updated as work lands so the effort can be paused and resumed at any point.
+> Decisions in force: **feature branch per phase, PR'd to `develop`, self-merged when
+> CI is green**; **Phase 0 is code-only** (Terraform written, `apply` left to Jeff);
+> **Phase 5 (Scoutbook CSV) is skipped** until sample export/import files arrive.
+
+| Phase | Scope | Status | Branch / PR |
+|---|---|---|---|
+| Docs sync + this plan | ROADMAP/README/CLAUDE.md refresh; #175 closed | ✅ merged | `claude/project-review-fable-roadmap-njgz5d` |
+| 0 — Edge security | #116 origin secret + rate limiting + WAF TF; #117 admin auth belt | ⏳ in progress | — |
+| 1 — Advancement catalog | Global Rank/RequirementSet/Requirement/MeritBadge models, seed data + CLI, `counts_for_por` / `counts_as_activity`, migration | ⬜ not started | — |
+| 2 — Advancement tracking | MemberRankProgress / MemberRequirementCompletion / MemberMeritBadge, workflow, `advancement_mode`, API | ⬜ not started | — |
+| 3 — Auto-credit engine | `app/core/advancement.py`, recompute triggers, CLI | ⬜ not started | — |
+| 4 — Advancement UI | Member tab, approval queue, settings toggle | ⬜ not started | — |
+| 5 — Scoutbook CSV | import/export | 🚫 blocked — needs sample files from Jeff | — |
+| 6 — GroupRule `rank` dimension | dynamic groups by rank | ⬜ not started | — |
+
+**Resume-here notes:** *(keep this current — most recent first)*
+- 2026-07-04: Plan approved by Jeff (feature-branch + self-merge; Phase 0 code-only).
+  Task list mirrors the phases. Next action: Phase 0 branch off `develop`.
+
 ## Where the project stands
 
 Pillars 1 (Roster/RBAC) and 2 (Multi-tenant isolation) are shipped and hardened —
