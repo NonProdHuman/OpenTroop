@@ -82,6 +82,7 @@ reset-db         = "scripts.reset_db:main"
 link-admin       = "scripts.link_admin:main"
 anonymize-twh    = "scripts.anonymize_twh:main"
 export-openapi   = "scripts.export_openapi:main"
+seed-dev-data    = "scripts.seed_dev_data:main"
 
 [build-system]
 requires = ["setuptools>=68"]

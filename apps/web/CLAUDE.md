@@ -98,3 +98,24 @@ with source (e.g., `foo.test.tsx` next to `foo.tsx`) — any file matching
   (required by shadcn's `useIsMobile`; jsdom doesn't implement it).
 - `src/components/ui/` is excluded from coverage (shadcn-generated, not ours to test).
 - Path alias `@/` resolves to `src/` in both app code and tests.
+
+## E2E smoke tests (Playwright)
+
+`apps/web/e2e/` holds a small Playwright smoke suite (GH-171) — a verification
+loop, not a coverage suite. It runs against an **already-running** local stack
+with the deterministic demo tenant seeded:
+
+```bash
+./start.sh                                             # stack up
+cd backend && uv run seed-dev-data --email <you> --reset
+pnpm --filter web e2e                                  # or e2e:ui
+```
+
+Auth uses Clerk Testing Tokens (`@clerk/testing`): `e2e/global.setup.ts` signs in
+once with `E2E_CLERK_USER_EMAIL` / `E2E_CLERK_USER_PASSWORD` (password-strategy
+test user in the Clerk dev instance; same email as `seed-dev-data --email`) and
+persists storage state for all specs. Base URL defaults to the demo tenant's
+subdomain (`http://demo.localhost:3000`); override with `E2E_BASE_URL`.
+
+Assertions rely on the fixed dataset in `backend/scripts/seed_dev_data.py`
+(member/event names) — keep the two in sync when changing either.
