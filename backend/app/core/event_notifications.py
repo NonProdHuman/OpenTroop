@@ -13,6 +13,7 @@ deliberately absent here (tracked separately alongside digests).
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime
 
@@ -20,7 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.groups import resolve_group_members
-from app.core.notifications import EmailMessage
+from app.core.notifications import EmailMessage, NotificationService, PushMessage
 
 # Deliberate reuse: relationships.py is the single home of the family-edge
 # rules (see its module docstring); these helpers are internal to the app core.
@@ -29,6 +30,9 @@ from app.models.enums import MemberType
 from app.models.event import Event, EventParticipant
 from app.models.event_audience import EventAudience
 from app.models.member import Member
+from app.models.push import PushToken
+
+logger = logging.getLogger(__name__)
 
 
 def _format_when(start: datetime, all_day: bool) -> str:
@@ -165,6 +169,39 @@ def build_permission_request_email(
         f"or send a signed paper slip with your scout.</p>"
     )
     return EmailMessage(to=to, subject=subject, html_body=html_body, text_body=text_body)
+
+
+def push_event_notification(
+    session: Session,
+    service: NotificationService,
+    members: list[Member],
+    title: str,
+    body: str,
+    data: dict[str, str] | None = None,
+) -> None:
+    """Best-effort push to every registered device of *members* (GH-82).
+
+    Inert unless PUSH_BACKEND is configured. Tokens the vendor reports dead
+    are pruned. Never raises — pushes ride along with the email sends and a
+    push failure must not fail the request.
+    """
+    member_ids = [m.id for m in members]
+    if not member_ids:
+        return
+    tokens = session.scalars(select(PushToken).where(PushToken.member_id.in_(member_ids))).all()
+    if not tokens:
+        return
+    messages = [PushMessage(token=t.token, title=title, body=body, data=data) for t in tokens]
+    try:
+        dead = service.send_push(messages)
+    except Exception:  # noqa: BLE001 — best-effort by contract
+        logger.warning("Push send failed for %d tokens", len(messages))
+        return
+    if dead:
+        for row in tokens:
+            if row.token in set(dead):
+                session.delete(row)
+        session.commit()
 
 
 def event_when(event: Event) -> str:

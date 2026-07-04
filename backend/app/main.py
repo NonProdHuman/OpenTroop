@@ -19,6 +19,7 @@ from app.routers import (
     members,
     platform,
     positions,
+    push_tokens,
     relationships,
     sync,
     tenant_settings,
@@ -60,6 +61,7 @@ app.include_router(groups.router)
 app.include_router(members.router)
 app.include_router(relationships.router)
 app.include_router(positions.router)
+app.include_router(push_tokens.router)
 app.include_router(functional_roles.router)
 app.include_router(member_positions.router)
 app.include_router(auth.router)

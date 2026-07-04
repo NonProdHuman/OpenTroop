@@ -24,6 +24,7 @@ import {
   type PendingCommand,
 } from "@/data/commands"
 import { syncNow, type SyncOutcome } from "@/data/engine"
+import { reregisterPushIfEnabled } from "@/lib/push"
 import { setMeta } from "@/data/schema"
 import type { SqlDatabase } from "@/data/db"
 
@@ -36,6 +37,8 @@ import type { SqlDatabase } from "@/data/db"
 
 type SyncContextValue = {
   db: SqlDatabase | null
+  /** Authenticated client bound to the active tenant (push registration etc.). */
+  http: HttpClient | null
   /** Monotonic counter: bumps on sync completion and on local enqueue/discard. */
   version: number
   sync: (opts?: { full?: boolean }) => Promise<void>
@@ -139,6 +142,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     void sync()
   }, [sync])
 
+  // Each tenant keeps its own push registration row (GH-82).
+  useEffect(() => {
+    if (http) void reregisterPushIfEnabled(http)
+  }, [http])
+
   // Connectivity regain drains the outbox (§C3).
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
@@ -156,8 +164,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   }, [sync])
 
   const value = useMemo(
-    () => ({ db, version, sync, isSyncing, lastOutcome, failedCommands, enqueue, discard }),
-    [db, version, sync, isSyncing, lastOutcome, failedCommands, enqueue, discard],
+    () => ({ db, http, version, sync, isSyncing, lastOutcome, failedCommands, enqueue, discard }),
+    [db, http, version, sync, isSyncing, lastOutcome, failedCommands, enqueue, discard],
   )
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>
 }

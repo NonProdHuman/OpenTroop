@@ -27,6 +27,7 @@ from app.core.event_notifications import (
     cancellation_recipients,
     event_when,
     permission_request_recipients,
+    push_event_notification,
 )
 from app.core.event_visibility import event_visible_to_member, visibility_clause
 from app.core.groups import member_group_ids
@@ -642,6 +643,14 @@ def cancel_event(
                 member.id.hex,
                 event_id.hex,
             )
+    push_event_notification(
+        db,
+        notification_service,
+        recipients,
+        title="Event cancelled",
+        body=f"{event.name} ({when}) has been cancelled.",
+        data={"event_id": str(event.id)},
+    )
     return event
 
 
@@ -692,4 +701,12 @@ def notify_permission_requests(
                 parent.id.hex,
                 event_id.hex,
             )
+    push_event_notification(
+        db,
+        notification_service,
+        [pair[0] for pair in permission_request_recipients(event, db).values()],
+        title="Permission slip needed",
+        body=f"{event.name} ({when}) needs a permission slip.",
+        data={"event_id": str(event.id)},
+    )
     return EventNotifyResult(emails_sent=emails_sent)

@@ -5,6 +5,7 @@ import { useActiveTenant } from "@/lib/tenant-context"
 import { wipeAllLocalData } from "@/lib/local-wipe"
 import { useSyncContext } from "@/lib/sync-context"
 import { isAppLockEnabled, setAppLockEnabled } from "@/lib/app-lock"
+import { disablePush, enablePush, getStoredPushToken } from "@/lib/push"
 import { useEffect, useState } from "react"
 
 function Row({ label, onPress, danger }: { label: string; onPress: () => void; danger?: boolean }) {
@@ -32,11 +33,29 @@ export default function SettingsScreen() {
   const { signOut } = useAuth()
   const { user } = useUser()
   const { activeTenant, setActiveTenant } = useActiveTenant()
-  const { failedCommands, lastOutcome, isSyncing, sync } = useSyncContext()
+  const { failedCommands, lastOutcome, isSyncing, sync, http } = useSyncContext()
   const [lockEnabled, setLockEnabled] = useState(false)
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushError, setPushError] = useState<string | null>(null)
   useEffect(() => {
     void isAppLockEnabled().then(setLockEnabled)
+    void getStoredPushToken().then((token) => setPushEnabled(Boolean(token)))
   }, [])
+
+  const togglePush = async () => {
+    setPushError(null)
+    try {
+      if (pushEnabled) {
+        await disablePush(http)
+        setPushEnabled(false)
+      } else if (http) {
+        await enablePush(http)
+        setPushEnabled(true)
+      }
+    } catch (error) {
+      setPushError(error instanceof Error ? error.message : "Could not enable notifications.")
+    }
+  }
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
@@ -65,6 +84,12 @@ export default function SettingsScreen() {
         onPress={() => router.push("/sync-issues")}
       />
       <Row
+        label={pushEnabled ? "Notifications: on" : "Notifications: off"}
+        onPress={() => {
+          void togglePush()
+        }}
+      />
+      <Row
         label={lockEnabled ? "App lock: on (Face ID)" : "App lock: off"}
         onPress={() => {
           void setAppLockEnabled(!lockEnabled).then(setLockEnabled)
@@ -76,12 +101,16 @@ export default function SettingsScreen() {
         onPress={() => {
           // GH-153 §C5: local data belongs to the identity — wipe every
           // tenant database and queue before dropping the session.
-          void wipeAllLocalData().finally(() => {
-            setActiveTenant(null)
-            void signOut()
-          })
+          void disablePush(http)
+            .catch(() => undefined)
+            .then(() => wipeAllLocalData())
+            .finally(() => {
+              setActiveTenant(null)
+              void signOut()
+            })
         }}
       />
+      {pushError && <Text style={{ color: "#b91c1c", marginTop: 8 }}>{pushError}</Text>}
       <Text style={{ color: "#9ca3af", marginTop: "auto", textAlign: "center" }}>
         {lastOutcome?.error
           ? "Offline — showing local data; changes will sync when you're back."

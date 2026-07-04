@@ -73,6 +73,10 @@ class Settings(BaseSettings):
 
     # Email delivery backend: "fake" (default, no vendor call — for local dev/tests)
     # or "resend". See app/core/notifications.py.
+    # Mobile push (GH-82): "none" (default, inert), "expo", or "fake" (tests).
+    push_backend: str = "none"
+    expo_push_url: str = "https://exp.host/--/api/v2/push/send"
+
     email_backend: str = "fake"
     resend_api_key: str = ""
     email_from_address: str = ""
