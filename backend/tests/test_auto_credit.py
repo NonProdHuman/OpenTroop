@@ -163,8 +163,8 @@ def test_service_hours_auto_credit(db_session: Session) -> None:
     created = apply_auto_credits(scout.id, db_session)
     assert [c.requirement_id for c in created] == [cat.tf_service.id]
     completion = created[0]
-    assert completion.status is CompletionStatus.APPROVED
-    assert completion.recorded_via is RecordedVia.AUTO
+    assert completion.status == CompletionStatus.APPROVED
+    assert completion.recorded_via == RecordedVia.AUTO
 
     # A progress row was created lazily with the set elected.
     progress = db_session.scalar(
@@ -390,7 +390,7 @@ def test_attendance_patch_triggers_credit(client: TestClient, db_session: Sessio
         )
     )
     assert completion is not None
-    assert completion.recorded_via is RecordedVia.AUTO
+    assert completion.recorded_via == RecordedVia.AUTO
 
 
 def test_event_metric_edit_triggers_recompute(client: TestClient, db_session: Session) -> None:
@@ -435,4 +435,4 @@ def test_merit_badge_post_triggers_recompute(client: TestClient, db_session: Ses
         )
     )
     assert completion is not None
-    assert completion.recorded_via is RecordedVia.AUTO
+    assert completion.recorded_via == RecordedVia.AUTO
