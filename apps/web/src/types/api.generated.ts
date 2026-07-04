@@ -878,6 +878,9 @@ export interface paths {
          * Delete Position Term
          * @description Soft-delete a term — "created in error". Removes it from history entirely;
          *     distinct from *ending* a term (PATCH ``end_date``), which preserves it.
+         *
+         *     Terms of privileged positions may only be deleted by administrators (403),
+         *     and deleting the tenant's last live administrator term is refused (409).
          */
         delete: operations["delete_position_term_members__member_id__positions__assignment_id__delete"];
         options?: never;
@@ -886,6 +889,10 @@ export interface paths {
          * Update Position Term
          * @description Edit a term's dates — correct ``start_date``, end a term (set ``end_date``),
          *     or reopen one (pass ``end_date: null``). Enforces ``end_date >= start_date``.
+         *
+         *     Terms of privileged (admin/``role:manage``-conferring) positions may only be
+         *     edited by administrators (403), and ending the tenant's last live
+         *     administrator term is refused (409).
          */
         patch: operations["update_position_term_members__member_id__positions__assignment_id__patch"];
         trace?: never;

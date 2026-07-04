@@ -63,6 +63,14 @@ class Settings(BaseSettings):
     # at startup. Generate one with: python3 -c "import secrets; print(secrets.token_urlsafe(48))"
     app_secret: str = Field(min_length=32)
 
+    # TWH import upload bounds (GH-175 Finding 2). The API is shared by many tenants,
+    # so one member's crafted zip/gzip bomb must not be able to exhaust its memory.
+    # A real full-troop TWH export is a few MB of XML — these are generous ceilings,
+    # not targets. Self-hosted deployments may tune them via environment.
+    twh_import_max_upload_bytes: int = 25 * 1024 * 1024
+    twh_import_max_decompressed_bytes: int = 200 * 1024 * 1024
+    twh_import_max_zip_entries: int = 64
+
     # Email delivery backend: "fake" (default, no vendor call — for local dev/tests)
     # or "resend". See app/core/notifications.py.
     email_backend: str = "fake"
