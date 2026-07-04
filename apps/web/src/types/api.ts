@@ -113,4 +113,6 @@ export type MemberRankView = Schemas["MemberRankView"]
 export type RequirementProgress = Schemas["RequirementProgress"]
 export type MetricProgress = Schemas["MetricProgress"]
 export type AdvancementQueue = Schemas["AdvancementQueueRead"]
+
+export type AdvancementScout = Schemas["AdvancementScoutRead"]
 export type ElectionResult = Schemas["ElectionResult"]

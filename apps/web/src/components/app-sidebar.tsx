@@ -67,7 +67,16 @@ const tenantNavItems: NavItem[] = [
   },
   { title: "Events", url: "/events", icon: CalendarDays, requires: "event:read" },
   { title: "Messaging", icon: MessageSquare, disabledMessage: "Coming soon" },
-  { title: "Advancement", url: "/advancement", icon: Star, requires: "advancement:read" },
+  {
+    title: "Advancement",
+    icon: Star,
+    children: [
+      // No `requires`: scouts and parents see their own family's advancement —
+      // the backend scopes the picker (GH-191).
+      { title: "Scouts", url: "/advancement/scouts" },
+      { title: "Approval Queue", url: "/advancement/queue", requires: "advancement:approve" },
+    ],
+  },
   { title: "Reports", icon: BarChart3, disabledMessage: "Coming soon" },
   {
     title: "Admin",
