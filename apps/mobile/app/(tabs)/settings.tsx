@@ -2,6 +2,8 @@ import { Pressable, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 import { useAuth, useUser } from "@clerk/clerk-expo"
 import { useActiveTenant } from "@/lib/tenant-context"
+import { wipeAllLocalData } from "@/lib/local-wipe"
+import { useSync } from "@/hooks/use-sync"
 
 function Row({ label, onPress, danger }: { label: string; onPress: () => void; danger?: boolean }) {
   return (
@@ -28,6 +30,7 @@ export default function SettingsScreen() {
   const { signOut } = useAuth()
   const { user } = useUser()
   const { activeTenant, setActiveTenant } = useActiveTenant()
+  const { failedCommands, lastOutcome, isSyncing, sync } = useSync()
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
@@ -42,17 +45,35 @@ export default function SettingsScreen() {
 
       <Row label="Switch troop" onPress={() => router.push("/select-troop")} />
       <Row
+        label={isSyncing ? "Syncing…" : "Sync now"}
+        onPress={() => {
+          void sync()
+        }}
+      />
+      <Row
+        label={
+          failedCommands.length > 0
+            ? `Sync issues (${failedCommands.length})`
+            : "Sync issues"
+        }
+        onPress={() => router.push("/sync-issues")}
+      />
+      <Row
         label="Sign out"
         danger
         onPress={() => {
-          // GH-153 §C5: sign-out wipes local state. Today that's the tenant
-          // selection; the M4 data layer adds tenant DB + outbox wipes here.
-          setActiveTenant(null)
-          void signOut()
+          // GH-153 §C5: local data belongs to the identity — wipe every
+          // tenant database and queue before dropping the session.
+          void wipeAllLocalData().finally(() => {
+            setActiveTenant(null)
+            void signOut()
+          })
         }}
       />
       <Text style={{ color: "#9ca3af", marginTop: "auto", textAlign: "center" }}>
-        Offline sync, attendance, and Face ID app lock arrive in the next milestones (GH-93).
+        {lastOutcome?.error
+          ? "Offline — showing local data; changes will sync when you're back."
+          : "Attendance/RSVP screens on the offline mirror and Face ID app lock arrive in M5 (GH-93)."}
       </Text>
     </View>
   )

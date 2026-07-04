@@ -10,7 +10,25 @@ import {
 import * as SecureStore from "expo-secure-store"
 import type { Membership } from "./types"
 
-const ACTIVE_TENANT_KEY = "opentroop.active-tenant"
+export const ACTIVE_TENANT_KEY = "opentroop.active-tenant"
+export const KNOWN_TENANTS_KEY = "opentroop.known-tenants"
+
+/** Tenant ids that ever had a local database — the sign-out wipe list (GH-153 §C5). */
+export async function getKnownTenantIds(): Promise<string[]> {
+  try {
+    const stored = await SecureStore.getItemAsync(KNOWN_TENANTS_KEY)
+    return stored ? (JSON.parse(stored) as string[]) : []
+  } catch {
+    return []
+  }
+}
+
+async function rememberTenant(tenantId: string): Promise<void> {
+  const known = await getKnownTenantIds()
+  if (!known.includes(tenantId)) {
+    await SecureStore.setItemAsync(KNOWN_TENANTS_KEY, JSON.stringify([...known, tenantId]))
+  }
+}
 
 type TenantContextValue = {
   /** The selected troop, or null before first selection. */
@@ -50,6 +68,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     setActiveTenantState(membership)
     if (membership) {
       void SecureStore.setItemAsync(ACTIVE_TENANT_KEY, JSON.stringify(membership))
+      void rememberTenant(membership.tenant_id)
     } else {
       void SecureStore.deleteItemAsync(ACTIVE_TENANT_KEY)
     }
