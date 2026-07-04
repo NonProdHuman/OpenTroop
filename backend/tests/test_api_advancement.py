@@ -188,9 +188,8 @@ def test_duplicate_conflict_and_rejected_rereport(client: TestClient, db_session
     payload = {"requirement_id": str(cat.req_1a.id), "date_completed": DATE.isoformat()}
     first = client.post(f"/members/{scout.id}/advancement/completions", json=payload)
     assert first.status_code == 201
-    assert (
-        client.post(f"/members/{scout.id}/advancement/completions", json=payload).status_code == 409
-    )
+    duplicate = client.post(f"/members/{scout.id}/advancement/completions", json=payload)
+    assert duplicate.status_code == 409
 
     # Reject, then re-report reuses the same row.
     completion_id = first.json()["id"]
@@ -224,7 +223,8 @@ def test_revoke_completion(client: TestClient, db_session: Session) -> None:
         f"/members/{scout.id}/advancement/completions",
         json={"requirement_id": str(cat.req_1a.id), "date_completed": DATE.isoformat()},
     ).json()
-    assert client.delete(f"/advancement/completions/{created['id']}").status_code == 204
+    revoked = client.delete(f"/advancement/completions/{created['id']}")
+    assert revoked.status_code == 204
     view = client.get(f"/members/{scout.id}/advancement").json()
     by_label = {rp["requirement"]["label"]: rp for rp in view["ranks"][0]["requirements"]}
     assert by_label["1a"]["completion"] is None
@@ -355,13 +355,11 @@ def test_election_switch_remaps_by_stable_key(client: TestClient, db_session: Se
     cat = _Catalog(db_session)
     scout = _scout(db_session)
     for req in (cat.req_1a, cat.req_7b):
-        assert (
-            client.post(
-                f"/members/{scout.id}/advancement/completions",
-                json={"requirement_id": str(req.id), "date_completed": DATE.isoformat()},
-            ).status_code
-            == 201
+        created = client.post(
+            f"/members/{scout.id}/advancement/completions",
+            json={"requirement_id": str(req.id), "date_completed": DATE.isoformat()},
         )
+        assert created.status_code == 201
 
     r = client.put(
         f"/members/{scout.id}/advancement/ranks/{cat.rank.id}/election",
@@ -431,7 +429,8 @@ def test_merit_badge_lifecycle(client: TestClient, db_session: Session) -> None:
     assert created.status_code == 201
     assert created.json()["status"] == "approved"
 
-    assert client.post(f"/members/{scout.id}/merit-badges", json=payload).status_code == 409
+    duplicate = client.post(f"/members/{scout.id}/merit-badges", json=payload)
+    assert duplicate.status_code == 409
 
     record_id = created.json()["id"]
     updated = client.patch(
@@ -440,7 +439,8 @@ def test_merit_badge_lifecycle(client: TestClient, db_session: Session) -> None:
     assert updated.status_code == 200
     assert updated.json()["counselor_name"] == "Jane Counselor"
 
-    assert client.delete(f"/advancement/merit-badges/{record_id}").status_code == 204
+    revoked = client.delete(f"/advancement/merit-badges/{record_id}")
+    assert revoked.status_code == 204
     # Revocation frees the slot for a fresh record.
     again = client.post(f"/members/{scout.id}/merit-badges", json=payload)
     assert again.status_code == 201
