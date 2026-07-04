@@ -21,6 +21,13 @@ the work itself live in their tracking issues per repo convention.*
 | 4 — Advancement UI | Member progress page, approval queue, settings mode toggle, sidebar | ✅ merged | PR #187 |
 | 5 — Scoutbook CSV | import/export | 🚫 blocked — needs sample files from Jeff | — |
 | 6 — GroupRule `rank` dimension | dynamic groups by current rank | ✅ merged | PR #186 |
+| Advancement viewer UI | #191 scout picker + sub-page IA | ✅ merged | PR #192 |
+| **Mobile v1 — M0** docs alignment | Expo decision (iOS first) recorded in ROADMAP/README | ✅ merged | this PR |
+| **Mobile v1 — M1** server sync surface | `Syncable` + `/sync/*` for event_types, locations, events, participants, relationships | ⏳ next | — |
+| **Mobile v1 — M2** shared types | `packages/api-types` from the gen-api pipeline + CI drift | ⏳ | — |
+| **Mobile v1 — M3** Expo scaffold | #93: apps/mobile shell, Clerk, troop switcher, CI | ⏳ | — |
+| **Mobile v1 — M4** offline data layer | #153 design: mirror + pull loop + command queue, Node-tested | ⏳ | — |
+| **Mobile v1 — M5** v1 screens | roster/events/attendance/RSVP on the mirror; Face ID app lock | ⏳ | — |
 
 **Resume-here notes:** *(keep this current — most recent first)*
 - 2026-07-04 (final): **entire train merged** — #180, #181, #183, #184, #185, #186,
@@ -145,11 +152,13 @@ credits post automatically when you're back in signal") becomes the launch demo.
   Internet Advancement *import* format (see "What we need from Jeff" below). Nothing
   else waits on this — it's deliberately last.
 
-### Phase 6 — Mobile v1
-- Formalize #153 into a spec (REST decision, outbox action registry, per-tenant
-  SQLite layout); extend `Syncable` to events/participants/groups (the "four
-  read-only endpoints" #153 estimates); Expo scaffold (#93); offline reads of
-  everything + offline writes for attendance/RSVP only.
+### Phase 6 — Mobile v1 (underway)
+- #153 spec is written and accepted (REST via OpenAPI, per-tenant SQLite mirror,
+  replayable command queue). Framework confirmed as **Expo (React Native), iOS
+  first** — decision matrix and M0–M5 phase map in #93. Offline reads of
+  everything + offline writes for attendance/RSVP only; Face ID app lock;
+  push (#82) after v1. Jeff-side steps when due: Apple Developer account,
+  EAS project + TestFlight, APNs keys.
 
 Comms infra (#78 queue, #79 retry/DLQ, #80 webhooks) can proceed **in parallel at any
 point** — see the delegation section, since it's the clearest candidate for
