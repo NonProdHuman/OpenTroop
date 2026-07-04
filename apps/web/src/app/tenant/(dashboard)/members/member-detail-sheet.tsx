@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import Link from "next/link"
 import { Field, Section } from "@/components/detail-helpers"
 import type { Member } from "@/types/api"
 import { formatDate, formatMemberName } from "@/lib/format"
@@ -175,6 +176,17 @@ export function MemberDetailSheet({ member, open, onOpenChange }: MemberDetailSh
                   allMembers={allMembers}
                   canAssign={has("role:assign")}
                 />
+              </Section>
+              <Separator />
+            </>
+          )}
+
+          {member.member_type === "scout" && (
+            <>
+              <Section title="Advancement">
+                <Button size="sm" variant="outline" render={<Link href={`/members/${member.id}/advancement`} />} nativeButton={false}>
+                  View rank progress &amp; merit badges
+                </Button>
               </Section>
               <Separator />
             </>

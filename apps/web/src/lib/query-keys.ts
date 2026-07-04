@@ -64,6 +64,13 @@ export const queryKeys = {
   eventOrganizers: (t: TenantId, eventId: string | null) => [t, "event-organizers", eventId] as const,
   locations: (t: TenantId) => [t, "locations"] as const,
 
+  // ── Advancement ───────────────────────────────────────────────────────────
+  advancementRanks: (t: TenantId) => [t, "advancement-ranks"] as const,
+  meritBadges: (t: TenantId) => [t, "merit-badges"] as const,
+  memberAdvancement: (t: TenantId, memberId: string | null) =>
+    [t, "member-advancement", memberId] as const,
+  advancementQueue: (t: TenantId) => [t, "advancement-queue"] as const,
+
   // ── Tenant settings ───────────────────────────────────────────────────────
   tenantSettings: (t: TenantId) => [t, "tenant-settings"] as const,
 }

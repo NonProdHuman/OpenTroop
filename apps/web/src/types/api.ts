@@ -93,3 +93,24 @@ export type Membership = Schemas["MembershipRead"]
 // ── Import ────────────────────────────────────────────────────────────────────
 
 export type TwhImportRead = Schemas["TwhImportRead"]
+
+// ── Advancement (Pillar 4, GH-92) ─────────────────────────────────────────────
+
+export type AdvancementMode = Schemas["AdvancementMode"]
+export type CompletionStatus = Schemas["CompletionStatus"]
+export type RecordedVia = Schemas["RecordedVia"]
+export type Rank = Schemas["RankRead"]
+export type RankWithSets = Schemas["RankWithSets"]
+export type RequirementSet = Schemas["RequirementSetRead"]
+export type RequirementSetDetail = Schemas["RequirementSetDetail"]
+export type Requirement = Schemas["RequirementRead"]
+export type MeritBadge = Schemas["MeritBadgeRead"]
+export type Completion = Schemas["CompletionRead"]
+export type MemberMeritBadge = Schemas["MemberMeritBadgeRead"]
+export type RankProgress = Schemas["RankProgressRead"]
+export type MemberAdvancement = Schemas["MemberAdvancementRead"]
+export type MemberRankView = Schemas["MemberRankView"]
+export type RequirementProgress = Schemas["RequirementProgress"]
+export type MetricProgress = Schemas["MetricProgress"]
+export type AdvancementQueue = Schemas["AdvancementQueueRead"]
+export type ElectionResult = Schemas["ElectionResult"]
