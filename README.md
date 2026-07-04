@@ -12,7 +12,7 @@ OpenTroop is being built in phases to ensure a strong foundation before moving t
 - ✅ **Multi-Tenant Isolation:** Deep isolation via PostgreSQL Row-Level Security, allowing safe scaling from one troop to hundreds on a shared platform.
 - 🚧 **Events & Calendar:** (In Progress) Event types, RSVP, capacity limits, attendance, permission slips, and personalized iCal feeds.
 - 🚧 **Communications:** (In Progress) A vendor-agnostic notification service already delivers invite emails and event-triggered notifications (creation, cancellation, permission slips); async send queue, SMS, and targeted group announcements are next.
-- 🔜 **Advancement:** Rank requirements, merit badges, and Scoutbook CSV sync — the data model is fully specified (versioned requirements catalog with automatic credit from event attendance) and ready to implement.
+- 🚧 **Advancement:** (In Progress — core shipped) Versioned rank-requirement catalog, merit badges, report→approve workflow, and automatic credit from event attendance, with live progress meters and an approval queue. Scoutbook CSV sync is the remaining piece.
 - 🧊 **Mobile Apps:** Native iOS & Android apps providing full offline-first capabilities.
 
 For more details on the phases, see our [ROADMAP.md](ROADMAP.md).

@@ -16,13 +16,21 @@ the work itself live in their tracking issues per repo convention.*
 | Docs sync + this plan | ROADMAP/README/CLAUDE.md refresh; #175 closed | ✅ merged | PR #180 |
 | 0 — Edge security | #116 origin secret + rate limiting + WAF TF; #117 admin auth belt | ✅ merged (`terraform apply` pending — Jeff) | PR #181 |
 | 1 — Advancement catalog | Global Rank/RequirementSet/Requirement/MeritBadge models, seed data + CLI, `counts_for_por` / `counts_as_activity`, migration | ✅ merged | PR #183 |
-| 2 — Advancement tracking | MemberRankProgress / MemberRequirementCompletion / MemberMeritBadge, workflow, `advancement_mode`, API | 🔍 in review | PR #184 (`claude/phase2-advancement-tracking`) |
-| 3 — Auto-credit engine | metrics + thresholds + triggers + `recompute-advancement` CLI | ✅ implemented — PR after #184 | `claude/phase3-auto-credit` |
-| 4 — Advancement UI | Member progress page, approval queue, settings mode toggle, sidebar | ✅ implemented — PR after phase 3/6 | `claude/phase4-advancement-ui` |
+| 2 — Advancement tracking | MemberRankProgress / MemberRequirementCompletion / MemberMeritBadge, workflow, `advancement_mode`, API | ✅ merged | PR #184 |
+| 3 — Auto-credit engine | metrics + thresholds + triggers + `recompute-advancement` CLI | ✅ merged | PR #185 |
+| 4 — Advancement UI | Member progress page, approval queue, settings mode toggle, sidebar | ✅ merged | PR #187 |
 | 5 — Scoutbook CSV | import/export | 🚫 blocked — needs sample files from Jeff | — |
-| 6 — GroupRule `rank` dimension | dynamic groups by current rank | ✅ implemented — PR after phase 3 | `claude/phase6-rank-dimension` |
+| 6 — GroupRule `rank` dimension | dynamic groups by current rank | ✅ merged | PR #186 |
 
 **Resume-here notes:** *(keep this current — most recent first)*
+- 2026-07-04 (final): **entire train merged** — #180, #181, #183, #184, #185, #186,
+  #187 all landed on `develop`; #116/#117/#175 closed. Backend suite: 503 tests.
+  Every planned phase is done except Phase 5 (Scoutbook CSV, blocked on sample
+  files). Jeff's open follow-ups: `terraform apply` (edge security), verify
+  ranks-2025.json vs the official PDF, Scoutbook sample files, and
+  `uv run seed-advancement` on deploy. **Next campaign per the plan: Mobile v1**
+  (formalize #153 into a spec, extend `Syncable` to events/participants/groups,
+  Expo scaffold #93) — see "Phase 6 — Mobile v1" below.
 - 2026-07-04 (later still): **all planned phases are code-complete.** Branch stack:
   phase2 → phase3 → phase6 → phase4, each already merged forward; PR train is
   sequential (merge #184 → PR phase3 → PR phase6 → PR phase4 — each branch diff
