@@ -20,6 +20,14 @@ export default {
     headers.set("X-Forwarded-Host", originalHost)
     headers.set("X-Forwarded-Proto", "https")
 
+    // Origin authentication (GH-116): prove to the backend that this request came
+    // through the Worker. Always drop any client-supplied value first — the header
+    // is a trust assertion only the Worker may set.
+    headers.delete("X-Origin-Auth")
+    if (env.ORIGIN_SHARED_SECRET) {
+      headers.set("X-Origin-Auth", env.ORIGIN_SHARED_SECRET)
+    }
+
     const init = {
       headers,
       method: request.method,

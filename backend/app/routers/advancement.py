@@ -86,7 +86,7 @@ def get_advancement_mode(tenant_id: TenantDep, db: DbDep) -> AdvancementMode:
     """
     tenant = db.get(Tenant, tenant_id)
     mode = tenant.advancement_mode if tenant is not None else AdvancementMode.CHAIR_ENTRY
-    if mode is AdvancementMode.DISABLED:
+    if mode == AdvancementMode.DISABLED:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     return mode
 
@@ -111,7 +111,7 @@ def _may_view(actor: Member, perms: frozenset[Permission], target_id: uuid.UUID,
 
 
 def _may_self_report(actor: Member, mode: AdvancementMode, target_id: uuid.UUID, db: DbDep) -> bool:
-    if mode is not AdvancementMode.SCOUT_REPORTED:
+    if mode != AdvancementMode.SCOUT_REPORTED:
         return False
     return actor.id == target_id or is_guardian_of(actor.id, target_id, db)
 
@@ -306,7 +306,7 @@ def create_completion(
         )
     )
     if existing is not None:
-        if existing.status is not CompletionStatus.REJECTED:
+        if existing.status != CompletionStatus.REJECTED:
             raise HTTPException(status_code=409, detail="Completion already recorded")
         # Re-report after rejection: reuse the row so history/audit stays intact.
         existing.date_completed = body.date_completed
@@ -358,14 +358,14 @@ def update_completion(
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         new_status = CompletionStatus(fields["status"])
         completion.status = new_status
-        if new_status is CompletionStatus.APPROVED:
+        if new_status == CompletionStatus.APPROVED:
             completion.approved_by_id = actor.id
             completion.approved_at = _now()
         else:
             completion.approved_by_id = (
-                actor.id if new_status is CompletionStatus.REJECTED else None
+                actor.id if new_status == CompletionStatus.REJECTED else None
             )
-            completion.approved_at = _now() if new_status is CompletionStatus.REJECTED else None
+            completion.approved_at = _now() if new_status == CompletionStatus.REJECTED else None
 
     if "date_completed" in fields or "note" in fields:
         if Permission.ADVANCEMENT_RECORD not in perms:
@@ -519,7 +519,7 @@ def create_member_merit_badge(
             MemberMeritBadge.merit_badge_id == badge.id,
         )
     )
-    if existing is not None and existing.status is not CompletionStatus.REJECTED:
+    if existing is not None and existing.status != CompletionStatus.REJECTED:
         raise HTTPException(status_code=409, detail="Merit badge already recorded")
 
     if existing is not None:
@@ -572,8 +572,8 @@ def update_member_merit_badge(
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         new_status = CompletionStatus(fields["status"])
         record.status = new_status
-        record.approved_by_id = actor.id if new_status is not CompletionStatus.REPORTED else None
-        record.approved_at = _now() if new_status is not CompletionStatus.REPORTED else None
+        record.approved_by_id = actor.id if new_status != CompletionStatus.REPORTED else None
+        record.approved_at = _now() if new_status != CompletionStatus.REPORTED else None
 
     detail_fields = {"date_started", "date_completed", "counselor_name"} & fields.keys()
     if detail_fields:

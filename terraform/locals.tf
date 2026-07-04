@@ -45,6 +45,11 @@ locals {
 
   app_secret = try(coalesce(var.app_secret, random_password.app_secret.result), null)
 
+  # X-Origin-Auth shared secret (GH-116): the Worker injects it, the API requires it.
+  # Only provisioned when Cloudflare fronts the deployment — with no trusted proxy
+  # there is nothing to authenticate and the backend check stays disabled.
+  origin_shared_secret = try(coalesce(var.origin_shared_secret, random_password.origin_secret.result), null)
+
   api_public_url = try(coalesce(
     var.api_public_url,
     var.cloudflare_enabled ? "https://api.${var.app_domain}" : google_cloud_run_v2_service.api.uri,
@@ -67,6 +72,7 @@ locals {
     DATABASE_URL         = local.database_url
     DATABASE_URL_ADMIN   = local.database_url_admin
     DATABASE_URL_MIGRATE = local.database_url_migrate
+    ORIGIN_SHARED_SECRET = local.origin_shared_secret
     RESEND_API_KEY       = var.resend_api_key
   }
 
@@ -79,6 +85,7 @@ locals {
     var.database_url != null || var.manage_neon ? ["DATABASE_URL"] : [],
     var.database_url_admin != null || var.manage_neon || var.database_url != null ? ["DATABASE_URL_ADMIN"] : [],
     var.database_url_migrate != null || var.manage_neon || var.database_url != null ? ["DATABASE_URL_MIGRATE"] : [],
+    var.cloudflare_enabled ? ["ORIGIN_SHARED_SECRET"] : [],
     var.resend_api_key != null ? ["RESEND_API_KEY"] : [],
   )))
 
@@ -90,6 +97,7 @@ locals {
     var.database_url != null || var.manage_neon ? "DATABASE_URL" : "",
     var.database_url_admin != null || var.manage_neon || var.database_url != null ? "DATABASE_URL_ADMIN" : "",
     var.database_url_migrate != null || var.manage_neon || var.database_url != null ? "DATABASE_URL_MIGRATE" : "",
+    var.cloudflare_enabled ? "ORIGIN_SHARED_SECRET" : "",
     var.resend_api_key != null ? "RESEND_API_KEY" : "",
   ]))
 
