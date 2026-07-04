@@ -3,7 +3,9 @@ import { useRouter } from "expo-router"
 import { useAuth, useUser } from "@clerk/clerk-expo"
 import { useActiveTenant } from "@/lib/tenant-context"
 import { wipeAllLocalData } from "@/lib/local-wipe"
-import { useSync } from "@/hooks/use-sync"
+import { useSyncContext } from "@/lib/sync-context"
+import { isAppLockEnabled, setAppLockEnabled } from "@/lib/app-lock"
+import { useEffect, useState } from "react"
 
 function Row({ label, onPress, danger }: { label: string; onPress: () => void; danger?: boolean }) {
   return (
@@ -30,7 +32,11 @@ export default function SettingsScreen() {
   const { signOut } = useAuth()
   const { user } = useUser()
   const { activeTenant, setActiveTenant } = useActiveTenant()
-  const { failedCommands, lastOutcome, isSyncing, sync } = useSync()
+  const { failedCommands, lastOutcome, isSyncing, sync } = useSyncContext()
+  const [lockEnabled, setLockEnabled] = useState(false)
+  useEffect(() => {
+    void isAppLockEnabled().then(setLockEnabled)
+  }, [])
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
@@ -57,6 +63,12 @@ export default function SettingsScreen() {
             : "Sync issues"
         }
         onPress={() => router.push("/sync-issues")}
+      />
+      <Row
+        label={lockEnabled ? "App lock: on (Face ID)" : "App lock: off"}
+        onPress={() => {
+          void setAppLockEnabled(!lockEnabled).then(setLockEnabled)
+        }}
       />
       <Row
         label="Sign out"

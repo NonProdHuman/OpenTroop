@@ -1,6 +1,6 @@
 import { FlatList, Pressable, Text, View } from "react-native"
 import { Stack } from "expo-router"
-import { useSync } from "@/hooks/use-sync"
+import { useSyncContext } from "@/lib/sync-context"
 import type { PendingCommand } from "@/data/commands"
 
 const KIND_LABELS: Record<PendingCommand["kind"], string> = {
@@ -15,7 +15,7 @@ const KIND_LABELS: Record<PendingCommand["kind"], string> = {
  * in the UI (which enqueues a fresh command).
  */
 export default function SyncIssuesScreen() {
-  const { failedCommands, discard } = useSync()
+  const { failedCommands, discard } = useSyncContext()
 
   return (
     <>

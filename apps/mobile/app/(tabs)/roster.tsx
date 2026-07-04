@@ -1,39 +1,38 @@
-import { FlatList, RefreshControl, Text } from "react-native"
-import { useMembers } from "@/hooks/use-data"
-import { ApiError } from "@/lib/api"
+import { FlatList, Pressable, RefreshControl, Text } from "react-native"
+import { Link } from "expo-router"
+import { useMirrorMembers } from "@/hooks/use-mirror"
+import { useSyncContext } from "@/lib/sync-context"
 import { formatMemberName } from "@/lib/format"
-import { LoadingScreen } from "@/components/loading-screen"
 
 export default function RosterScreen() {
-  const { data: members, isLoading, refetch, isRefetching, error } = useMembers()
-
-  if (isLoading) return <LoadingScreen />
-  if (error instanceof ApiError && error.status === 403) {
-    return (
-      <Text style={{ padding: 24, color: "#666" }}>
-        The roster requires the member-read permission. Your own family&apos;s info lives in
-        the web app for now.
-      </Text>
-    )
-  }
-
-  const sorted = [...(members ?? [])].sort((a, b) =>
-    `${a.last_name}${a.first_name}`.localeCompare(`${b.last_name}${b.first_name}`),
-  )
+  const members = useMirrorMembers()
+  const { sync, isSyncing } = useSyncContext()
 
   return (
     <FlatList
       contentContainerStyle={{ padding: 16 }}
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />}
-      data={sorted}
+      refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={() => void sync()} />}
+      data={members}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
-        <Text style={{ paddingVertical: 10, fontSize: 15, borderBottomWidth: 1, borderColor: "#f3f4f6" }}>
-          {formatMemberName(item)}
-          {item.member_type === "adult" ? "  ·  adult" : ""}
-        </Text>
+        <Link href={{ pathname: "/member/[id]", params: { id: item.id } }} asChild>
+          <Pressable
+            style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: "#f3f4f6" }}
+          >
+            <Text style={{ fontSize: 15 }}>
+              {formatMemberName(item)}
+              {item.member_type === "adult" ? "  ·  adult" : ""}
+              {item.membership_status !== "active" ? `  ·  ${item.membership_status}` : ""}
+            </Text>
+          </Pressable>
+        </Link>
       )}
-      ListEmptyComponent={<Text style={{ color: "#666" }}>No members yet.</Text>}
+      ListEmptyComponent={
+        <Text style={{ color: "#666" }}>
+          The roster mirrors for members with the member-read permission — your own
+          family&apos;s records live in the web app for now.
+        </Text>
+      }
     />
   )
 }
