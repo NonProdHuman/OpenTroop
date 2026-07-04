@@ -93,6 +93,41 @@ def _parents_of(
     )
 
 
+def _members_by_rank(values: list[str], session: Session) -> set[uuid.UUID]:
+    """Members whose *current rank* is one of the given rank codes (GH-92 Phase 6).
+
+    Current rank = the highest ``Rank.sort_order`` among the member's
+    ``MemberRankProgress`` rows with a recorded board-of-review date
+    (``completed_date``). "First Class and above" is expressed by listing the
+    codes first_class/star/life/eagle. Members with no completed rank match
+    nothing (there is deliberately no "no rank" value — use member_type=scout
+    rules for that).
+    """
+    from app.models.advancement import MemberRankProgress, Rank
+    from app.models.enums import RankCode
+
+    wanted: set[RankCode] = set()
+    for value in values:
+        try:
+            wanted.add(RankCode(value))
+        except ValueError:
+            continue  # validated on write; ignore unknown codes defensively
+    if not wanted:
+        return set()
+
+    rows = session.execute(
+        select(MemberRankProgress.member_id, Rank.code, Rank.sort_order)
+        .join(Rank, MemberRankProgress.rank_id == Rank.id)
+        .where(MemberRankProgress.completed_date.is_not(None))
+    ).all()
+    current: dict[uuid.UUID, tuple[int, RankCode]] = {}
+    for member_id, code, sort_order in rows:
+        best = current.get(member_id)
+        if best is None or sort_order > best[0]:
+            current[member_id] = (sort_order, code)
+    return {member_id for member_id, (_, code) in current.items() if code in wanted}
+
+
 def evaluate_rule(
     dimension: RuleDimension,
     values: list[str] | None,
@@ -124,8 +159,7 @@ def evaluate_rule(
                 )
             return combined
         case RuleDimension.RANK:
-            # Phase 2 — no-op until Pillar 4 advancement model exists
-            return set()
+            return _members_by_rank(values or [], session)
 
     return set()
 
@@ -210,12 +244,16 @@ def validate_group_rule(
                 )
             require_tenant_fk(session, Group, ref_group_id, "group_id")
     elif dimension is RuleDimension.RANK:
+        from app.models.enums import RankCode
+
         for val in values:
-            if not isinstance(val, str) or not val.strip():
+            try:
+                RankCode(val)
+            except ValueError as err:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Invalid rank value: {val}",
-                )
+                ) from err
 
 
 # ---------------------------------------------------------------------------
