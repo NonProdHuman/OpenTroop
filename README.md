@@ -11,8 +11,8 @@ OpenTroop is being built in phases to ensure a strong foundation before moving t
 - ✅ **Roster & Relationships:** Full membership modeling, family relationships, Groups/Patrols, and a robust Role-Based Access Control (RBAC) system.
 - ✅ **Multi-Tenant Isolation:** Deep isolation via PostgreSQL Row-Level Security, allowing safe scaling from one troop to hundreds on a shared platform.
 - 🚧 **Events & Calendar:** (In Progress) Event types, RSVP, capacity limits, attendance, permission slips, and personalized iCal feeds.
-- 🔜 **Communications:** Email & SMS announcements, automated event notifications, and targeted group messaging.
-- 🧊 **Advancement:** Merit badges, rank requirements, Eagle project tracking, and full Scoutbook sync.
+- 🚧 **Communications:** (In Progress) A vendor-agnostic notification service already delivers invite emails and event-triggered notifications (creation, cancellation, permission slips); async send queue, SMS, and targeted group announcements are next.
+- 🔜 **Advancement:** Rank requirements, merit badges, and Scoutbook CSV sync — the data model is fully specified (versioned requirements catalog with automatic credit from event attendance) and ready to implement.
 - 🧊 **Mobile Apps:** Native iOS & Android apps providing full offline-first capabilities.
 
 For more details on the phases, see our [ROADMAP.md](ROADMAP.md).
@@ -144,6 +144,14 @@ Located in `backend/`. Requires [uv](https://docs.astral.sh/uv/) and Python 3.12
 uv sync                                              # create .venv/ and install all deps
 uv run pytest                                        # run the test suite (no database needed)
 uv run uvicorn app.main:app --reload                 # start the API on :8000
+```
+
+### Dev Verification Loop
+With the stack running, seed a deterministic dev tenant and run the Playwright smoke suite:
+
+```bash
+uv run seed-dev-data          # from backend/ — idempotent dev tenant + sample data
+pnpm --filter web e2e         # Playwright smoke tests against the running app
 ```
 
 ### Pre-commit Hooks

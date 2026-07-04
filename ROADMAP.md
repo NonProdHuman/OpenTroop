@@ -65,7 +65,9 @@ depends on it.
 **Shipped:** `TrackedBase` (UUIDv7 PK, `tenant_id`, timestamps, soft-delete); `Member`
 (type/status/BSA swim classification, OA fields, full contact + medical fields);
 `MemberRelationship` guardian graph; two-level RBAC (`Position → FunctionalRole →
-Permission`) with `require()` guards on every route; OIDC/JWT auth with invite-claim
+Permission`) with `require()` guards on every route and privilege-escalation guardrails
+on position assignment (only admins may grant admin/`role:manage`-conferring positions;
+last-admin protection); OIDC/JWT auth with invite-claim
 flow; multi-tenant provisioning and the platform (global) admin tier + control-plane API
 and UI; **Groups & Audiences** (the `Group` primitive that folds Patrol — manual +
 dynamic rule-based membership, `resolve_group_members`, dynamic rule editor); TWH XML
@@ -115,30 +117,38 @@ than one-size-fits-all fields.
 overrides; `RsvpStatus` (going/declined/maybe/no-response); youth/adult costs; event
 visibility / audiences (`EventAudience` → Groups, managers bypass); the RSVP + parental
 electronic-permission workflow, including the event edit page and RSVP admin tab;
-per-member tokenized iCal subscription feeds; month-grid calendar (List/Calendar toggle).
+per-member tokenized iCal subscription feeds; month-grid calendar (List/Calendar toggle);
+event-triggered email notifications — creation, cancellation, and permission-slip
+requests, riding the Pillar 5 notification service.
 Specs: [`event-edit.md`](docs/spec/event-edit.md),
 [`event-rsvp-permission.md`](docs/spec/event-rsvp-permission.md),
 [`member-event-create.md`](docs/spec/member-event-create.md).
 
-**Next up (see issues):** health-form collection & storage; event
-notifications (email — blocked on Pillar 5). Deferred: universal sign-up slots (the
-redesign superseding TWH's event-shift model).
+**Next up (see issues):** health-form collection & storage; permission-slip PDF
+export; multi-day event bars in the month view. Deferred: universal sign-up slots
+(the redesign superseding TWH's event-shift model).
 
 ---
 
 ## Pillar 4 — Advancement & Requirements
 
-**Status: 🧊 Future — needs analysis + spec.** · Milestone: *Pillar 4 — Advancement*
+**Status: 🔜 Next up — spec drafted, ready to implement.** · Milestone: *Pillar 4 — Advancement*
 
 The most complex domain. BSA advancement has a strict hierarchy
 (program → rank → requirements → sub-requirements), merit badges with counselor
 sign-offs, and Eagle project tracking. **Scoutbook is the authoritative record; this
 pillar syncs with it, it does not replace it.**
 
-**Next up (see issues):** analyze the Scoutbook advancement export format *before*
-designing the model; rank/requirement hierarchy; merit-badge catalog and counselor
-management; requirement completion tracking; Eagle project workflow; Scoutbook two-way
-sync; advancement report generation.
+**Designed:** the full data-model spec lives in issue #92 (versioned, platform-global
+requirements catalog; per-scout, per-rank version election; report → approve workflow;
+automatic crediting of countable requirements from event attendance; Scoutbook CSV
+import/export). Implementation is tracked in #169.
+
+**Next up (see issues):** implement per the #92 spec — catalog models + seed pipeline,
+tracking models + workflow, auto-credit engine, advancement UI, Scoutbook CSV
+import/export (the one step still awaiting real sample files), and lighting up the
+`GroupRule` `rank` dimension. Deferred: Eagle project workflow, counselor management,
+purchasing/awarding pipeline, #123 browser-extension sync.
 
 ---
 
@@ -156,7 +166,9 @@ path and without vendor lock-in.
 
 **Shipped groundwork:** the `NotificationService` abstraction (`EmailBackend` /
 `SMSBackend` protocols, `app/core/notifications.py`) with the `resend` email
-backend (plus an in-memory fake for tests) driving invite-email delivery today; `Member`
+backend (plus an in-memory fake for tests) driving invite-email delivery today;
+event-triggered emails (creation, cancellation, permission-slip requests) resolving
+recipients through the same audience/group primitives as event visibility; `Member`
 notification-preference fields (`email_opt_out`, `email_bounced`, `sms_opt_in`); and
 the tenant-scoped settings surface (currently permission-slip language). Specs already
 drafted: [`messaging.md`](docs/spec/messaging.md),
@@ -183,7 +195,9 @@ is specified in [`navigation.md`](docs/spec/navigation.md).
 
 **Shipped:** collapsible hybrid-IA sidebar; tenant-scoped `GET /auth/session` +
 `usePermissions()` / `has()` hook; permission-filtered nav & action buttons;
-light/dark theme toggle; Roles & permissions management UI; the platform console shell.
+light/dark theme toggle; Roles & permissions management UI; position-history UI on the
+member profile; the platform console shell; shared DataTable with sortable headers and
+a central React Query key factory (architecture-review cleanups).
 
 **Next up (see issues):** Home / dashboard landing (announcements, upcoming events, my
 action items) to replace the redirect-to-Members default; bulk editing (medical-form dates
@@ -208,13 +222,21 @@ Filed under the *Future Domains* milestone.
 
 ## Mobile Applications
 
-**Status: 🧊 Future — after API contract stabilizes.** · Milestone: *Mobile*
+**Status: 🧊 Future — groundwork started; apps after the API contract stabilizes.** · Milestone: *Mobile*
 
 Native iOS (Swift/SwiftUI) and Android (Kotlin/Compose) apps are the offline-sync clients
 for Pillars 1–4 — developed in parallel once each pillar's API contract stabilizes, not as
-a separate phase. Open work (see issues): REST-vs-GraphQL API review; offline data-layer
-design (local SQLite partitioned by active tenant — server-side RLS stops at the backend);
-the two native apps; push-notification integration.
+a separate phase.
+
+**Shipped groundwork:** the pull-sync protocol spec
+([`sync-protocol.md`](docs/spec/sync-protocol.md)) with the `Syncable` mixin
+(`sync_seq` cursor) and the first keyset-paged pull endpoint (`GET /sync/members`);
+the offline data-layer design (full local mirror per tenant + replayable-action
+outbox) is drafted in issue #153.
+
+**Open work (see issues):** REST-vs-GraphQL API review; formalize the #153 offline
+data-layer spec; extend `Syncable` to events/groups; the client apps (Expo scaffold
+#93 is the tracked starting point); push-notification integration.
 
 ---
 

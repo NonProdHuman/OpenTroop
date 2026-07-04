@@ -43,6 +43,13 @@ docker compose up --build
 
 For backend-only commands see `backend/CLAUDE.md`. For frontend-only commands see `apps/web/CLAUDE.md`.
 
+### Dev verification loop
+
+```bash
+uv run seed-dev-data     # from backend/ — idempotent deterministic dev tenant + sample data
+pnpm --filter web e2e    # Playwright smoke tests against the running stack
+```
+
 ## Conventions
 
 - **Bug fixes must include a test.** When fixing a bug, add a test that would have caught it before writing the fix.
@@ -125,6 +132,9 @@ instead. `PlatformBase` has the same `id`, timestamps, and `is_deleted` as
 so a future incremental sync can match an upstream record to its OpenTroop row and
 detect changes. The TWH importer populates these; nothing reads them yet — it's
 groundwork for dual-run sync. See [`docs/spec/twh-sync.md`](docs/spec/twh-sync.md).
+The import endpoint enforces byte caps on upload and zip/gzip decompression plus a
+zip entry-count limit (413 on overflow; limits configurable via `Settings`) and
+parses XML with `defusedxml` (422 on entity attacks).
 
 **Pull-sync cursor.** Tables exposed through the sync API additionally mix in
 `Syncable` (`app/models/base.py`), which supplies `sync_seq` — a server-assigned,
@@ -243,7 +253,12 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   across them) and the same position across repeat terms — there is **no**
   `(member_id, position_id)` unique constraint; "at most one current term per
   (member, position)" is enforced in the API. There is deliberately **no** path to assign
-  a functional role or raw permission directly to a member. See
+  a functional role or raw permission directly to a member. **Escalation guardrails:**
+  writes to terms for a *privileged* position (one mapping to an `is_admin` or
+  `role:manage`-granting functional role) require the caller to be an admin (403
+  otherwise), and the tenant-facing PATCH/DELETE refuse to end or delete the tenant's
+  last current administrator term (409) — the admin-set definition is shared with
+  `platform.py` via `app/core/permissions.py`. See
   [`docs/spec/position-history.md`](docs/spec/position-history.md).
 - `Permission` — `StrEnum` in `enums.py` listing all system capabilities, namespaced
   by domain (`member:read`, `event:create`, `role:manage`, etc.).
