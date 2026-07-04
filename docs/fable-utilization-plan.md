@@ -14,15 +14,24 @@ the work itself live in their tracking issues per repo convention.*
 | Phase | Scope | Status | Branch / PR |
 |---|---|---|---|
 | Docs sync + this plan | ROADMAP/README/CLAUDE.md refresh; #175 closed | ✅ merged | PR #180 |
-| 0 — Edge security | #116 origin secret + rate limiting + WAF TF; #117 admin auth belt | 🔍 in review | PR #181 (`claude/phase0-edge-security-116-117`) |
-| 1 — Advancement catalog | Global Rank/RequirementSet/Requirement/MeritBadge models, seed data + CLI, `counts_for_por` / `counts_as_activity`, migration | ⬜ not started | — |
-| 2 — Advancement tracking | MemberRankProgress / MemberRequirementCompletion / MemberMeritBadge, workflow, `advancement_mode`, API | ⬜ not started | — |
+| 0 — Edge security | #116 origin secret + rate limiting + WAF TF; #117 admin auth belt | ✅ merged (`terraform apply` pending — Jeff) | PR #181 |
+| 1 — Advancement catalog | Global Rank/RequirementSet/Requirement/MeritBadge models, seed data + CLI, `counts_for_por` / `counts_as_activity`, migration | 🔍 in review | PR #183 (`claude/phase1-advancement-catalog`) |
+| 2 — Advancement tracking | MemberRankProgress / MemberRequirementCompletion / MemberMeritBadge, workflow, `advancement_mode`, API | ✅ implemented — PR after Phase 1 merges | `claude/phase2-advancement-tracking` |
 | 3 — Auto-credit engine | `app/core/advancement.py`, recompute triggers, CLI | ⬜ not started | — |
 | 4 — Advancement UI | Member tab, approval queue, settings toggle | ⬜ not started | — |
 | 5 — Scoutbook CSV | import/export | 🚫 blocked — needs sample files from Jeff | — |
 | 6 — GroupRule `rank` dimension | dynamic groups by rank | ⬜ not started | — |
 
 **Resume-here notes:** *(keep this current — most recent first)*
+- 2026-07-04 (later): #181 merged (edge security — **Jeff still owes the
+  `terraform apply`**, see terraform/README.md "Edge security rollout"). Phase 1
+  (catalog + seed data + `seed-advancement` CLI) is PR #183. Phase 2 (tracking
+  models + workflow API + `advancement_mode`) is fully implemented and tested on
+  `claude/phase2-advancement-tracking`, stacked on Phase 1 — PR it to `develop`
+  once #183 merges. ⚠️ ranks-2025.json was transcribed from model knowledge
+  (PDF unfetchable here) — verify against the official PDF; corrections are a
+  data edit + `uv run seed-advancement`. Next actions: merge #183 when green →
+  PR phase2 → Phase 3 (auto-credit engine) on a branch off phase2.
 - 2026-07-04: Phase 0 implemented and PR'd (#181): origin-auth + rate-limit middleware,
   CF Access belt on /platform, tenant-header flag, Terraform (WAF/rate-limit rules and
   Access app, all opt-in) + Worker header injection. **Jeff's follow-ups:**
