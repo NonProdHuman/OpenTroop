@@ -332,3 +332,80 @@ def test_sync_streams_tenant_isolated(client: TestClient, other_client: TestClie
     _event(client, et["id"], name="A-only")
     assert _pull_entity(other_client, "events")["items"] == []
     assert _pull_entity(other_client, "event_types")["items"] == []
+
+
+# ---------------------------------------------------------------------------
+# Family-scoped member streams (RSVP-for-everyone; GH-153 §C4 follow-up)
+# ---------------------------------------------------------------------------
+
+
+def _seed_family(db: Session) -> tuple[Member, Member, Member]:
+    """Parent (linked to NEW_USER_ID, no permissions beyond event:read), their
+    child, and an unrelated scout."""
+    parent = Member(
+        tenant_id=TENANT_A,
+        user_id=NEW_USER_ID,
+        first_name="Pat",
+        last_name="Parent",
+        member_type=MemberType.ADULT,
+    )
+    child = Member(
+        tenant_id=TENANT_A, first_name="Kid", last_name="Parent", member_type=MemberType.SCOUT
+    )
+    other = Member(
+        tenant_id=TENANT_A, first_name="Other", last_name="Scout", member_type=MemberType.SCOUT
+    )
+    db.add_all([parent, child, other])
+    db.flush()
+    db.add(
+        MemberRelationship(
+            tenant_id=TENANT_A,
+            from_member_id=parent.id,
+            to_member_id=child.id,
+            relationship_type=RelationshipType.PARENT_OF,
+        )
+    )
+    db.commit()
+    return parent, child, other
+
+
+def test_sync_members_family_scope_without_member_read(
+    claim_client: TestClient, client: TestClient, db_session: Session
+) -> None:
+    parent, child, other = _seed_family(db_session)
+
+    r = claim_client.get("/sync/members", headers=_tenant_a(client))
+    assert r.status_code == 200, r.text
+    ids = {m["id"] for m in r.json()["items"]}
+    assert ids == {str(parent.id), str(child.id)}
+    assert str(other.id) not in ids
+
+    # member:read (admin) still mirrors the whole roster.
+    admin_ids = {m["id"] for m in _pull_entity(client, "members")["items"]}
+    assert {str(parent.id), str(child.id), str(other.id)} <= admin_ids
+
+
+def test_sync_relationships_family_scope_without_member_read(
+    claim_client: TestClient, client: TestClient, db_session: Session
+) -> None:
+    parent, child, other = _seed_family(db_session)
+    # An unrelated family's edge must not leak into the parent's stream.
+    other_parent = Member(
+        tenant_id=TENANT_A, first_name="Ann", last_name="Other", member_type=MemberType.ADULT
+    )
+    db_session.add(other_parent)
+    db_session.flush()
+    db_session.add(
+        MemberRelationship(
+            tenant_id=TENANT_A,
+            from_member_id=other_parent.id,
+            to_member_id=other.id,
+            relationship_type=RelationshipType.PARENT_OF,
+        )
+    )
+    db_session.commit()
+
+    r = claim_client.get("/sync/member_relationships", headers=_tenant_a(client))
+    assert r.status_code == 200, r.text
+    pairs = {(rel["from_member_id"], rel["to_member_id"]) for rel in r.json()["items"]}
+    assert pairs == {(str(parent.id), str(child.id))}
