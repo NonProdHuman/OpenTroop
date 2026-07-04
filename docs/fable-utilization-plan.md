@@ -13,8 +13,8 @@ the work itself live in their tracking issues per repo convention.*
 
 | Phase | Scope | Status | Branch / PR |
 |---|---|---|---|
-| Docs sync + this plan | ROADMAP/README/CLAUDE.md refresh; #175 closed | ✅ merged | `claude/project-review-fable-roadmap-njgz5d` |
-| 0 — Edge security | #116 origin secret + rate limiting + WAF TF; #117 admin auth belt | ⏳ in progress | — |
+| Docs sync + this plan | ROADMAP/README/CLAUDE.md refresh; #175 closed | ✅ merged | PR #180 |
+| 0 — Edge security | #116 origin secret + rate limiting + WAF TF; #117 admin auth belt | 🔍 in review | PR #181 (`claude/phase0-edge-security-116-117`) |
 | 1 — Advancement catalog | Global Rank/RequirementSet/Requirement/MeritBadge models, seed data + CLI, `counts_for_por` / `counts_as_activity`, migration | ⬜ not started | — |
 | 2 — Advancement tracking | MemberRankProgress / MemberRequirementCompletion / MemberMeritBadge, workflow, `advancement_mode`, API | ⬜ not started | — |
 | 3 — Auto-credit engine | `app/core/advancement.py`, recompute triggers, CLI | ⬜ not started | — |
@@ -23,6 +23,12 @@ the work itself live in their tracking issues per repo convention.*
 | 6 — GroupRule `rank` dimension | dynamic groups by rank | ⬜ not started | — |
 
 **Resume-here notes:** *(keep this current — most recent first)*
+- 2026-07-04: Phase 0 implemented and PR'd (#181): origin-auth + rate-limit middleware,
+  CF Access belt on /platform, tenant-header flag, Terraform (WAF/rate-limit rules and
+  Access app, all opt-in) + Worker header injection. **Jeff's follow-ups:**
+  `terraform plan/apply` per terraform/README.md "Edge security rollout"; enable the
+  opt-in vars when the Cloudflare plan allows. Next action: merge #181 when CI is
+  green; start Advancement Phase 1 off `develop`.
 - 2026-07-04: Plan approved by Jeff (feature-branch + self-merge; Phase 0 code-only).
   Task list mirrors the phases. Next action: Phase 0 branch off `develop`.
 
