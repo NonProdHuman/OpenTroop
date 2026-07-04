@@ -23,10 +23,10 @@ the work itself live in their tracking issues per repo convention.*
 | 6 — GroupRule `rank` dimension | dynamic groups by current rank | ✅ merged | PR #186 |
 | Advancement viewer UI | #191 scout picker + sub-page IA | ✅ merged | PR #192 |
 | **Mobile v1 — M0** docs alignment | Expo decision (iOS first) recorded in ROADMAP/README | ✅ merged | this PR |
-| **Mobile v1 — M1** server sync surface | `Syncable` + `/sync/*` for event_types, locations, events, participants, relationships | ⏳ next | — |
-| **Mobile v1 — M2** shared types | `packages/api-types` from the gen-api pipeline + CI drift | ⏳ | — |
-| **Mobile v1 — M3** Expo scaffold | #93: apps/mobile shell, Clerk, troop switcher, CI | ⏳ | — |
-| **Mobile v1 — M4** offline data layer | #153 design: mirror + pull loop + command queue, Node-tested | ⏳ | — |
+| **Mobile v1 — M1** server sync surface | `Syncable` + `/sync/*` for event_types, locations, events, participants, relationships | ✅ merged | PR #194 |
+| **Mobile v1 — M2** shared types | `packages/api-types` from the gen-api pipeline + CI drift | ✅ merged | PR #195 |
+| **Mobile v1 — M3** Expo scaffold | #93: apps/mobile shell, Clerk, troop switcher, CI | ✅ merged | this PR |
+| **Mobile v1 — M4** offline data layer | #153 design: mirror + pull loop + command queue, Node-tested | ⏳ next | — |
 | **Mobile v1 — M5** v1 screens | roster/events/attendance/RSVP on the mirror; Face ID app lock | ⏳ | — |
 
 **Resume-here notes:** *(keep this current — most recent first)*
