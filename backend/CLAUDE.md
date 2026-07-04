@@ -23,6 +23,10 @@ uv run anonymize-twh <real.xml> <out.xml>   # scrub PII from a TWH export for us
 uv run reset-tenant <tenant-id>   # clear imported data, keep Clerk admin — then re-import
 uv run reset-db                   # nuclear: drop all tables + re-migrate (prompts for confirmation)
 uv run reset-db --yes             # same, no prompt (CI/scripts)
+
+# Advancement (Pillar 4, GH-92)
+uv run seed-advancement           # load/refresh the global rank & merit badge catalog
+uv run recompute-advancement      # scheduled auto-credit pass (tenure/POR thresholds)
 ```
 
 ## Scripts
