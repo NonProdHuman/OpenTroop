@@ -35,7 +35,7 @@ from tests.test_tenant_resolution import _request
 
 APP_DOMAIN = "opentroop.test"
 
-SECRET = "edge-secret-0123456789abcdef0123456789abcdef"  # noqa: S105 — test-only value
+SECRET = "edge-secret-0123456789abcdef0123456789abcdef"  # noqa: S105 — test-only value  # gitleaks:allow
 
 
 # ---------------------------------------------------------------------------
