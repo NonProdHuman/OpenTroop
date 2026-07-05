@@ -115,4 +115,16 @@ export type MetricProgress = Schemas["MetricProgress"]
 export type AdvancementQueue = Schemas["AdvancementQueueRead"]
 
 export type AdvancementScout = Schemas["AdvancementScoutRead"]
+
+// ── Messaging (Pillar 5, GH-146) ──────────────────────────────────────────────
+export type Message = Schemas["MessageRead"]
+export type MessageCreate = Schemas["MessageCreate"]
+export type MessageWithPreview = Schemas["MessageWithPreview"]
+export type MessageDetail = Schemas["MessageDetail"]
+export type MessageRecipient = Schemas["MessageRecipientRead"]
+export type AudiencePreview = Schemas["AudiencePreview"]
+export type RecipientPreviewEntry = Schemas["RecipientPreviewEntry"]
+export type InboxPage = Schemas["InboxPage"]
+export type InboxEntry = Schemas["InboxEntry"]
+export type AudienceType = Schemas["AudienceType"]
 export type ElectionResult = Schemas["ElectionResult"]
