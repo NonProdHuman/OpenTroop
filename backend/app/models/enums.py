@@ -279,6 +279,57 @@ class RelationshipType(enum.StrEnum):
     OTHER = "other"
 
 
+class MessageStatus(enum.StrEnum):
+    """Lifecycle of an announcement (GH-146).
+
+    DRAFT     — composed, audience editable, nothing resolved yet.
+    SCHEDULED — send requested with a future ``scheduled_at``; the outbox loop
+                promotes it when due.
+    SENDING   — recipients resolved and written; email deliveries draining.
+    SENT      — every recipient reached a terminal email state.
+    """
+
+    DRAFT = "draft"
+    SCHEDULED = "scheduled"
+    SENDING = "sending"
+    SENT = "sent"
+
+
+class AudienceType(enum.StrEnum):
+    """Per-group audience expansion for a message (docs/spec/messaging.md)."""
+
+    MEMBERS = "members"
+    MEMBERS_AND_PARENTS = "members_and_parents"
+    PARENTS_ONLY = "parents_only"
+
+
+class EmailState(enum.StrEnum):
+    """Email delivery state for one inbox entry (GH-146/GH-78/GH-79).
+
+    PENDING rows are the outbox queue; SKIPPED_* are decided at resolve time
+    (CAN-SPAM: opted-out and bounced addresses are never queued). FAILED is
+    terminal after max attempts — the dead-letter surface.
+    """
+
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+    SKIPPED_OPT_OUT = "skipped_opt_out"
+    SKIPPED_BOUNCED = "skipped_bounced"
+    SKIPPED_NO_EMAIL = "skipped_no_email"
+
+
+class PushState(enum.StrEnum):
+    """Push delivery state for one inbox entry — one-shot best-effort (GH-82).
+
+    The inbox row itself is the durable record; push is only the alert.
+    """
+
+    SENT = "sent"
+    NO_DEVICES = "no_devices"
+    FAILED = "failed"
+
+
 class PlatformRole(enum.StrEnum):
     """Global (cross-tenant) role held by a platform User.
 

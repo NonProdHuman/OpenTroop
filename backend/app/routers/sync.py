@@ -30,15 +30,19 @@ from app.models.event import Event, EventParticipant
 from app.models.event_type import EventType
 from app.models.location import Location
 from app.models.member import Member, MemberRelationship
+from app.models.message import Message, MessageRecipient
 from app.schemas.event import EventParticipantRead, EventRead
 from app.schemas.event_type import EventTypeRead
 from app.schemas.location import LocationRead
 from app.schemas.member import MemberRead
+from app.schemas.message import MessageRead, MessageRecipientRead
 from app.schemas.relationship import MemberRelationshipRead
 from app.schemas.sync import (
     SyncEventParticipantsPage,
     SyncEventsPage,
     SyncEventTypesPage,
+    SyncInboxMessagesPage,
+    SyncInboxRecipientsPage,
     SyncLocationsPage,
     SyncMemberRelationshipsPage,
     SyncMembersPage,
@@ -272,6 +276,56 @@ def sync_event_participants(
     )
     return SyncEventParticipantsPage(
         items=[EventParticipantRead.model_validate(p) for p in page],
+        next_since_seq=next_seq,
+        next_since_id=next_id,
+        has_more=has_more,
+    )
+
+
+@router.get("/inbox_messages", response_model=SyncInboxMessagesPage)
+def sync_inbox_messages(
+    tenant_id: TenantDep,
+    db: DbDep,
+    ctx: MemberContextDep,
+    since_seq: int = Query(default=0, ge=0),
+    since_id: uuid.UUID | None = None,
+    limit: int = _LIMIT,
+) -> SyncInboxMessagesPage:
+    """Messages the caller received — the offline inbox's content (GH-146)."""
+    actor, _ = ctx
+    mine = select(MessageRecipient.message_id).where(MessageRecipient.member_id == actor.id)
+    page, next_seq, next_id, has_more = _pull_page(
+        Message, db, since_seq, since_id, limit, extra_clause=Message.id.in_(mine)
+    )
+    return SyncInboxMessagesPage(
+        items=[MessageRead.model_validate(m) for m in page],
+        next_since_seq=next_seq,
+        next_since_id=next_id,
+        has_more=has_more,
+    )
+
+
+@router.get("/inbox_recipients", response_model=SyncInboxRecipientsPage)
+def sync_inbox_recipients(
+    tenant_id: TenantDep,
+    db: DbDep,
+    ctx: MemberContextDep,
+    since_seq: int = Query(default=0, ge=0),
+    since_id: uuid.UUID | None = None,
+    limit: int = _LIMIT,
+) -> SyncInboxRecipientsPage:
+    """The caller's own inbox entries (read state + delivery bookkeeping)."""
+    actor, _ = ctx
+    page, next_seq, next_id, has_more = _pull_page(
+        MessageRecipient,
+        db,
+        since_seq,
+        since_id,
+        limit,
+        extra_clause=MessageRecipient.member_id == actor.id,
+    )
+    return SyncInboxRecipientsPage(
+        items=[MessageRecipientRead.model_validate(r) for r in page],
         next_since_seq=next_seq,
         next_since_id=next_id,
         has_more=has_more,
