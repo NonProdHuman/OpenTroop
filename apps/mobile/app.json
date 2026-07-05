@@ -16,10 +16,15 @@
     },
     "android": {
       "package": "app.opentroop.mobile",
-      "edgeToEdgeEnabled": true
+      "softwareKeyboardLayoutMode": "pan"
     },
     "plugins": [
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "color": "#1d4ed8"
+        }
+      ],
       "expo-router",
       "expo-secure-store",
       "expo-sqlite",
