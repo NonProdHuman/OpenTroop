@@ -47,6 +47,8 @@ type SyncContextValue = {
   failedCommands: PendingCommand[]
   enqueue: (kind: CommandKind, payload: CommandPayload) => void
   discard: (commandId: string) => void
+  /** Force mirror-backed reads to recompute after a direct local write. */
+  bump: () => void
 }
 
 const SyncContext = createContext<SyncContextValue | null>(null)
@@ -163,9 +165,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     return () => sub.remove()
   }, [sync])
 
+  const bump = useCallback(() => setVersion((v) => v + 1), [])
+
   const value = useMemo(
-    () => ({ db, http, version, sync, isSyncing, lastOutcome, failedCommands, enqueue, discard }),
-    [db, http, version, sync, isSyncing, lastOutcome, failedCommands, enqueue, discard],
+    () => ({ db, http, version, sync, isSyncing, lastOutcome, failedCommands, enqueue, discard, bump }),
+    [db, http, version, sync, isSyncing, lastOutcome, failedCommands, enqueue, discard, bump],
   )
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>
 }

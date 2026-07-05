@@ -10,7 +10,7 @@ import type { SqlDatabase } from "./db"
  * rebuild-and-refetch, preserving pending_commands.
  */
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 /** Sync entities in dependency order (GH-153 §C2). Values are /sync paths. */
 export const SYNC_ENTITIES = [
@@ -20,6 +20,8 @@ export const SYNC_ENTITIES = [
   "member_relationships",
   "events",
   "event_participants",
+  "inbox_messages",
+  "inbox_recipients",
 ] as const
 
 export type SyncEntity = (typeof SYNC_ENTITIES)[number]
