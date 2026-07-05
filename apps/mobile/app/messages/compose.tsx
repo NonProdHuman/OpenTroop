@@ -1,4 +1,4 @@
-import { colors } from "@/lib/theme"
+import { useColors } from "@/lib/theme"
 import { useMemo, useState } from "react"
 import {
   KeyboardAvoidingView,
@@ -24,6 +24,7 @@ const AUDIENCE_LABELS: Record<AudienceType, string> = {
 type Target = { group_id: string; audience_type: AudienceType }
 
 export default function ComposeScreen() {
+  const colors = useColors()
   const router = useRouter()
   const { data: groups = [], isLoading, error: groupsError } = useGroupsOnline(true)
   const composeAndSend = useComposeAndSend()
@@ -130,19 +131,19 @@ export default function ComposeScreen() {
                       height: 20,
                       borderRadius: 4,
                       borderWidth: 1,
-                      borderColor: isSelected ? colors.brand : colors.textSubtle,
-                      backgroundColor: isSelected ? colors.brand : "white",
+                      borderColor: isSelected ? colors.accent : colors.textSubtle,
+                      backgroundColor: isSelected ? colors.brand : colors.surface,
                       alignItems: "center",
                       justifyContent: "center",
                     }}
                   >
-                    {isSelected && <Text style={{ color: "white", fontSize: 12 }}>✓</Text>}
+                    {isSelected && <Text style={{ color: colors.onBrand, fontSize: 12 }}>✓</Text>}
                   </View>
                   <Text style={{ fontSize: 15 }}>{group.name}</Text>
                 </Pressable>
                 {target && (
                   <Pressable onPress={() => cycleAudience(group.id)}>
-                    <Text style={{ color: colors.brand, fontSize: 12 }}>
+                    <Text style={{ color: colors.accent, fontSize: 12 }}>
                       {AUDIENCE_LABELS[target.audience_type]} ▸
                     </Text>
                   </Pressable>
@@ -175,7 +176,7 @@ export default function ComposeScreen() {
               marginTop: 4,
             }}
           >
-            <Text style={{ color: "white", fontWeight: "700" }}>
+            <Text style={{ color: colors.onBrand, fontWeight: "700" }}>
               {sending ? "Sending…" : "Send now"}
             </Text>
           </Pressable>

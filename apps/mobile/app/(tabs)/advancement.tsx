@@ -1,4 +1,4 @@
-import { colors } from "@/lib/theme"
+import { useColors } from "@/lib/theme"
 import { useMemo, useState } from "react"
 import {
   Modal,
@@ -35,6 +35,7 @@ function ScoutChips({
   selectedId: string | null
   onSelect: (id: string) => void
 }) {
+  const colors = useColors()
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }}>
       <View style={{ flexDirection: "row", gap: 8, paddingBottom: 8 }}>
@@ -49,11 +50,11 @@ function ScoutChips({
                 paddingVertical: 8,
                 borderRadius: 999,
                 borderWidth: 1,
-                borderColor: active ? colors.brand : colors.border,
-                backgroundColor: active ? colors.brandTint : "white",
+                borderColor: active ? colors.accent : colors.border,
+                backgroundColor: active ? colors.accentTint : colors.surface,
               }}
             >
-              <Text style={{ color: active ? colors.brand : colors.text, fontWeight: "600" }}>
+              <Text style={{ color: active ? colors.accent : colors.text, fontWeight: "600" }}>
                 {formatMemberName(scout)}
               </Text>
               <Text style={{ color: colors.textMuted, fontSize: 11 }}>
@@ -79,6 +80,7 @@ function RecordSheet({
   onClose: () => void
   isRecorder: boolean
 }) {
+  const colors = useColors()
   const [date, setDate] = useState(today())
   const valid = /^\d{4}-\d{2}-\d{2}$/.test(date)
   return (
@@ -94,7 +96,7 @@ function RecordSheet({
       >
         <Pressable
           onPress={() => undefined}
-          style={{ backgroundColor: "white", borderRadius: 16, padding: 20, gap: 12 }}
+          style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 20, gap: 12 }}
         >
           <Text style={{ fontWeight: "700", fontSize: 16 }}>
             {isRecorder ? "Mark complete" : "Report completion"} — {entry.requirement.label}
@@ -120,7 +122,7 @@ function RecordSheet({
               alignItems: "center",
             }}
           >
-            <Text style={{ color: "white", fontWeight: "600" }}>
+            <Text style={{ color: colors.onBrand, fontWeight: "600" }}>
               {isRecorder ? "Record" : "Report"}
             </Text>
           </Pressable>
@@ -141,6 +143,7 @@ function RankSection({
   isRecorder: boolean
   onRecord: (entry: RequirementProgress) => void
 }) {
+  const colors = useColors()
   const [open, setOpen] = useState(false)
   const top = view.requirements.filter((r) => r.requirement.parent_id === null)
   const complete = top.filter((r) => r.is_complete).length
@@ -198,7 +201,7 @@ function RankSection({
                 entry.metrics_progress.length === 0 &&
                 !containerIds.has(entry.requirement.id) && (
                 <Pressable onPress={() => onRecord(entry)}>
-                  <Text style={{ color: colors.brand, fontWeight: "600" }}>
+                  <Text style={{ color: colors.accent, fontWeight: "600" }}>
                     {isRecorder ? "Record" : "Report"}
                   </Text>
                 </Pressable>
@@ -217,6 +220,7 @@ function RankSection({
 }
 
 export default function AdvancementScreen() {
+  const colors = useColors()
   const { data: scouts, isLoading, error, refetch, isRefetching } = useAdvancementScouts()
   const [selected, setSelected] = useState<string | null>(null)
   const scoutId = selected ?? (scouts?.length === 1 ? scouts[0].member_id : null)

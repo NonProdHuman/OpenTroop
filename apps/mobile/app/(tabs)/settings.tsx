@@ -1,4 +1,4 @@
-import { colors } from "@/lib/theme"
+import { useColors } from "@/lib/theme"
 import { Pressable, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 import { useAuth, useUser } from "@clerk/clerk-expo"
@@ -12,6 +12,7 @@ import * as Clipboard from "expo-clipboard"
 import { useEffect, useState } from "react"
 
 function Row({ label, onPress, danger }: { label: string; onPress: () => void; danger?: boolean }) {
+  const colors = useColors()
   return (
     <Pressable
       onPress={onPress}
@@ -21,7 +22,7 @@ function Row({ label, onPress, danger }: { label: string; onPress: () => void; d
         borderColor: colors.borderLight,
         borderRadius: 12,
         marginBottom: 10,
-        backgroundColor: pressed ? colors.hairline : "white",
+        backgroundColor: pressed ? colors.hairline : colors.surface,
       })}
     >
       <Text style={{ fontSize: 15, fontWeight: "600", color: danger ? colors.danger : colors.textStrong }}>
@@ -32,6 +33,7 @@ function Row({ label, onPress, danger }: { label: string; onPress: () => void; d
 }
 
 export default function SettingsScreen() {
+  const colors = useColors()
   const router = useRouter()
   const { signOut } = useAuth()
   const { user } = useUser()
@@ -99,7 +101,7 @@ export default function SettingsScreen() {
                 setCopied(true)
               }}
             >
-              <Text style={{ color: colors.brand, fontWeight: "600" }}>
+              <Text style={{ color: colors.accent, fontWeight: "600" }}>
                 {copied ? "Copied!" : "Copy link"}
               </Text>
             </Pressable>

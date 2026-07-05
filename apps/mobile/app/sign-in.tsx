@@ -1,4 +1,4 @@
-import { colors } from "@/lib/theme"
+import { useColors } from "@/lib/theme"
 import { useState } from "react"
 import {
   KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import { useSignIn } from "@clerk/clerk-expo"
  * (Google, Apple) come later; this matches the web dev/e2e account style.
  */
 export default function SignInScreen() {
+  const colors = useColors()
   const router = useRouter()
   const { signIn, setActive, isLoaded } = useSignIn()
   const [email, setEmail] = useState("")
@@ -78,7 +79,7 @@ export default function SignInScreen() {
           alignItems: "center",
         })}
       >
-        <Text style={{ color: "white", fontWeight: "600" }}>
+        <Text style={{ color: colors.onBrand, fontWeight: "600" }}>
           {submitting ? "Signing in…" : "Sign in"}
         </Text>
       </Pressable>

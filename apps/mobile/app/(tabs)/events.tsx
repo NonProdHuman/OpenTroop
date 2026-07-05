@@ -1,4 +1,4 @@
-import { colors } from "@/lib/theme"
+import { useColors } from "@/lib/theme"
 import { useMemo } from "react"
 import { FlatList, Pressable, RefreshControl, Text, View } from "react-native"
 import { Link } from "expo-router"
@@ -8,6 +8,7 @@ import { formatEventStart, splitEventsByTime } from "@/lib/format"
 import type { Event } from "@/lib/types"
 
 function EventRow({ event }: { event: Event }) {
+  const colors = useColors()
   return (
     <Link href={{ pathname: "/event/[id]", params: { id: event.id } }} asChild>
       <Pressable
@@ -17,7 +18,7 @@ function EventRow({ event }: { event: Event }) {
           borderColor: colors.borderLight,
           borderRadius: 12,
           marginBottom: 8,
-          backgroundColor: pressed ? colors.hairline : "white",
+          backgroundColor: pressed ? colors.hairline : colors.surface,
         })}
       >
         <Text style={{ fontSize: 15, fontWeight: "600" }}>{event.name}</Text>
@@ -31,6 +32,7 @@ function EventRow({ event }: { event: Event }) {
 }
 
 export default function EventsScreen() {
+  const colors = useColors()
   const events = useMirrorEvents()
   const { sync, isSyncing, lastOutcome } = useSyncContext()
   const sections = useMemo(() => splitEventsByTime(events, new Date()), [events])

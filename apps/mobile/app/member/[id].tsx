@@ -1,10 +1,11 @@
-import { colors } from "@/lib/theme"
+import { useColors } from "@/lib/theme"
 import { ScrollView, Text, View } from "react-native"
 import { Stack, useLocalSearchParams } from "expo-router"
 import { useMirrorMember } from "@/hooks/use-mirror"
 import { formatMemberName } from "@/lib/format"
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
+  const colors = useColors()
   if (!value) return null
   return (
     <View style={{ marginBottom: 10 }}>
@@ -19,6 +20,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
  * contacts straight from the local mirror — no signal required.
  */
 export default function MemberDetailScreen() {
+  const colors = useColors()
   const { id } = useLocalSearchParams<{ id: string }>()
   const member = useMirrorMember(id)
 
