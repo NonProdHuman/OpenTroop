@@ -14,6 +14,7 @@ from app.schemas.event import EventParticipantRead, EventRead
 from app.schemas.event_type import EventTypeRead
 from app.schemas.location import LocationRead
 from app.schemas.member import MemberRead
+from app.schemas.message import MessageRead, MessageRecipientRead
 from app.schemas.relationship import MemberRelationshipRead
 
 
@@ -47,3 +48,11 @@ class SyncEventsPage(_SyncPageBase):
 
 class SyncEventParticipantsPage(_SyncPageBase):
     items: list[EventParticipantRead]
+
+
+class SyncInboxMessagesPage(_SyncPageBase):
+    items: list[MessageRead]
+
+
+class SyncInboxRecipientsPage(_SyncPageBase):
+    items: list[MessageRecipientRead]

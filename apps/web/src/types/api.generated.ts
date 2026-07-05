@@ -1110,6 +1110,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Messages */
+        get: operations["list_messages_messages_get"];
+        put?: never;
+        /** Create Message */
+        post: operations["create_message_messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/messages/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Inbox */
+        get: operations["get_inbox_messages_inbox_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/messages/inbox/{recipient_id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark Read */
+        post: operations["mark_read_messages_inbox__recipient_id__read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/messages/{message_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Message */
+        get: operations["get_message_messages__message_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/messages/{message_id}/recipients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Recipients */
+        get: operations["list_recipients_messages__message_id__recipients_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/messages/{message_id}/recipients/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview Recipients */
+        get: operations["preview_recipients_messages__message_id__recipients_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/messages/{message_id}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send Message Now */
+        post: operations["send_message_now_messages__message_id__send_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notifications/push-tokens": {
         parameters: {
             query?: never;
@@ -1499,6 +1619,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sync/inbox_messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sync Inbox Messages
+         * @description Messages the caller received — the offline inbox's content (GH-146).
+         */
+        get: operations["sync_inbox_messages_sync_inbox_messages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sync/inbox_recipients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sync Inbox Recipients
+         * @description The caller's own inbox entries (read state + delivery bookkeeping).
+         */
+        get: operations["sync_inbox_recipients_sync_inbox_recipients_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sync/locations": {
         parameters: {
             query?: never;
@@ -1629,6 +1789,30 @@ export interface components {
             /** Patrol Name */
             patrol_name: string | null;
         };
+        /**
+         * AudiencePreview
+         * @description Recipient counts for the compose screen (docs/spec/messaging.md).
+         */
+        AudiencePreview: {
+            /** Bounced */
+            bounced: number;
+            /** Email */
+            email: number;
+            /** No Email */
+            no_email: number;
+            /** Opted Out */
+            opted_out: number;
+            /** Push Devices */
+            push_devices: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * AudienceType
+         * @description Per-group audience expansion for a message (docs/spec/messaging.md).
+         * @enum {string}
+         */
+        AudienceType: "members" | "members_and_parents" | "parents_only";
         /** Body_import_twh_import_twh_post */
         Body_import_twh_import_twh_post: {
             /** File */
@@ -1753,6 +1937,23 @@ export interface components {
             note?: string | null;
             status?: components["schemas"]["CompletionStatus"] | null;
         };
+        /** DeliveryStats */
+        DeliveryStats: {
+            /** Email Failed */
+            email_failed: number;
+            /** Email Pending */
+            email_pending: number;
+            /** Email Sent */
+            email_sent: number;
+            /** Email Skipped */
+            email_skipped: number;
+            /** Push Sent */
+            push_sent: number;
+            /** Read */
+            read: number;
+            /** Total */
+            total: number;
+        };
         /** ElectionResult */
         ElectionResult: {
             progress: components["schemas"]["RankProgressRead"];
@@ -1771,6 +1972,16 @@ export interface components {
              */
             requirement_set_id: string;
         };
+        /**
+         * EmailState
+         * @description Email delivery state for one inbox entry (GH-146/GH-78/GH-79).
+         *
+         *     PENDING rows are the outbox queue; SKIPPED_* are decided at resolve time
+         *     (CAN-SPAM: opted-out and bounced addresses are never queued). FAILED is
+         *     terminal after max attempts — the dead-letter surface.
+         * @enum {string}
+         */
+        EmailState: "pending" | "sent" | "failed" | "skipped_opt_out" | "skipped_bounced" | "skipped_no_email";
         /** EventAudienceCreate */
         EventAudienceCreate: {
             /**
@@ -2788,6 +2999,37 @@ export interface components {
              */
             user_id: string;
         };
+        /**
+         * InboxEntry
+         * @description One inbox row + the message content it points at (member-facing).
+         */
+        InboxEntry: {
+            /** Body */
+            body: string;
+            /**
+             * Message Id
+             * Format: uuid
+             */
+            message_id: string;
+            /** Read At */
+            read_at: string | null;
+            /**
+             * Recipient Id
+             * Format: uuid
+             */
+            recipient_id: string;
+            /** Sent At */
+            sent_at: string | null;
+            /** Subject */
+            subject: string;
+        };
+        /** InboxPage */
+        InboxPage: {
+            /** Items */
+            items: components["schemas"]["InboxEntry"][];
+            /** Unread Count */
+            unread_count: number;
+        };
         /** LocationBase */
         LocationBase: {
             /** City */
@@ -3508,6 +3750,185 @@ export interface components {
              */
             updated_at: string;
         };
+        /** MessageCreate */
+        MessageCreate: {
+            /** Body */
+            body: string;
+            /** Group Targets */
+            group_targets: components["schemas"]["MessageGroupTarget"][];
+            /** Scheduled At */
+            scheduled_at?: string | null;
+            /**
+             * Send Email
+             * @default true
+             */
+            send_email: boolean;
+            /**
+             * Send Push
+             * @default true
+             */
+            send_push: boolean;
+            /** Subject */
+            subject: string;
+        };
+        /** MessageDetail */
+        MessageDetail: {
+            /** Groups */
+            groups: components["schemas"]["MessageGroupRead"][];
+            message: components["schemas"]["MessageRead"];
+            stats: components["schemas"]["DeliveryStats"];
+        };
+        /** MessageGroupRead */
+        MessageGroupRead: {
+            audience_type: components["schemas"]["AudienceType"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Group Id
+             * Format: uuid
+             */
+            group_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /**
+             * Message Id
+             * Format: uuid
+             */
+            message_id: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** MessageGroupTarget */
+        MessageGroupTarget: {
+            /** @default members */
+            audience_type: components["schemas"]["AudienceType"];
+            /**
+             * Group Id
+             * Format: uuid
+             */
+            group_id: string;
+        };
+        /** MessageRead */
+        MessageRead: {
+            /** Body */
+            body: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Scheduled At */
+            scheduled_at: string | null;
+            /** Send Email */
+            send_email: boolean;
+            /** Send Push */
+            send_push: boolean;
+            /** Sent At */
+            sent_at: string | null;
+            /**
+             * Sent By Id
+             * Format: uuid
+             */
+            sent_by_id: string;
+            status: components["schemas"]["MessageStatus"];
+            /** Subject */
+            subject: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** MessageRecipientRead */
+        MessageRecipientRead: {
+            /** Attempts */
+            attempts: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            email_state: components["schemas"]["EmailState"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Last Error */
+            last_error: string | null;
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+            /**
+             * Message Id
+             * Format: uuid
+             */
+            message_id: string;
+            push_state: components["schemas"]["PushState"];
+            /** Read At */
+            read_at: string | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * MessageStatus
+         * @description Lifecycle of an announcement (GH-146).
+         *
+         *     DRAFT     — composed, audience editable, nothing resolved yet.
+         *     SCHEDULED — send requested with a future ``scheduled_at``; the outbox loop
+         *                 promotes it when due.
+         *     SENDING   — recipients resolved and written; email deliveries draining.
+         *     SENT      — every recipient reached a terminal email state.
+         * @enum {string}
+         */
+        MessageStatus: "draft" | "scheduled" | "sending" | "sent";
+        /** MessageWithPreview */
+        MessageWithPreview: {
+            /** Groups */
+            groups: components["schemas"]["MessageGroupRead"][];
+            message: components["schemas"]["MessageRead"];
+            preview: components["schemas"]["AudiencePreview"];
+        };
         /**
          * MetricProgress
          * @description One evaluated metric condition — the UI progress meter datum.
@@ -3699,6 +4120,14 @@ export interface components {
             /** Sort Order */
             sort_order?: number | null;
         };
+        /**
+         * PushState
+         * @description Push delivery state for one inbox entry — one-shot best-effort (GH-82).
+         *
+         *     The inbox row itself is the durable record; push is only the alert.
+         * @enum {string}
+         */
+        PushState: "sent" | "no_devices" | "failed";
         /** PushTokenRead */
         PushTokenRead: {
             /** Platform */
@@ -3828,6 +4257,21 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** RecipientPreviewEntry */
+        RecipientPreviewEntry: {
+            email_state: components["schemas"]["EmailState"];
+            /** First Name */
+            first_name: string;
+            /** Has Push Device */
+            has_push_device: boolean;
+            /** Last Name */
+            last_name: string;
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
         };
         /**
          * RecordedVia
@@ -4058,6 +4502,28 @@ export interface components {
             has_more: boolean;
             /** Items */
             items: components["schemas"]["EventRead"][];
+            /** Next Since Id */
+            next_since_id: string | null;
+            /** Next Since Seq */
+            next_since_seq: number;
+        };
+        /** SyncInboxMessagesPage */
+        SyncInboxMessagesPage: {
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["MessageRead"][];
+            /** Next Since Id */
+            next_since_id: string | null;
+            /** Next Since Seq */
+            next_since_seq: number;
+        };
+        /** SyncInboxRecipientsPage */
+        SyncInboxRecipientsPage: {
+            /** Has More */
+            has_more: boolean;
+            /** Items */
+            items: components["schemas"]["MessageRecipientRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
@@ -7112,6 +7578,268 @@ export interface operations {
             };
         };
     };
+    list_messages_messages_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_message_messages_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessageCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageWithPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_inbox_messages_inbox_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_read_messages_inbox__recipient_id__read_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                recipient_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageRecipientRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_message_messages__message_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_recipients_messages__message_id__recipients_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageRecipientRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_recipients_messages__message_id__recipients_preview_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipientPreviewEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_message_now_messages__message_id__send_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     register_push_token_notifications_push_tokens_post: {
         parameters: {
             query?: never;
@@ -8034,6 +8762,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SyncEventsPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_inbox_messages_sync_inbox_messages_get: {
+        parameters: {
+            query?: {
+                since_seq?: number;
+                since_id?: string | null;
+                limit?: number;
+            };
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncInboxMessagesPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_inbox_recipients_sync_inbox_recipients_get: {
+        parameters: {
+            query?: {
+                since_seq?: number;
+                since_id?: string | null;
+                limit?: number;
+            };
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncInboxRecipientsPage"];
                 };
             };
             /** @description Validation Error */

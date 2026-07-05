@@ -35,6 +35,7 @@ from app.models.event_type import EventType
 from app.models.group import Group, GroupMember, GroupRule
 from app.models.location import Location
 from app.models.member import Member
+from app.models.message import Message, MessageGroup, MessageRecipient
 from app.models.push import PushToken
 from app.models.rbac import (
     FunctionalRole,
@@ -62,6 +63,9 @@ __all__ = [
     "GroupRule",
     "Location",
     "Member",
+    "Message",
+    "MessageGroup",
+    "MessageRecipient",
     "MemberRelationship",
     "Position",
     "FunctionalRole",

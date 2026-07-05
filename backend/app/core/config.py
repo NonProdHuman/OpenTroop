@@ -73,6 +73,12 @@ class Settings(BaseSettings):
 
     # Email delivery backend: "fake" (default, no vendor call — for local dev/tests)
     # or "resend". See app/core/notifications.py.
+    # Messaging outbox (GH-146/GH-78): per-tenant emails per drain tick, tick
+    # cadence, and the in-process loop switch (off in tests; CLI covers cron).
+    message_rate_per_minute: int = 60
+    outbox_tick_seconds: int = 20
+    outbox_loop_enabled: bool = False
+
     # Mobile push (GH-82): "none" (default, inert), "expo", or "fake" (tests).
     push_backend: str = "none"
     expo_push_url: str = "https://exp.host/--/api/v2/push/send"

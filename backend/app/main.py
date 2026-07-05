@@ -1,4 +1,8 @@
+import asyncio
+import contextlib
 import re
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +21,7 @@ from app.routers import (
     locations,
     member_positions,
     members,
+    messages,
     platform,
     positions,
     push_tokens,
@@ -25,7 +30,27 @@ from app.routers import (
     tenant_settings,
 )
 
-app = FastAPI(title=settings.app_name)
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
+    """Start the messaging outbox loop (GH-78) when enabled.
+
+    Off by default (tests, one-shot commands); production/dev API processes set
+    OUTBOX_LOOP_ENABLED=true. The drain-outbox CLI is the cron belt either way.
+    """
+    task: asyncio.Task[None] | None = None
+    if settings.outbox_loop_enabled:
+        from app.core.outbox import outbox_loop
+
+        task = asyncio.create_task(outbox_loop())
+    yield
+    if task is not None:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
 # App-layer rate limiting (GH-116). Added before CORS so preflights short-circuit in
 # CORSMiddleware without consuming budget; inert unless RATE_LIMIT_ENABLED=true.
@@ -59,6 +84,7 @@ app.add_middleware(OriginAuthMiddleware)
 
 app.include_router(groups.router)
 app.include_router(members.router)
+app.include_router(messages.router)
 app.include_router(relationships.router)
 app.include_router(positions.router)
 app.include_router(push_tokens.router)
