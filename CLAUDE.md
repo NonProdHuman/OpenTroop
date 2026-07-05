@@ -54,6 +54,7 @@ pnpm --filter web e2e    # Playwright smoke tests against the running stack
 
 - **Bug fixes must include a test.** When fixing a bug, add a test that would have caught it before writing the fix.
 - **New features get a spec first, stored in the tracking GitHub issue.** For any non-trivial new feature, write the spec into the issue (body or comment) before implementing — see [#168](../../issues/168) for the expected format and depth. `docs/spec/` holds earlier specs and stays for reference; don't add new specs there. Skip the spec for bug fixes, small UI tweaks, and cases where the user explicitly asks for a direct implementation.
+- **Architecturally significant decisions get an ADR** in [`docs/adr/`](docs/adr/) — the *why* behind a load-bearing, expensive-to-reverse choice and what we rejected (distinct from a spec's *what*). ADRs are append-only: supersede, don't rewrite. See [`docs/adr/README.md`](docs/adr/README.md).
 - **Work is tracked in GitHub Issues.** [`ROADMAP.md`](ROADMAP.md) is the strategic map (six pillars, sequencing); the actionable backlog lives in [GitHub Issues](../../issues), grouped by milestone (one per pillar). Do **not** re-add granular `[ ]` checklists to `ROADMAP.md` — file an issue instead. When starting non-trivial work, check for (or open) a tracking issue; reference it in the PR. `pillar-N` labels map issues to pillars.
 - **PRs target `develop`, not `main`** (`develop` is promoted to `main` on release). See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
