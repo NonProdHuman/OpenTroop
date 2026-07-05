@@ -14,6 +14,20 @@ Supported record types
     Event_Type      → EventType  (capability flags translated 1-to-1)
     Event           → Event  (linked_event_id resolved in a second pass)
     Event_Participant → EventParticipant
+    Advancement_Earned            → MemberRankProgress  (rank awards; palms skipped)
+    Advancement_Requirement_Earned → MemberRequirementCompletion  (approved, via=import)
+    Merit_Badge                   → MemberMeritBadge  (null Date_Earned ⇒ partial)
+    Requirement_Pending           → MemberRequirementCompletion  (Pending→reported,
+                                    Rejected→rejected; Approved rows skipped as dupes)
+
+Advancement crosswalk
+    The export carries its own award catalog (``BSA_Award``) and per-award
+    requirement lists (``BSA_Requirement``). Requirement descriptions in real
+    exports are numeric text-blob references — only the *numbering* is usable —
+    so completions are matched into OpenTroop's global catalog by rank code +
+    requirement number/letter (see ``_resolve_requirement``). The global catalog
+    must be seeded first (``uv run seed-advancement``); with no ranks present all
+    advancement records are skipped with one loud warning.
 
 Leadership / positions
     TWH stores leadership in a position *catalog* (``Leadership_Position`` /
@@ -56,11 +70,23 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from app.models.advancement import (
+    MemberMeritBadge,
+    MemberRankProgress,
+    MemberRequirementCompletion,
+    MeritBadge,
+    Rank,
+    Requirement,
+    RequirementSet,
+)
 from app.models.enums import (
+    CompletionStatus,
     GroupType,
     MemberStatus,
     MemberType,
     PositionScope,
+    RankCode,
+    RecordedVia,
     RelationshipType,
     RsvpStatus,
     SwimClassification,
@@ -86,6 +112,41 @@ TWH_POSITION_CODE_TO_SLUG: dict[str, str] = {
     "MC": "committee-member",
 }
 
+# TWH rank codes (BSA_Award.Rank_Code) → OpenTroop RankCode. Eagle Palm codes
+# (RZ/RD/RV/RE01–RE21) are deliberately absent — palms are deferred (GH-92).
+TWH_RANK_CODE_TO_RANK: dict[str, RankCode] = {
+    "RN": RankCode.SCOUT,
+    "RT": RankCode.TENDERFOOT,
+    "R2": RankCode.SECOND_CLASS,
+    "R1": RankCode.FIRST_CLASS,
+    "RS": RankCode.STAR,
+    "RL": RankCode.LIFE,
+    "RE": RankCode.EAGLE,
+}
+
+# Merit-badge award names sometimes carry a version suffix, e.g.
+# "Personal Fitness (2023 rqmts)" — strip it before matching the global catalog.
+_MB_VERSION_SUFFIX_RE = re.compile(r"\s*\(\d{4}\s+rqmts\)\s*$", re.IGNORECASE)
+
+
+def _normalize_badge_name(name: str) -> str:
+    """Canonical badge-name key for catalog matching.
+
+    TWH spells several badges differently from the official BSA names the
+    catalog uses ("Fly Fishing" vs "Fly-Fishing", "Signs, Signals & Codes" vs
+    "Signs, Signals, and Codes"), so matching is case-, hyphen-, punctuation-,
+    and &/and-insensitive after stripping the version suffix.
+    """
+    name = _MB_VERSION_SUFFIX_RE.sub("", name)
+    name = name.lower().replace("&", " and ").replace("-", " ")
+    name = re.sub(r"[^a-z0-9 ]", "", name)
+    return re.sub(r"\s+", " ", name).strip()
+
+
+# Requirement_Code forms seen in exports: "01.", "8.c", "01.a.", "12." — an
+# optionally zero-padded number and an optional single trailing letter.
+_REQ_CODE_RE = re.compile(r"^0*(\d+)\.?([a-z]?)\.?$")
+
 
 @dataclass
 class TwhImportResult:
@@ -98,6 +159,9 @@ class TwhImportResult:
     event_types: int = 0
     events: int = 0
     participants: int = 0
+    rank_progress: int = 0
+    requirement_completions: int = 0
+    merit_badges: int = 0
     skipped: int = 0
     warnings: list[str] = field(default_factory=list)
 
@@ -253,6 +317,7 @@ class TwhImporter:
         self._import_event_types(root)
         self._import_events(root)
         self._import_participants(root)
+        self._import_advancement(root)
         self.session.flush()
         return self.result
 
@@ -879,3 +944,415 @@ class TwhImporter:
                 )
             )
             self.result.participants += 1
+
+    # ------------------------------------------------------------------
+    # Advancement (GH-205)
+    # ------------------------------------------------------------------
+
+    _ADVANCEMENT_TAGS = (
+        "Advancement_Earned",
+        "Advancement_Requirement_Earned",
+        "Merit_Badge",
+        "Requirement_Pending",
+    )
+
+    def _import_advancement(self, root: ET.Element) -> None:
+        """Import rank awards, requirement sign-offs, merit badges, and pending reports.
+
+        TWH history is chair-entered, so completions land ``approved`` with
+        ``recorded_via=import`` (GH-205); ``Requirement_Pending`` rows still in
+        review land ``reported``/``rejected``. Requires the global catalog —
+        with no ranks seeded, every advancement record is skipped behind one
+        warning rather than failing the rest of the import.
+        """
+        if not any(root.find(tag) is not None for tag in self._ADVANCEMENT_TAGS):
+            return
+
+        self._ranks_by_code = {
+            rank.code: rank
+            for rank in self.session.scalars(select(Rank).where(Rank.is_deleted.is_(False)))
+        }
+        if not self._ranks_by_code:
+            self.result.warnings.append(
+                "Advancement records present but the global catalog is empty — "
+                "run `uv run seed-advancement` and re-import. All advancement skipped."
+            )
+            return
+
+        self._badge_ids = {
+            _normalize_badge_name(badge.name): badge.id
+            for badge in self.session.scalars(
+                select(MeritBadge).where(MeritBadge.is_deleted.is_(False))
+            )
+        }
+        # Caches built lazily while importing.
+        self._set_cache: dict[uuid.UUID, _SetInfo] = {}
+        self._progress_map: dict[tuple[uuid.UUID, RankCode], MemberRankProgress] = {}
+        self._completion_seen: set[tuple[uuid.UUID, uuid.UUID]] = set()
+        self._badge_seen: dict[tuple[uuid.UUID, uuid.UUID], MemberMeritBadge] = {}
+        # Aggregated skip reasons → occurrence count (one warning line each at the end,
+        # so a large export can't flood the API response with thousands of warnings).
+        self._adv_skipped: dict[str, int] = {}
+
+        self._build_award_maps(root)
+        self._req_index = self._build_requirement_index(root)
+
+        self._import_rank_awards(root)
+        self._import_requirement_completions(root)
+        self._import_merit_badges(root)
+        self._import_pending_requirements(root)
+
+        for reason, count in sorted(self._adv_skipped.items()):
+            self.result.warnings.append(f"Advancement: skipped {count} × {reason}")
+
+    def _adv_skip(self, reason: str) -> None:
+        self._adv_skipped[reason] = self._adv_skipped.get(reason, 0) + 1
+        self.result.skipped += 1
+
+    def _build_award_maps(self, root: ET.Element) -> None:
+        """Index the export's own award catalog (``BSA_Award``).
+
+        Rank awards resolve through the rank-code crosswalk; merit-badge awards
+        resolve by normalized name (see :func:`_normalize_badge_name`) against the global
+        catalog. Palms and non-badge award types stay unmapped — rows referencing
+        them are counted and skipped later.
+        """
+        self._award_rank: dict[str, RankCode] = {}
+        self._award_version: dict[str, str] = {}
+        self._award_badge: dict[str, uuid.UUID] = {}
+        self._award_name: dict[str, str] = {}
+        for elem in root.findall("BSA_Award"):
+            twh_id = _text(elem, "i")
+            if not twh_id:
+                continue
+            name = _text(elem, "Award_Name")
+            award_type = _text(elem, "Award_Type")
+            self._award_name[twh_id] = name or f"award {twh_id}"
+            self._award_version[twh_id] = _text(elem, "Requirements_Version")
+            if award_type == "Rank":
+                rank_code = TWH_RANK_CODE_TO_RANK.get(_text(elem, "Rank_Code").upper())
+                if rank_code is not None:
+                    self._award_rank[twh_id] = rank_code
+            elif award_type == "Merit Badge":
+                badge_id = self._badge_ids.get(_normalize_badge_name(name))
+                if badge_id is not None:
+                    self._award_badge[twh_id] = badge_id
+
+    def _build_requirement_index(self, root: ET.Element) -> dict[str, tuple[str, str, str]]:
+        """TWH requirement id → (award id, number, letter) from ``BSA_Requirement``.
+
+        Real exports store requirement *descriptions* as numeric text-blob
+        references, so the code (``"01.a"`` → number 1, letter a) is the only
+        usable identity for the catalog crosswalk.
+        """
+        index: dict[str, tuple[str, str, str]] = {}
+        for elem in root.findall("BSA_Requirement"):
+            twh_id = _text(elem, "i")
+            award_id = _text(elem, "BSA_Award_ID")
+            match = _REQ_CODE_RE.match(_text(elem, "Requirement_Code").lower())
+            if not twh_id or not award_id or match is None:
+                continue
+            index[twh_id] = (award_id, match.group(1), match.group(2))
+        return index
+
+    def _set_info(self, requirement_set_id: uuid.UUID) -> _SetInfo:
+        info = self._set_cache.get(requirement_set_id)
+        if info is None:
+            requirements = list(
+                self.session.scalars(
+                    select(Requirement).where(
+                        Requirement.requirement_set_id == requirement_set_id,
+                        Requirement.is_deleted.is_(False),
+                    )
+                )
+            )
+            info = _SetInfo(requirements)
+            self._set_cache[requirement_set_id] = info
+        return info
+
+    def _elected_set(self, rank: Rank, twh_version: str) -> RequirementSet | None:
+        """Pick the requirement set a member's TWH history maps into.
+
+        Exact match on the TWH ``Requirements_Version`` string first (future
+        catalogs may carry historical sets), else the latest set — which is the
+        practical outcome today: real exports mark rank activity "Current" and
+        the shipped catalog holds only the 2025 sets.
+        """
+        sets = list(
+            self.session.scalars(
+                select(RequirementSet).where(
+                    RequirementSet.rank_id == rank.id, RequirementSet.is_deleted.is_(False)
+                )
+            )
+        )
+        if not sets:
+            return None
+        for candidate in sets:
+            if candidate.version == twh_version:
+                return candidate
+        sets.sort(key=lambda s: (s.effective_date or date.min, s.version), reverse=True)
+        return sets[0]
+
+    def _progress_for(
+        self, member_id: uuid.UUID, rank_code: RankCode, twh_version: str
+    ) -> MemberRankProgress | None:
+        """Get or lazily create the member's progress row for a rank."""
+        key = (member_id, rank_code)
+        progress = self._progress_map.get(key)
+        if progress is not None:
+            return progress
+        rank = self._ranks_by_code.get(rank_code)
+        if rank is None:
+            return None
+        elected = self._elected_set(rank, twh_version)
+        if elected is None:
+            return None
+        progress = MemberRankProgress(
+            tenant_id=self.tenant_id,
+            member_id=member_id,
+            rank_id=rank.id,
+            requirement_set_id=elected.id,
+        )
+        self.session.add(progress)
+        self.session.flush()
+        self._progress_map[key] = progress
+        return progress
+
+    def _resolve_requirement(self, info: _SetInfo, number: str, letter: str) -> list[Requirement]:
+        """Resolve a TWH (number, letter) to the catalog leaf rows it completes.
+
+        Deterministic three-tier match (GH-205 spec): exact number+letter → the
+        bare number when it is a leaf (TWH sub-lettering our set doesn't have)
+        → a bare-number container expands to all its leaf descendants (TWH
+        signed off the whole numbered requirement). Empty list = no match.
+        """
+        exact = info.by_code.get((number, letter))
+        if exact is not None:
+            if exact.id in info.leaf_ids:
+                return [exact]
+            if not letter:
+                return info.leaf_descendants(exact)
+            return []
+        if letter:
+            bare = info.by_code.get((number, ""))
+            if bare is not None and bare.id in info.leaf_ids:
+                return [bare]
+        return []
+
+    def _add_completion(
+        self,
+        member_id: uuid.UUID,
+        requirement: Requirement,
+        completed: date,
+        status: CompletionStatus,
+        provenance: dict[str, object],
+        note: str | None = None,
+    ) -> bool:
+        """Add one completion row, deduping on (member, requirement). True if added."""
+        key = (member_id, requirement.id)
+        if key in self._completion_seen:
+            return False
+        self._completion_seen.add(key)
+        self.session.add(
+            MemberRequirementCompletion(
+                tenant_id=self.tenant_id,
+                **provenance,
+                member_id=member_id,
+                requirement_id=requirement.id,
+                date_completed=completed,
+                status=status,
+                recorded_via=RecordedVia.IMPORT,
+                note=note,
+            )
+        )
+        self.result.requirement_completions += 1
+        return True
+
+    def _import_rank_awards(self, root: ET.Element) -> None:
+        """``Advancement_Earned`` → ``MemberRankProgress`` dates (rank awards only)."""
+        for elem in root.findall("Advancement_Earned"):
+            member_id = self._person_map.get(_text(elem, "Person_ID"))
+            award_id = _text(elem, "BSA_Award_ID")
+            if member_id is None:
+                self._adv_skip("rank award for unknown person")
+                continue
+            rank_code = self._award_rank.get(award_id)
+            if rank_code is None:
+                self._adv_skip(
+                    f"award not mapped to a rank: {self._award_name.get(award_id, award_id)!r}"
+                )
+                continue
+            progress = self._progress_for(
+                member_id, rank_code, self._award_version.get(award_id, "")
+            )
+            if progress is None:
+                self._adv_skip(f"no requirement set in catalog for rank {rank_code.value!r}")
+                continue
+            completed = _parse_date(_text(elem, "Date_Earned"))
+            awarded = _parse_date(_text(elem, "Date_Awarded")) or _parse_date(
+                _text(elem, "COH_Date")
+            )
+            # Never blank an already-imported date (duplicate rows across versions).
+            if completed is not None:
+                progress.completed_date = completed
+            if awarded is not None:
+                progress.awarded_date = awarded
+            if progress.source_id is None:
+                for key, value in self._source(elem, _text(elem, "i")).items():
+                    setattr(progress, key, value)
+            self.result.rank_progress += 1
+
+    def _import_requirement_completions(self, root: ET.Element) -> None:
+        """``Advancement_Requirement_Earned`` → approved ``MemberRequirementCompletion``."""
+        for elem in root.findall("Advancement_Requirement_Earned"):
+            self._import_requirement_signoff(
+                elem,
+                member_id=self._person_map.get(_text(elem, "Person_ID")),
+                requirement_twh_id=_text(elem, "BSA_Requirement_ID"),
+                completed=_parse_date(_text(elem, "Date_Earned"))
+                or _parse_date(_text(elem, "Inserted_Date_Time")),
+                status=CompletionStatus.APPROVED,
+            )
+
+    def _import_requirement_signoff(
+        self,
+        elem: ET.Element,
+        *,
+        member_id: uuid.UUID | None,
+        requirement_twh_id: str,
+        completed: date | None,
+        status: CompletionStatus,
+    ) -> None:
+        """Shared path for earned and pending requirement rows."""
+        if member_id is None:
+            self._adv_skip("requirement sign-off for unknown person")
+            return
+        ref = self._req_index.get(requirement_twh_id)
+        if ref is None:
+            self._adv_skip("requirement sign-off with unknown requirement id")
+            return
+        award_id, number, letter = ref
+        rank_code = self._award_rank.get(award_id)
+        if rank_code is None:
+            self._adv_skip(
+                f"requirement of unmapped award {self._award_name.get(award_id, award_id)!r}"
+            )
+            return
+        if completed is None:
+            self._adv_skip("requirement sign-off without a usable date")
+            return
+        progress = self._progress_for(member_id, rank_code, self._award_version.get(award_id, ""))
+        if progress is None:
+            self._adv_skip(f"no requirement set in catalog for rank {rank_code.value!r}")
+            return
+        targets = self._resolve_requirement(
+            self._set_info(progress.requirement_set_id), number, letter
+        )
+        if not targets:
+            self._adv_skip(f"unmatched requirement {rank_code.value} {number}{letter}")
+            return
+        provenance = self._source(elem, _text(elem, "i"))
+        added = False
+        for requirement in targets:
+            if self._add_completion(member_id, requirement, completed, status, provenance):
+                added = True
+        if not added:
+            self._adv_skip(f"duplicate requirement sign-off {rank_code.value} {number}{letter}")
+
+    def _import_merit_badges(self, root: ET.Element) -> None:
+        """``Merit_Badge`` → ``MemberMeritBadge`` (null ``Date_Earned`` ⇒ partial)."""
+        for elem in root.findall("Merit_Badge"):
+            member_id = self._person_map.get(_text(elem, "Person_ID"))
+            award_id = _text(elem, "BSA_Award_ID")
+            if member_id is None:
+                self._adv_skip("merit badge for unknown person")
+                continue
+            badge_id = self._award_badge.get(award_id)
+            if badge_id is None:
+                # A tenant import never writes the platform catalog — an unknown
+                # badge name means merit-badges.json needs a curated addition.
+                self._adv_skip(
+                    f"merit badge not in global catalog: "
+                    f"{self._award_name.get(award_id, award_id)!r}"
+                )
+                continue
+            completed = _parse_date(_text(elem, "Date_Earned"))
+            key = (member_id, badge_id)
+            existing = self._badge_seen.get(key)
+            if existing is not None:
+                # Keep the completed row when the export repeats a badge.
+                if completed is not None and existing.date_completed is None:
+                    existing.date_completed = completed
+                self._adv_skip("duplicate merit badge row")
+                continue
+            record = MemberMeritBadge(
+                tenant_id=self.tenant_id,
+                **self._source(elem, _text(elem, "i")),
+                member_id=member_id,
+                merit_badge_id=badge_id,
+                date_started=_parse_date(_text(elem, "Date_Started")),
+                date_completed=completed,
+                counselor_name=_text(elem, "Merit_Badge_Counselor") or None,
+                # TWH data is chair-entered history — partials included.
+                status=CompletionStatus.APPROVED,
+            )
+            self.session.add(record)
+            self._badge_seen[key] = record
+            self.result.merit_badges += 1
+
+    def _import_pending_requirements(self, root: ET.Element) -> None:
+        """``Requirement_Pending`` → in-review completions.
+
+        ``Approved`` rows are skipped — they already landed via
+        ``Advancement_Requirement_Earned``. Rows scoped to a merit badge are
+        skipped (per-MB requirement tracking is deferred, GH-92).
+        """
+        status_map = {
+            "pending": CompletionStatus.REPORTED,
+            "rejected": CompletionStatus.REJECTED,
+        }
+        for elem in root.findall("Requirement_Pending"):
+            review_status = _text(elem, "Review_Status").lower()
+            if review_status == "approved":
+                continue
+            if _text(elem, "Merit_Badge_ID"):
+                self._adv_skip("pending merit-badge requirement (per-MB tracking deferred)")
+                continue
+            status = status_map.get(review_status)
+            if status is None:
+                self._adv_skip(f"pending requirement with review status {review_status!r}")
+                continue
+            self._import_requirement_signoff(
+                elem,
+                member_id=self._person_map.get(_text(elem, "Person_ID")),
+                requirement_twh_id=_text(elem, "BSA_Requirement_ID"),
+                completed=_parse_date(_text(elem, "Date_Completed"))
+                or _parse_date(_text(elem, "Submitted_Date_Time")),
+                status=status,
+            )
+
+
+class _SetInfo:
+    """Requirement lookup structures for one requirement set (importer-local)."""
+
+    def __init__(self, requirements: list[Requirement]) -> None:
+        self.by_code: dict[tuple[str, str], Requirement] = {
+            (r.number, r.letter): r for r in requirements
+        }
+        self._children: dict[uuid.UUID, list[Requirement]] = {}
+        for r in requirements:
+            if r.parent_id is not None:
+                self._children.setdefault(r.parent_id, []).append(r)
+        self.leaf_ids: frozenset[uuid.UUID] = frozenset(
+            r.id for r in requirements if r.id not in self._children
+        )
+
+    def leaf_descendants(self, requirement: Requirement) -> list[Requirement]:
+        """All leaves under a container (recursive, in case of nested containers)."""
+        leaves: list[Requirement] = []
+        for child in self._children.get(requirement.id, []):
+            if child.id in self.leaf_ids:
+                leaves.append(child)
+            else:
+                leaves.extend(self.leaf_descendants(child))
+        return leaves

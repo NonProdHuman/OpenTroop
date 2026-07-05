@@ -129,7 +129,9 @@ def import_twh(
 
     Creates Patrol, Member, MemberRelationship, Position (with dated
     MemberPositionAssignment terms for leadership history), Location, EventType,
-    Event, and EventParticipant records for the current tenant.  The import is additive;
+    Event, EventParticipant, and advancement records (MemberRankProgress,
+    MemberRequirementCompletion, MemberMeritBadge — requires the global
+    advancement catalog to be seeded) for the current tenant.  The import is additive;
     running it twice will attempt to create duplicate records (BSA ID uniqueness
     will raise a 409 on the second run if the same persons are re-imported).
 
@@ -169,6 +171,9 @@ def import_twh(
         event_types=result.event_types,
         events=result.events,
         participants=result.participants,
+        rank_progress=result.rank_progress,
+        requirement_completions=result.requirement_completions,
+        merit_badges=result.merit_badges,
         skipped=result.skipped,
         warnings=result.warnings,
     )

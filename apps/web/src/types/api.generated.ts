@@ -829,7 +829,9 @@ export interface paths {
          *
          *     Creates Patrol, Member, MemberRelationship, Position (with dated
          *     MemberPositionAssignment terms for leadership history), Location, EventType,
-         *     Event, and EventParticipant records for the current tenant.  The import is additive;
+         *     Event, EventParticipant, and advancement records (MemberRankProgress,
+         *     MemberRequirementCompletion, MemberMeritBadge — requires the global
+         *     advancement catalog to be seeded) for the current tenant.  The import is additive;
          *     running it twice will attempt to create duplicate records (BSA ID uniqueness
          *     will raise a 409 on the second run if the same persons are re-imported).
          *
@@ -4741,6 +4743,8 @@ export interface components {
             locations: number;
             /** Members */
             members: number;
+            /** Merit Badges */
+            merit_badges: number;
             /** Participants */
             participants: number;
             /** Patrols */
@@ -4749,8 +4753,12 @@ export interface components {
             position_assignments: number;
             /** Positions */
             positions: number;
+            /** Rank Progress */
+            rank_progress: number;
             /** Relationships */
             relationships: number;
+            /** Requirement Completions */
+            requirement_completions: number;
             /** Skipped */
             skipped: number;
             /** Warnings */

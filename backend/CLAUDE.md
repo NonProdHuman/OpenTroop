@@ -19,7 +19,8 @@ uv run provision-tenant --troop-name "Troop 123" --slug troop123 --admin-first A
 uv run promote-platform-admin --email you@example.com   # grant global/platform admin (sign in first)
 uv run link-admin <tenant-id> --first A --last B  # link your signed-in User to an admin Member (fixes provision-tenant run before first sign-in)
 uv run import-twh <tenant-id> <export.xml>  # import TWH XML into a tenant
-uv run anonymize-twh <real.xml> <out.xml>   # scrub PII from a TWH export for use as test fixture
+uv run anonymize-twh <real.xml> <out.xml>   # scrub PII from a TWH export (local use only — never commit)
+uv run generate-twh-fixture       # regenerate the committed fully synthetic TWH fixtures
 uv run reset-tenant <tenant-id>   # clear imported data, keep Clerk admin — then re-import
 uv run reset-db                   # nuclear: drop all tables + re-migrate (prompts for confirmation)
 uv run reset-db --yes             # same, no prompt (CI/scripts)
@@ -143,7 +144,34 @@ export into the target tenant. Supported record types (in import order):
 | `Location` | `Location` | `Disabled_Flag=Y` skipped |
 | `Event_Type` | `EventType` | Capability flags translated 1-to-1; `is_system=False` |
 | `Event` | `Event` | `linked_event_id` resolved in a second pass |
-| `Event_Participant` | `EventParticipant` | `?` flag → `None` for `attended`, `True` for `signed_up` |
+| `Event_Participant` | `EventParticipant` | `?` flag → `None` for `attended`, `True` for `signed_up`; camping nights exist **only** as participant overrides in TWH (the `Event` element has no `Camping_Nights` field) |
+| `Advancement_Earned` | `MemberRankProgress` | Rank awards only: `completed_date=Date_Earned` (BOR), `awarded_date=Date_Awarded ?? COH_Date`. Eagle Palms + Venturing/Ship awards warned + skipped |
+| `Advancement_Requirement_Earned` | `MemberRequirementCompletion` | `approved`, `recorded_via=import`; crosswalk by rank code + requirement number/letter (exact → bare-leaf fallback → container expands to leaf children); deduped per (member, requirement) |
+| `Merit_Badge` | `MemberMeritBadge` | Badge matched by name (case-insensitive, ` (YYYY rqmts)` suffix stripped) against the **global** catalog; unknown names warned + skipped — a tenant import never writes the platform catalog. Null `Date_Earned` ⇒ partial in progress |
+| `Requirement_Pending` | `MemberRequirementCompletion` | `Pending`→`reported`, `Rejected`→`rejected`; `Approved` skipped (already landed as earned); MB-scoped rows skipped |
+| `BSA_Award`, `BSA_Requirement` | *(crosswalk only)* | The export's own award/requirement catalog — read to resolve ids, never stored. Requirement descriptions in real exports are numeric text-blob refs, so **numbering is the only usable identity** |
+
+**Advancement precondition:** the global catalog must be seeded (`uv run seed-advancement`)
+before import — with no `Rank` rows, all advancement records are skipped behind one warning.
+Run `uv run recompute-advancement` after import to pick up auto-credit thresholds.
+
+**All other record types are deliberately skipped** (GH-205 sweep of a full 68-type export;
+field inventory in [`data/twh/export_schema.json`](data/twh/export_schema.json)):
+
+| Skipped types | Reason |
+|---|---|
+| `Adult_Training`, `Scout_Training`, `Training_Course`, `BSA_Adult_Training` | No training model yet — blocked on #122 (YPT); revisit there |
+| `Award`, `Award_Type` (service stars, square knots), `Other_Activity` (non-event activity credits) | No OpenTroop model yet — follow-up tracked in the GH-205 close-out; `Other_Activity` matters because TWH credits service hours/camping nights outside events, which OT computes from events only |
+| `Merit_Badge_Requirement_Earned` | Per-MB-requirement tracking deliberately deferred (GH-92 — the counselor owns it) |
+| `Dynamic_Group`, `Dynamic_Group_Leadership`, `Dynamic_Group_Patrol` | TWH's rule-based groups ≈ OT `Group`+`GroupRule`, but rule semantics differ; import deferred |
+| `Event_Shift`, `Event_Shift_Participant`, `Event_Shift_Participant_Delete_Audit` | No shift model |
+| `Email`, `Email_Group`, `Email_Group_Member`, `Email_Recipient`, `Email_Recipient_Log`, `Announcement`, `Announcement_Person_Opened`, `Newsletter_Section_Order` | Historical comms logs; OT has its own messaging layer (GH-86) |
+| `Delete_Audit`, `Event_Participant_Audit`, `Monetary_Transaction_Audit` | TWH audit shadows; OT keeps its own timestamps (`Delete_Audit` may inform dual-run sync later — see twh-sync spec) |
+| `Budget_Item`, `Budget_Value`, `Fiscal_Year`, `Monetary_*`, `Merchandise_*`, `Subaccount_Type`, `BSA_Transaction_Type`, `Inventory_*` | Finance/inventory is a future pillar |
+| `Recharter_Year`, `Recharter_Year_Member` | Recharter tracking not built |
+| `Event_Photo` | References TWH-hosted binaries not present in the export |
+| `Custom_Form`, `Custom_Form_Section`, `Troop_Form`, `Local_Text`, `Dress_Code`, `Shirt_Size`, `Person_Category`, `Person_Leadership_Mass_Update`, `BSA_Rank_Name`, `BSA_Award_Selection_Type` | TWH UI/config reference data; OT equivalents are seeded or N/A |
+| `Troop_Information` | The tenant already exists with its own name/slug |
 
 TWH datetime format: `M/D/YYYY H:MM:SS AM/PM` (parsed by `_parse_datetime` /
 `_parse_date`). These are naive *local* times; `_parse_datetime` interprets them
@@ -157,5 +185,11 @@ reads it yet. See [`docs/spec/twh-sync.md`](../docs/spec/twh-sync.md).
 
 Invoke via `uv run import-twh <tenant-uuid> path/to/export.xml [--timezone America/New_York]`.
 The same `timezone` is accepted as a form field on `POST /import/twh`.
-Test fixture: `backend/tests/fixtures/sample_twh_minimal.xml` — all PII is fake.
-The real TWH export and any anonymized samples are blocked by `reference/.gitignore`.
+
+Test fixtures: `backend/tests/fixtures/sample_twh_minimal.xml` (hand-written minimal roster)
+and `synthetic_troop1.xml.gz` / `synthetic_troop2.xml.gz` — **fully synthetic** full exports
+covering all 68 record types, regenerated byte-identically by `uv run generate-twh-fixture`
+(a drift test enforces this; gzipped to stay under the repo's 500 KB file cap — use
+`uv run generate-twh-fixture --troop 1 --out /tmp/t1.xml` or `gunzip -c` to eyeball the XML).
+Real TWH exports and anonymized samples must never be committed — they are blocked by
+`reference/.gitignore`; `uv run anonymize-twh` output is for local use only.
