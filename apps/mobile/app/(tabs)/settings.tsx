@@ -6,6 +6,8 @@ import { wipeAllLocalData } from "@/lib/local-wipe"
 import { useSyncContext } from "@/lib/sync-context"
 import { isAppLockEnabled, setAppLockEnabled } from "@/lib/app-lock"
 import { disablePush, enablePush, getStoredPushToken } from "@/lib/push"
+import { useCalendarSubscription } from "@/hooks/use-calendar"
+import * as Clipboard from "expo-clipboard"
 import { useEffect, useState } from "react"
 
 function Row({ label, onPress, danger }: { label: string; onPress: () => void; danger?: boolean }) {
@@ -37,6 +39,8 @@ export default function SettingsScreen() {
   const [lockEnabled, setLockEnabled] = useState(false)
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushError, setPushError] = useState<string | null>(null)
+  const calendar = useCalendarSubscription()
+  const [copied, setCopied] = useState(false)
   useEffect(() => {
     void isAppLockEnabled().then(setLockEnabled)
     void getStoredPushToken().then((token) => setPushEnabled(Boolean(token)))
@@ -69,6 +73,49 @@ export default function SettingsScreen() {
       </Text>
 
       <Row label="Switch troop" onPress={() => router.push("/select-troop")} />
+      <Row
+        label={calendar.busy ? "Working…" : "Subscribe to calendar"}
+        onPress={() => void calendar.create()}
+      />
+      {calendar.url && (
+        <View
+          style={{
+            padding: 12,
+            marginBottom: 10,
+            borderWidth: 1,
+            borderColor: "#e5e7eb",
+            borderRadius: 12,
+            gap: 8,
+          }}
+        >
+          <Text style={{ fontSize: 12, color: "#374151" }} numberOfLines={2}>
+            {calendar.url}
+          </Text>
+          <View style={{ flexDirection: "row", gap: 16 }}>
+            <Pressable
+              onPress={() => {
+                void Clipboard.setStringAsync(calendar.url ?? "")
+                setCopied(true)
+              }}
+            >
+              <Text style={{ color: "#1d4ed8", fontWeight: "600" }}>
+                {copied ? "Copied!" : "Copy link"}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setCopied(false)
+                void calendar.rotate()
+              }}
+            >
+              <Text style={{ color: "#6b7280" }}>Get a fresh link</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+      {calendar.error && (
+        <Text style={{ color: "#b45309", marginBottom: 10, fontSize: 13 }}>{calendar.error}</Text>
+      )}
       <Row
         label={isSyncing ? "Syncing…" : "Sync now"}
         onPress={() => {

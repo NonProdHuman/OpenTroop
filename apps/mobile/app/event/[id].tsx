@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, Switch, Text, View } from "react-native"
+import { useState } from "react"
+import { Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native"
 import { Stack, useLocalSearchParams } from "expo-router"
 import {
   useCachedPermissions,
@@ -27,26 +28,32 @@ function RsvpRow({
   eventId: string
 }) {
   const { enqueue } = useSyncContext()
+  const [expanded, setExpanded] = useState(false)
   const current = participant?.rsvp_status ?? "no_response"
 
-  const setRsvp = (rsvp_status: string) => {
-    // Existing row → field-granular update; none → signup with the reply.
-    // Both queue offline and replay through the interactive API (GH-153 §C3).
+  // Field-granular update on an existing row; signup+reply otherwise. Extra
+  // RSVP details (driver/guests/note) coalesce into the same queued command.
+  const patch = (fields: Record<string, unknown>) => {
     enqueue(participant ? "participant.update" : "participant.create", {
       event_id: eventId,
       member_id: member.id,
-      rsvp_status,
+      ...fields,
     })
   }
 
   return (
     <View style={{ paddingVertical: 8, borderBottomWidth: 1, borderColor: "#f3f4f6" }}>
-      <Text style={{ fontWeight: "600", marginBottom: 6 }}>{formatMemberName(member)}</Text>
+      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+        <Text style={{ fontWeight: "600", marginBottom: 6 }}>{formatMemberName(member)}</Text>
+        <Pressable onPress={() => setExpanded((e) => !e)}>
+          <Text style={{ color: "#6b7280", fontSize: 12 }}>{expanded ? "Less" : "Details"}</Text>
+        </Pressable>
+      </View>
       <View style={{ flexDirection: "row", gap: 8 }}>
         {RSVP_OPTIONS.map((option) => (
           <Pressable
             key={option.value}
-            onPress={() => setRsvp(option.value)}
+            onPress={() => patch({ rsvp_status: option.value })}
             style={{
               paddingHorizontal: 12,
               paddingVertical: 6,
@@ -62,6 +69,40 @@ function RsvpRow({
           </Pressable>
         ))}
       </View>
+
+      {expanded && (
+        <View style={{ gap: 8, marginTop: 10 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text style={{ color: "#374151" }}>Can drive</Text>
+            <Switch
+              value={participant?.driver === true}
+              onValueChange={(driver) => patch({ driver })}
+            />
+          </View>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <Text style={{ color: "#374151" }}>Extra guests</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <Pressable
+                onPress={() => patch({ guest_count: Math.max(0, (participant?.guest_count ?? 0) - 1) })}
+              >
+                <Text style={{ fontSize: 20, color: "#1d4ed8" }}>−</Text>
+              </Pressable>
+              <Text style={{ minWidth: 20, textAlign: "center" }}>
+                {participant?.guest_count ?? 0}
+              </Text>
+              <Pressable onPress={() => patch({ guest_count: (participant?.guest_count ?? 0) + 1 })}>
+                <Text style={{ fontSize: 20, color: "#1d4ed8" }}>+</Text>
+              </Pressable>
+            </View>
+          </View>
+          <TextInput
+            defaultValue={participant?.comment ?? ""}
+            onEndEditing={(e) => patch({ comment: e.nativeEvent.text })}
+            placeholder="Note for the organizer…"
+            style={{ borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8, padding: 8 }}
+          />
+        </View>
+      )}
     </View>
   )
 }

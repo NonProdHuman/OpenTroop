@@ -28,6 +28,14 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="messages"
+        options={{
+          title: "Messages",
+          headerTitle: activeTenant.tenant_name,
+          tabBarIcon: () => <TabIcon glyph="📨" />,
+        }}
+      />
+      <Tabs.Screen
         name="roster"
         options={{
           title: "Roster",

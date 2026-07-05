@@ -105,6 +105,8 @@ describe("pullRound", () => {
       "member_relationships",
       "events",
       "event_participants",
+      "inbox_messages",
+      "inbox_recipients",
     ])
   })
 })
