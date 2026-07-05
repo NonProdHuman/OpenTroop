@@ -1,8 +1,10 @@
-# OpenTroop Mobile (Expo, iOS first)
+# OpenTroop Mobile (Expo — iOS & Android)
 
-The offline-first mobile client (GH-93; offline data-layer spec in GH-153).
-M3 scaffold: Clerk sign-in, troop switcher, Events/Roster/Settings tabs reading
-the live API. The SQLite mirror + offline outbox land in M4.
+The offline-first mobile client (GH-93; offline data-layer spec in GH-153): a
+single Expo / React Native codebase that builds to both iOS and Android from the
+same source. Clerk sign-in, troop switcher, Events/Roster/Advancement/Messages
+tabs on a local SQLite mirror with an offline command outbox, push
+notifications, Face ID app lock, and system-driven dark mode.
 
 ## Run it
 
@@ -21,6 +23,14 @@ pnpm start                                # Expo dev server → press i for iOS 
 
 First run may suggest `npx expo install --fix` to align native module patch
 versions with the installed SDK — safe to accept.
+
+To run on Android, press `a` in the Expo dev server (Android emulator or a
+connected device with Expo Go / a dev client).
+
+## Building for release
+
+See [`docs/build-and-release.md`](docs/build-and-release.md) for EAS build
+profiles, per-platform push-credential setup (APNs / FCM), and store submission.
 
 ## Checks
 
