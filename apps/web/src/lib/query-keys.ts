@@ -72,6 +72,12 @@ export const queryKeys = {
   advancementQueue: (t: TenantId) => [t, "advancement-queue"] as const,
   advancementScouts: (t: TenantId) => [t, "advancement-scouts"] as const,
 
+  // ── Messaging ─────────────────────────────────────────────────────────────
+  messages: (t: TenantId) => [t, "messages"] as const,
+  message: (t: TenantId, id: string | null) => [t, "message", id] as const,
+  messagePreview: (t: TenantId, id: string | null) => [t, "message-preview", id] as const,
+  inbox: (t: TenantId) => [t, "inbox"] as const,
+
   // ── Tenant settings ───────────────────────────────────────────────────────
   tenantSettings: (t: TenantId) => [t, "tenant-settings"] as const,
 }

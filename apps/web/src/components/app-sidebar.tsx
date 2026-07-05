@@ -66,7 +66,15 @@ const tenantNavItems: NavItem[] = [
     ],
   },
   { title: "Events", url: "/events", icon: CalendarDays, requires: "event:read" },
-  { title: "Messaging", icon: MessageSquare, disabledMessage: "Coming soon" },
+  {
+    title: "Messaging",
+    icon: MessageSquare,
+    children: [
+      // Inbox for every member; Announcements only for senders.
+      { title: "Inbox", url: "/messages/inbox" },
+      { title: "Announcements", url: "/messages", requires: "communication:send_troop" },
+    ],
+  },
   {
     title: "Advancement",
     icon: Star,
