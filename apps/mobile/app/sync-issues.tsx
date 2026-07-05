@@ -1,3 +1,4 @@
+import { colors } from "@/lib/theme"
 import { FlatList, Pressable, Text, View } from "react-native"
 import { Stack } from "expo-router"
 import { useSyncContext } from "@/lib/sync-context"
@@ -25,7 +26,7 @@ export default function SyncIssuesScreen() {
         data={failedCommands}
         keyExtractor={(item) => item.id}
         ListEmptyComponent={
-          <Text style={{ color: "#666" }}>
+          <Text style={{ color: colors.textMuted }}>
             All caught up — every offline change has synced.
           </Text>
         }
@@ -34,21 +35,21 @@ export default function SyncIssuesScreen() {
             style={{
               padding: 14,
               borderWidth: 1,
-              borderColor: "#fecaca",
+              borderColor: colors.dangerBorder,
               borderRadius: 12,
               marginBottom: 10,
-              backgroundColor: "#fef2f2",
+              backgroundColor: colors.dangerBg,
             }}
           >
             <Text style={{ fontWeight: "600" }}>{KIND_LABELS[item.kind]}</Text>
-            <Text style={{ color: "#991b1b", marginTop: 4 }}>
+            <Text style={{ color: colors.dangerStrong, marginTop: 4 }}>
               {item.last_error ?? "The server rejected this change."}
             </Text>
-            <Text style={{ color: "#666", marginTop: 4, fontSize: 12 }}>
+            <Text style={{ color: colors.textMuted, marginTop: 4, fontSize: 12 }}>
               Queued {new Date(item.created_at).toLocaleString()}
             </Text>
             <Pressable onPress={() => discard(item.id)} style={{ marginTop: 8 }}>
-              <Text style={{ color: "#b91c1c", fontWeight: "600" }}>Discard change</Text>
+              <Text style={{ color: colors.danger, fontWeight: "600" }}>Discard change</Text>
             </Pressable>
           </View>
         )}

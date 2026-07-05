@@ -1,3 +1,4 @@
+import { colors } from "@/lib/theme"
 import { useMemo, useState } from "react"
 import {
   Modal,
@@ -48,14 +49,14 @@ function ScoutChips({
                 paddingVertical: 8,
                 borderRadius: 999,
                 borderWidth: 1,
-                borderColor: active ? "#1d4ed8" : "#d1d5db",
-                backgroundColor: active ? "#dbeafe" : "white",
+                borderColor: active ? colors.brand : colors.border,
+                backgroundColor: active ? colors.brandTint : "white",
               }}
             >
-              <Text style={{ color: active ? "#1d4ed8" : "#374151", fontWeight: "600" }}>
+              <Text style={{ color: active ? colors.brand : colors.text, fontWeight: "600" }}>
                 {formatMemberName(scout)}
               </Text>
-              <Text style={{ color: "#6b7280", fontSize: 11 }}>
+              <Text style={{ color: colors.textMuted, fontSize: 11 }}>
                 {scout.current_rank_name ?? "No rank yet"}
               </Text>
             </Pressable>
@@ -86,7 +87,7 @@ function RecordSheet({
         onPress={onClose}
         style={{
           flex: 1,
-          backgroundColor: "rgba(0,0,0,0.4)",
+          backgroundColor: colors.overlay,
           justifyContent: "center",
           padding: 24,
         }}
@@ -98,22 +99,22 @@ function RecordSheet({
           <Text style={{ fontWeight: "700", fontSize: 16 }}>
             {isRecorder ? "Mark complete" : "Report completion"} — {entry.requirement.label}
           </Text>
-          <Text style={{ color: "#374151" }} numberOfLines={4}>
+          <Text style={{ color: colors.text }} numberOfLines={4}>
             {entry.requirement.text}
           </Text>
-          <Text style={{ color: "#666", fontSize: 12 }}>Date completed</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 12 }}>Date completed</Text>
           <TextInput
             value={date}
             onChangeText={setDate}
             placeholder="YYYY-MM-DD"
             autoCapitalize="none"
-            style={{ borderWidth: 1, borderColor: valid ? "#d1d5db" : "#f87171", borderRadius: 8, padding: 10 }}
+            style={{ borderWidth: 1, borderColor: valid ? colors.border : colors.dangerInput, borderRadius: 8, padding: 10 }}
           />
           <Pressable
             disabled={!valid}
             onPress={() => onConfirm(date)}
             style={{
-              backgroundColor: valid ? "#1d4ed8" : "#9ca3af",
+              backgroundColor: valid ? colors.brand : colors.textSubtle,
               borderRadius: 8,
               padding: 12,
               alignItems: "center",
@@ -152,7 +153,7 @@ function RankSection({
   )
 
   return (
-    <View style={{ borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 12, marginBottom: 10 }}>
+    <View style={{ borderWidth: 1, borderColor: colors.borderLight, borderRadius: 12, marginBottom: 10 }}>
       <Pressable
         onPress={() => setOpen((o) => !o)}
         style={{ padding: 14, flexDirection: "row", justifyContent: "space-between" }}
@@ -161,7 +162,7 @@ function RankSection({
           {view.rank.name}
           {earned ? `  ·  earned ${view.progress?.completed_date}` : ""}
         </Text>
-        <Text style={{ color: "#666" }}>
+        <Text style={{ color: colors.textMuted }}>
           {complete}/{top.length} {open ? "▾" : "▸"}
         </Text>
       </Pressable>
@@ -177,19 +178,19 @@ function RankSection({
                 paddingVertical: 6,
                 paddingLeft: entry.requirement.letter ? 16 : 0,
                 borderTopWidth: 1,
-                borderColor: "#f3f4f6",
+                borderColor: colors.hairline,
               }}
             >
               <Text
                 style={{
                   fontWeight: "700",
-                  color: entry.is_complete ? "#059669" : "#9ca3af",
+                  color: entry.is_complete ? colors.success : colors.textSubtle,
                   width: 34,
                 }}
               >
                 {entry.is_complete ? "✓" : ""} {entry.requirement.label}
               </Text>
-              <Text style={{ flex: 1, fontSize: 13, color: "#374151" }}>
+              <Text style={{ flex: 1, fontSize: 13, color: colors.text }}>
                 {entry.requirement.text}
               </Text>
               {canWrite &&
@@ -197,13 +198,13 @@ function RankSection({
                 entry.metrics_progress.length === 0 &&
                 !containerIds.has(entry.requirement.id) && (
                 <Pressable onPress={() => onRecord(entry)}>
-                  <Text style={{ color: "#1d4ed8", fontWeight: "600" }}>
+                  <Text style={{ color: colors.brand, fontWeight: "600" }}>
                     {isRecorder ? "Record" : "Report"}
                   </Text>
                 </Pressable>
               )}
               {entry.completion && (
-                <Text style={{ color: "#6b7280", fontSize: 12 }}>
+                <Text style={{ color: colors.textMuted, fontSize: 12 }}>
                   {entry.completion.status}
                 </Text>
               )}
@@ -242,7 +243,7 @@ export default function AdvancementScreen() {
   if (isLoading) return <LoadingScreen />
   if (error) {
     return (
-      <Text style={{ padding: 24, color: "#666" }}>
+      <Text style={{ padding: 24, color: colors.textMuted }}>
         Advancement needs a connection — it isn&apos;t mirrored offline yet. Pull down on
         Events to check your signal, then come back.
       </Text>
@@ -257,7 +258,7 @@ export default function AdvancementScreen() {
       {scouts && scouts.length > 0 ? (
         <ScoutChips scouts={scouts} selectedId={scoutId} onSelect={setSelected} />
       ) : (
-        <Text style={{ color: "#666" }}>
+        <Text style={{ color: colors.textMuted }}>
           No scouts to show — advancement records for your family appear here once they are
           on the roster.
         </Text>
@@ -278,10 +279,10 @@ export default function AdvancementScreen() {
         <View style={{ marginTop: 8 }}>
           <Text style={{ fontWeight: "700", marginBottom: 6 }}>Merit badges</Text>
           {badges.length === 0 && (
-            <Text style={{ color: "#666" }}>No merit badge records yet.</Text>
+            <Text style={{ color: colors.textMuted }}>No merit badge records yet.</Text>
           )}
           {badges.map((badge) => (
-            <Text key={badge.id} style={{ color: "#374151", paddingVertical: 2 }}>
+            <Text key={badge.id} style={{ color: colors.text, paddingVertical: 2 }}>
               • {badgeName(badge.merit_badge_id)}
               {"  ·  "}
               {badge.date_completed ? `completed ${badge.date_completed}` : "in progress"}

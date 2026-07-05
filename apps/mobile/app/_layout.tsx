@@ -1,3 +1,4 @@
+import { colors } from "@/lib/theme"
 import { Text, View } from "react-native"
 import { Stack } from "expo-router"
 import { StatusBar } from "expo-status-bar"
@@ -17,7 +18,7 @@ export default function RootLayout() {
     return (
       <View style={{ flex: 1, justifyContent: "center", padding: 24 }}>
         <Text style={{ fontSize: 16, fontWeight: "600" }}>OpenTroop is not configured</Text>
-        <Text style={{ marginTop: 8, color: "#666" }}>
+        <Text style={{ marginTop: 8, color: colors.textMuted }}>
           Set EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in apps/mobile/.env (see .env.example) and
           restart the dev server.
         </Text>

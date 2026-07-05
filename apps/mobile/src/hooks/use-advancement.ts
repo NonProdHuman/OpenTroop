@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useSyncContext } from "@/lib/sync-context"
+import { useApiRequest } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
 import type { AdvancementScout, MemberAdvancement, MeritBadge, TenantSettings } from "@/lib/types"
 
@@ -11,24 +11,8 @@ import type { AdvancementScout, MemberAdvancement, MeritBadge, TenantSettings } 
  * authenticated client and fail soft with an offline message.
  */
 
-function useRequest() {
-  const { http } = useSyncContext()
-  return async <T>(path: string, init?: { method: string; body?: unknown }): Promise<T> => {
-    if (!http) throw new Error("No active troop")
-    const response = await http(path, init ?? { method: "GET" })
-    if (response.status >= 400) {
-      const detail =
-        response.body && typeof response.body === "object" && "detail" in response.body
-          ? String((response.body as { detail: unknown }).detail)
-          : `HTTP ${response.status}`
-      throw new Error(detail)
-    }
-    return response.body as T
-  }
-}
-
 export function useAdvancementScouts() {
-  const request = useRequest()
+  const request = useApiRequest()
   const { activeTenant } = useActiveTenant()
   return useQuery({
     queryKey: [activeTenant?.tenant_id, "advancement-scouts"],
@@ -39,7 +23,7 @@ export function useAdvancementScouts() {
 }
 
 export function useMemberAdvancement(memberId: string | null) {
-  const request = useRequest()
+  const request = useApiRequest()
   const { activeTenant } = useActiveTenant()
   return useQuery({
     queryKey: [activeTenant?.tenant_id, "member-advancement", memberId],
@@ -50,7 +34,7 @@ export function useMemberAdvancement(memberId: string | null) {
 }
 
 export function useMeritBadgeCatalog() {
-  const request = useRequest()
+  const request = useApiRequest()
   const { activeTenant } = useActiveTenant()
   return useQuery({
     queryKey: [activeTenant?.tenant_id, "merit-badges"],
@@ -61,7 +45,7 @@ export function useMeritBadgeCatalog() {
 }
 
 export function useTenantSettings() {
-  const request = useRequest()
+  const request = useApiRequest()
   const { activeTenant } = useActiveTenant()
   return useQuery({
     queryKey: [activeTenant?.tenant_id, "tenant-settings"],
@@ -72,7 +56,7 @@ export function useTenantSettings() {
 }
 
 export function useRecordCompletion(memberId: string) {
-  const request = useRequest()
+  const request = useApiRequest()
   const queryClient = useQueryClient()
   const { activeTenant } = useActiveTenant()
   return useMutation({
@@ -86,7 +70,7 @@ export function useRecordCompletion(memberId: string) {
 }
 
 export function useRecordMeritBadge(memberId: string) {
-  const request = useRequest()
+  const request = useApiRequest()
   const queryClient = useQueryClient()
   const { activeTenant } = useActiveTenant()
   return useMutation({

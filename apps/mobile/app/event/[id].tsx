@@ -1,3 +1,4 @@
+import { colors } from "@/lib/theme"
 import { useState } from "react"
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native"
 import { Stack, useLocalSearchParams } from "expo-router"
@@ -42,11 +43,11 @@ function RsvpRow({
   }
 
   return (
-    <View style={{ paddingVertical: 8, borderBottomWidth: 1, borderColor: "#f3f4f6" }}>
+    <View style={{ paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.hairline }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
         <Text style={{ fontWeight: "600", marginBottom: 6 }}>{formatMemberName(member)}</Text>
         <Pressable onPress={() => setExpanded((e) => !e)}>
-          <Text style={{ color: "#6b7280", fontSize: 12 }}>{expanded ? "Less" : "Details"}</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 12 }}>{expanded ? "Less" : "Details"}</Text>
         </Pressable>
       </View>
       <View style={{ flexDirection: "row", gap: 8 }}>
@@ -59,11 +60,11 @@ function RsvpRow({
               paddingVertical: 6,
               borderRadius: 999,
               borderWidth: 1,
-              borderColor: current === option.value ? "#1d4ed8" : "#d1d5db",
-              backgroundColor: current === option.value ? "#dbeafe" : "white",
+              borderColor: current === option.value ? colors.brand : colors.border,
+              backgroundColor: current === option.value ? colors.brandTint : "white",
             }}
           >
-            <Text style={{ color: current === option.value ? "#1d4ed8" : "#374151" }}>
+            <Text style={{ color: current === option.value ? colors.brand : colors.text }}>
               {option.label}
             </Text>
           </Pressable>
@@ -73,25 +74,25 @@ function RsvpRow({
       {expanded && (
         <View style={{ gap: 8, marginTop: 10 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <Text style={{ color: "#374151" }}>Can drive</Text>
+            <Text style={{ color: colors.text }}>Can drive</Text>
             <Switch
               value={participant?.driver === true}
               onValueChange={(driver) => patch({ driver })}
             />
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-            <Text style={{ color: "#374151" }}>Extra guests</Text>
+            <Text style={{ color: colors.text }}>Extra guests</Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
               <Pressable
                 onPress={() => patch({ guest_count: Math.max(0, (participant?.guest_count ?? 0) - 1) })}
               >
-                <Text style={{ fontSize: 20, color: "#1d4ed8" }}>−</Text>
+                <Text style={{ fontSize: 20, color: colors.brand }}>−</Text>
               </Pressable>
               <Text style={{ minWidth: 20, textAlign: "center" }}>
                 {participant?.guest_count ?? 0}
               </Text>
               <Pressable onPress={() => patch({ guest_count: (participant?.guest_count ?? 0) + 1 })}>
-                <Text style={{ fontSize: 20, color: "#1d4ed8" }}>+</Text>
+                <Text style={{ fontSize: 20, color: colors.brand }}>+</Text>
               </Pressable>
             </View>
           </View>
@@ -99,7 +100,7 @@ function RsvpRow({
             defaultValue={participant?.comment ?? ""}
             onEndEditing={(e) => patch({ comment: e.nativeEvent.text })}
             placeholder="Note for the organizer…"
-            style={{ borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8, padding: 8 }}
+            style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 8 }}
           />
         </View>
       )}
@@ -120,7 +121,7 @@ export default function EventDetailScreen() {
     return (
       <>
         <Stack.Screen options={{ headerShown: true, title: "Event" }} />
-        <Text style={{ padding: 24, color: "#666" }}>
+        <Text style={{ padding: 24, color: colors.textMuted }}>
           This event isn&apos;t in your local data yet — sync when you have signal.
         </Text>
       </>
@@ -141,11 +142,11 @@ export default function EventDetailScreen() {
       <ScrollView contentContainerStyle={{ padding: 16, gap: 20 }}>
         <View>
           <Text style={{ fontSize: 20, fontWeight: "700" }}>{event.name}</Text>
-          <Text style={{ color: "#666", marginTop: 4 }}>
+          <Text style={{ color: colors.textMuted, marginTop: 4 }}>
             {formatEventStart(event.scheduled_start, event.all_day)}
           </Text>
           {event.location_notes ? (
-            <Text style={{ color: "#666", marginTop: 2 }}>{event.location_notes}</Text>
+            <Text style={{ color: colors.textMuted, marginTop: 2 }}>{event.location_notes}</Text>
           ) : null}
           {event.description ? <Text style={{ marginTop: 8 }}>{event.description}</Text> : null}
         </View>
@@ -186,7 +187,7 @@ export default function EventDetailScreen() {
                     })
                   }
                   style={{
-                    backgroundColor: "#1d4ed8",
+                    backgroundColor: colors.brand,
                     borderRadius: 8,
                     paddingHorizontal: 12,
                     paddingVertical: 8,
@@ -198,7 +199,7 @@ export default function EventDetailScreen() {
             </View>
             {event.attendance_taken ? (
               participants.length === 0 ? (
-                <Text style={{ color: "#666" }}>No one on the list yet.</Text>
+                <Text style={{ color: colors.textMuted }}>No one on the list yet.</Text>
               ) : (
                 participants.map((participant) => (
                   <View
@@ -209,7 +210,7 @@ export default function EventDetailScreen() {
                       justifyContent: "space-between",
                       paddingVertical: 6,
                       borderBottomWidth: 1,
-                      borderColor: "#f3f4f6",
+                      borderColor: colors.hairline,
                     }}
                   >
                     <Text>{memberName(participant.member_id)}</Text>
@@ -229,7 +230,7 @@ export default function EventDetailScreen() {
                 ))
               )
             ) : (
-              <Text style={{ color: "#666" }}>
+              <Text style={{ color: colors.textMuted }}>
                 Start attendance to check people in — it works offline and syncs later.
               </Text>
             )}

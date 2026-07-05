@@ -1,3 +1,4 @@
+import { colors } from "@/lib/theme"
 import { ScrollView, Text, View } from "react-native"
 import { Stack, useLocalSearchParams } from "expo-router"
 import { useMirrorMember } from "@/hooks/use-mirror"
@@ -7,7 +8,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null
   return (
     <View style={{ marginBottom: 10 }}>
-      <Text style={{ color: "#666", fontSize: 12 }}>{label}</Text>
+      <Text style={{ color: colors.textMuted, fontSize: 12 }}>{label}</Text>
       <Text style={{ fontSize: 15 }}>{value}</Text>
     </View>
   )
@@ -25,7 +26,7 @@ export default function MemberDetailScreen() {
     return (
       <>
         <Stack.Screen options={{ headerShown: true, title: "Member" }} />
-        <Text style={{ padding: 24, color: "#666" }}>
+        <Text style={{ padding: 24, color: colors.textMuted }}>
           This member isn&apos;t in your local data yet — sync when you have signal.
         </Text>
       </>
@@ -43,7 +44,7 @@ export default function MemberDetailScreen() {
         <Text style={{ fontSize: 20, fontWeight: "700", marginBottom: 2 }}>
           {formatMemberName(member)}
         </Text>
-        <Text style={{ color: "#666", marginBottom: 16 }}>
+        <Text style={{ color: colors.textMuted, marginBottom: 16 }}>
           {member.member_type}
           {member.membership_status !== "active" ? ` · ${member.membership_status}` : ""}
         </Text>

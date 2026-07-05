@@ -1,3 +1,4 @@
+import { colors } from "@/lib/theme"
 import { Pressable, Text, View } from "react-native"
 import { useRouter } from "expo-router"
 import { useAuth, useUser } from "@clerk/clerk-expo"
@@ -17,13 +18,13 @@ function Row({ label, onPress, danger }: { label: string; onPress: () => void; d
       style={({ pressed }) => ({
         padding: 16,
         borderWidth: 1,
-        borderColor: "#e5e7eb",
+        borderColor: colors.borderLight,
         borderRadius: 12,
         marginBottom: 10,
-        backgroundColor: pressed ? "#f3f4f6" : "white",
+        backgroundColor: pressed ? colors.hairline : "white",
       })}
     >
-      <Text style={{ fontSize: 15, fontWeight: "600", color: danger ? "#b91c1c" : "#111" }}>
+      <Text style={{ fontSize: 15, fontWeight: "600", color: danger ? colors.danger : colors.textStrong }}>
         {label}
       </Text>
     </Pressable>
@@ -63,11 +64,11 @@ export default function SettingsScreen() {
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
-      <Text style={{ color: "#666", marginBottom: 4 }}>Signed in as</Text>
+      <Text style={{ color: colors.textMuted, marginBottom: 4 }}>Signed in as</Text>
       <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 16 }}>
         {user?.primaryEmailAddress?.emailAddress ?? "…"}
       </Text>
-      <Text style={{ color: "#666", marginBottom: 4 }}>Troop</Text>
+      <Text style={{ color: colors.textMuted, marginBottom: 4 }}>Troop</Text>
       <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 16 }}>
         {activeTenant?.tenant_name}
       </Text>
@@ -83,12 +84,12 @@ export default function SettingsScreen() {
             padding: 12,
             marginBottom: 10,
             borderWidth: 1,
-            borderColor: "#e5e7eb",
+            borderColor: colors.borderLight,
             borderRadius: 12,
             gap: 8,
           }}
         >
-          <Text style={{ fontSize: 12, color: "#374151" }} numberOfLines={2}>
+          <Text style={{ fontSize: 12, color: colors.text }} numberOfLines={2}>
             {calendar.url}
           </Text>
           <View style={{ flexDirection: "row", gap: 16 }}>
@@ -98,7 +99,7 @@ export default function SettingsScreen() {
                 setCopied(true)
               }}
             >
-              <Text style={{ color: "#1d4ed8", fontWeight: "600" }}>
+              <Text style={{ color: colors.brand, fontWeight: "600" }}>
                 {copied ? "Copied!" : "Copy link"}
               </Text>
             </Pressable>
@@ -108,13 +109,13 @@ export default function SettingsScreen() {
                 void calendar.rotate()
               }}
             >
-              <Text style={{ color: "#6b7280" }}>Get a fresh link</Text>
+              <Text style={{ color: colors.textMuted }}>Get a fresh link</Text>
             </Pressable>
           </View>
         </View>
       )}
       {calendar.error && (
-        <Text style={{ color: "#b45309", marginBottom: 10, fontSize: 13 }}>{calendar.error}</Text>
+        <Text style={{ color: colors.warning, marginBottom: 10, fontSize: 13 }}>{calendar.error}</Text>
       )}
       <Row
         label={isSyncing ? "Syncing…" : "Sync now"}
@@ -157,8 +158,8 @@ export default function SettingsScreen() {
             })
         }}
       />
-      {pushError && <Text style={{ color: "#b91c1c", marginTop: 8 }}>{pushError}</Text>}
-      <Text style={{ color: "#9ca3af", marginTop: "auto", textAlign: "center" }}>
+      {pushError && <Text style={{ color: colors.danger, marginTop: 8 }}>{pushError}</Text>}
+      <Text style={{ color: colors.textSubtle, marginTop: "auto", textAlign: "center" }}>
         {lastOutcome?.error
           ? "Offline — showing local data; changes will sync when you're back."
           : "Attendance/RSVP screens on the offline mirror and Face ID app lock arrive in M5 (GH-93)."}

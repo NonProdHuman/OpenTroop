@@ -1,3 +1,4 @@
+import { colors } from "@/lib/theme"
 import { useState } from "react"
 import { FlatList, Pressable, Text, View } from "react-native"
 import { Link } from "expo-router"
@@ -21,17 +22,17 @@ function InboxRow({ item }: { item: InboxItem }) {
         setOpen((o) => !o)
         if (unread) markRead(item.recipientId)
       }}
-      style={{ paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderColor: "#f3f4f6" }}
+      style={{ paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderColor: colors.hairline }}
     >
       <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
         <Text style={{ flex: 1, fontSize: 15, fontWeight: unread ? "700" : "500" }} numberOfLines={1}>
           {unread ? "• " : ""}
           {item.subject}
         </Text>
-        <Text style={{ color: "#9ca3af", fontSize: 11 }}>{formatSent(item.sentAt)}</Text>
+        <Text style={{ color: colors.textSubtle, fontSize: 11 }}>{formatSent(item.sentAt)}</Text>
       </View>
       <Text
-        style={{ color: "#4b5563", fontSize: 13, marginTop: 2 }}
+        style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}
         numberOfLines={open ? undefined : 1}
       >
         {item.body}
@@ -54,7 +55,7 @@ export default function MessagesScreen() {
             style={{
               margin: 16,
               marginBottom: 8,
-              backgroundColor: "#1d4ed8",
+              backgroundColor: colors.brand,
               borderRadius: 10,
               padding: 12,
               alignItems: "center",
@@ -72,13 +73,13 @@ export default function MessagesScreen() {
         renderItem={({ item }) => <InboxRow item={item} />}
         ListHeaderComponent={
           unreadCount > 0 ? (
-            <Text style={{ color: "#6b7280", fontSize: 12, paddingHorizontal: 16, paddingTop: 8 }}>
+            <Text style={{ color: colors.textMuted, fontSize: 12, paddingHorizontal: 16, paddingTop: 8 }}>
               {unreadCount} unread
             </Text>
           ) : null
         }
         ListEmptyComponent={
-          <Text style={{ color: "#666", padding: 24 }}>
+          <Text style={{ color: colors.textMuted, padding: 24 }}>
             No messages yet. Troop announcements will appear here.
           </Text>
         }
