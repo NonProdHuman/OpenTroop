@@ -47,7 +47,10 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     if task is not None:
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
-            await task
+            # Await the cancelled outbox loop so it can unwind before shutdown
+            # continues (gather keeps this a call expression, not a bare
+            # awaited-name that static analysis reads as having no effect).
+            await asyncio.gather(task)
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
