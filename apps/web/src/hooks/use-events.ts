@@ -44,6 +44,75 @@ export function useEventTypes() {
   })
 }
 
+export function useEventType(id: string | null) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  return useQuery({
+    queryKey: queryKeys.eventType(activeTenantId, id),
+    queryFn: () => request<EventType>(`/event-types/${id}`),
+    enabled: id !== null && Boolean(activeTenantId),
+  })
+}
+
+// Create/update accept the mutable subset of EventType (name + capability flags).
+export type EventTypeInput = {
+  name: string
+  color?: string | null
+  is_active?: boolean
+  is_online?: boolean
+  allow_guests?: boolean
+  allow_signups?: boolean
+  require_permission_slip?: boolean
+  tracks_service_hours?: boolean
+  tracks_camping_nights?: boolean
+  tracks_mileage?: boolean
+}
+
+export function useCreateEventType() {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: EventTypeInput) =>
+      request<EventType>("/event-types", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.eventTypes(activeTenantId) })
+    },
+  })
+}
+
+export function useUpdateEventType() {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<EventTypeInput> }) =>
+      request<EventType>(`/event-types/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (updated, { id }) => {
+      queryClient.setQueryData(queryKeys.eventType(activeTenantId, id), updated)
+      queryClient.invalidateQueries({ queryKey: queryKeys.eventTypes(activeTenantId) })
+    },
+  })
+}
+
+export function useDeleteEventType() {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => request(`/event-types/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.eventTypes(activeTenantId) })
+    },
+  })
+}
+
 export function useEventParticipants(eventId: string | null) {
   const { request } = useApi()
   const { activeTenantId } = useActiveTenant()
