@@ -137,8 +137,16 @@ def sync_members(
     page, next_seq, next_id, has_more = _pull_page(
         Member, db, since_seq, since_id, limit, extra_clause=extra
     )
+    items = [MemberRead.model_validate(m) for m in page]
+    if family is not None:
+        # Family scope carries the household's own data (contact, medical —
+        # fields the family already edits interactively). Leader-facing notes
+        # were never visible without member:read; keep it that way.
+        for item in items:
+            item.notes = None
+            item.oa_notes = None
     return SyncMembersPage(
-        items=[MemberRead.model_validate(m) for m in page],
+        items=items,
         next_since_seq=next_seq,
         next_since_id=next_id,
         has_more=has_more,
