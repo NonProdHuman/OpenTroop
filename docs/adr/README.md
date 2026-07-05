@@ -27,6 +27,7 @@ closed issue, it probably belongs here.
 | [0004](0004-postgres-rls-defense-in-depth.md) | Postgres RLS as tenant-isolation defense-in-depth | Accepted |
 | [0005](0005-uuidv7-tracked-base-schema-contract.md) | UUIDv7 keys and the `TrackedBase` / `PlatformBase` / `Syncable` contract | Accepted |
 | [0006](0006-mobile-online-vs-offline-read-boundary.md) | Mobile online-read vs. offline-mirror boundary | Accepted |
+| [0007](0007-httpx2-http-client.md) | `httpx2` as the backend HTTP client | Accepted |
 
 > ADRs 0001–0005 record decisions that were already in force when the log was
 > created (2026-07); their content is reconstructed from the code and specs that
