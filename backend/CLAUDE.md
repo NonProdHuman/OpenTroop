@@ -94,6 +94,13 @@ policy-completeness introspection test forever.
   Select set: `["E", "F", "I", "UP", "B", "SIM", "S"]`; `S101` (assert) suppressed in tests.
 - **mypy** runs in `strict = true` mode via `uv run python -m mypy app`.
 
+### Dependencies
+
+- **HTTP client is `httpx2`, imported as `import httpx2 as httpx`** (see
+  [ADR 0007](../docs/adr/0007-httpx2-http-client.md)). This is deliberate, **not a
+  typo or typosquat** — `httpx2` is Pydantic's maintained continuation of `httpx`
+  with a drop-in-compatible API. Do not "fix" the import back to `httpx`.
+
 ## Tests
 
 Tests run against an **in-memory SQLite DB** — no live Postgres needed.

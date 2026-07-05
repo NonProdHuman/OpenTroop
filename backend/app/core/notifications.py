@@ -63,7 +63,6 @@ class PushMessage:
 class PushBackend(Protocol):
     def send_batch(self, messages: list[PushMessage]) -> list[str]:
         """Deliver best-effort; return tokens the vendor reports as dead."""
-        ...
 
 
 class NullPushBackend:
