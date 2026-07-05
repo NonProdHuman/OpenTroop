@@ -409,3 +409,58 @@ def test_sync_relationships_family_scope_without_member_read(
     assert r.status_code == 200, r.text
     pairs = {(rel["from_member_id"], rel["to_member_id"]) for rel in r.json()["items"]}
     assert pairs == {(str(parent.id), str(child.id))}
+
+
+# ---------------------------------------------------------------------------
+# Security-review regressions (2026-07 review)
+# ---------------------------------------------------------------------------
+
+
+def test_sync_events_visibility_ignores_deleted_audience_rows(
+    client: TestClient, claim_client: TestClient, db_session: Session
+) -> None:
+    """The sync streams lift the soft-delete filter for tombstones; a removed
+    audience row must not keep granting (or withholding) visibility."""
+    et = _event_type(client)
+    event = _event(client, et["id"], name="Was scoped")
+    group = client.post("/groups", json={"name": "Owl", "group_type": "custom"}).json()
+    added = client.post(f"/events/{event['id']}/audiences", json={"group_id": group["id"]})
+    assert added.status_code == 201
+    _seed_reader(db_session)
+
+    # Scoped: the reader (not in Owl) must not receive it.
+    page = claim_client.get("/sync/events", headers=_tenant_a(client))
+    assert event["id"] not in [e["id"] for e in page.json()["items"]]
+
+    # Remove the audience — the event is troop-wide again and must now flow,
+    # even though the tombstoned audience row is visible to the lifted filter.
+    removed = client.delete(f"/events/{event['id']}/audiences/{group['id']}")
+    assert removed.status_code == 204
+
+    page = claim_client.get("/sync/events", headers=_tenant_a(client))
+    assert event["id"] in [e["id"] for e in page.json()["items"]]
+
+
+def test_family_scoped_members_redact_leader_notes(
+    claim_client: TestClient, client: TestClient, db_session: Session
+) -> None:
+    """Parents without member:read get their household's contact/medical data,
+    but never leader-facing notes."""
+    parent, child, _ = _seed_family(db_session)
+    child_row = db_session.get(Member, child.id)
+    assert child_row is not None
+    child_row.notes = "Leader-only: behavioral plan"
+    child_row.oa_notes = "OA ceremony details"
+    child_row.allergies = "Peanuts"
+    db_session.commit()
+
+    page = claim_client.get("/sync/members", headers=_tenant_a(client)).json()
+    by_id = {m["id"]: m for m in page["items"]}
+    assert by_id[str(child.id)]["notes"] is None
+    assert by_id[str(child.id)]["oa_notes"] is None
+    assert by_id[str(child.id)]["allergies"] == "Peanuts"  # family-owned field flows
+
+    # member:read callers still see the notes.
+    admin_page = _pull_entity(client, "members")
+    admin_child = next(m for m in admin_page["items"] if m["id"] == str(child.id))
+    assert admin_child["notes"] == "Leader-only: behavioral plan"
