@@ -1,3 +1,4 @@
+import { colors } from "@/lib/theme"
 import { useState } from "react"
 import {
   KeyboardAvoidingView,
@@ -55,7 +56,7 @@ export default function SignInScreen() {
         keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
-        style={{ borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12 }}
+        style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12 }}
       />
       <TextInput
         placeholder="Password"
@@ -63,14 +64,14 @@ export default function SignInScreen() {
         autoComplete="current-password"
         value={password}
         onChangeText={setPassword}
-        style={{ borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 12 }}
+        style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12 }}
       />
-      {error && <Text style={{ color: "#b91c1c" }}>{error}</Text>}
+      {error && <Text style={{ color: colors.danger }}>{error}</Text>}
       <Pressable
         onPress={onSubmit}
         disabled={submitting || !email || !password}
         style={({ pressed }) => ({
-          backgroundColor: submitting || !email || !password ? "#9ca3af" : "#1d4ed8",
+          backgroundColor: submitting || !email || !password ? colors.textSubtle : colors.brand,
           opacity: pressed ? 0.8 : 1,
           borderRadius: 8,
           padding: 14,

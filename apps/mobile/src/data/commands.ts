@@ -1,4 +1,5 @@
 import type { SqlDatabase } from "./db"
+import { errorDetail } from "../lib/http"
 import { upsertResponseRow } from "./mirror"
 
 /**
@@ -207,13 +208,9 @@ export async function drainQueue(db: SqlDatabase, http: HttpClient): Promise<Dra
 
     // Terminal 4xx: visible failure, keep draining (later commands for other
     // targets are independent; dependent ones fail with the server's reason).
-    const detail =
-      response.body && typeof response.body === "object" && "detail" in response.body
-        ? String((response.body as { detail: unknown }).detail)
-        : `HTTP ${response.status}`
     db.run(
       "UPDATE pending_commands SET state = 'failed', attempts = attempts + 1, last_error = ? WHERE id = ?",
-      [detail, cmd.id],
+      [errorDetail(response.body, response.status), cmd.id],
     )
     result.failed += 1
   }

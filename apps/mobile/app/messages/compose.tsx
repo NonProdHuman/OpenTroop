@@ -1,3 +1,4 @@
+import { colors } from "@/lib/theme"
 import { useMemo, useState } from "react"
 import {
   KeyboardAvoidingView,
@@ -87,7 +88,7 @@ export default function ComposeScreen() {
             value={subject}
             onChangeText={setSubject}
             placeholder="Subject"
-            style={{ borderWidth: 1, borderColor: "#d1d5db", borderRadius: 8, padding: 12, fontSize: 16 }}
+            style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, fontSize: 16 }}
           />
           <TextInput
             value={body}
@@ -96,7 +97,7 @@ export default function ComposeScreen() {
             multiline
             style={{
               borderWidth: 1,
-              borderColor: "#d1d5db",
+              borderColor: colors.border,
               borderRadius: 8,
               padding: 12,
               minHeight: 120,
@@ -105,9 +106,9 @@ export default function ComposeScreen() {
           />
 
           <Text style={{ fontWeight: "700", marginTop: 4 }}>Send to</Text>
-          {isLoading && <Text style={{ color: "#666" }}>Loading groups…</Text>}
+          {isLoading && <Text style={{ color: colors.textMuted }}>Loading groups…</Text>}
           {groupsError && (
-            <Text style={{ color: "#b91c1c" }}>
+            <Text style={{ color: colors.danger }}>
               Composing needs a connection to load groups.
             </Text>
           )}
@@ -129,8 +130,8 @@ export default function ComposeScreen() {
                       height: 20,
                       borderRadius: 4,
                       borderWidth: 1,
-                      borderColor: isSelected ? "#1d4ed8" : "#9ca3af",
-                      backgroundColor: isSelected ? "#1d4ed8" : "white",
+                      borderColor: isSelected ? colors.brand : colors.textSubtle,
+                      backgroundColor: isSelected ? colors.brand : "white",
                       alignItems: "center",
                       justifyContent: "center",
                     }}
@@ -141,7 +142,7 @@ export default function ComposeScreen() {
                 </Pressable>
                 {target && (
                   <Pressable onPress={() => cycleAudience(group.id)}>
-                    <Text style={{ color: "#1d4ed8", fontSize: 12 }}>
+                    <Text style={{ color: colors.brand, fontSize: 12 }}>
                       {AUDIENCE_LABELS[target.audience_type]} ▸
                     </Text>
                   </Pressable>
@@ -161,13 +162,13 @@ export default function ComposeScreen() {
             </View>
           </View>
 
-          {error && <Text style={{ color: "#b91c1c" }}>{error}</Text>}
+          {error && <Text style={{ color: colors.danger }}>{error}</Text>}
 
           <Pressable
             disabled={!canSend}
             onPress={send}
             style={{
-              backgroundColor: canSend ? "#1d4ed8" : "#9ca3af",
+              backgroundColor: canSend ? colors.brand : colors.textSubtle,
               borderRadius: 10,
               padding: 14,
               alignItems: "center",

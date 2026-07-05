@@ -1,3 +1,4 @@
+import { colors } from "@/lib/theme"
 import { useCallback, useEffect, useState, type ReactNode } from "react"
 import { AppState, Pressable, Text, View } from "react-native"
 import * as LocalAuthentication from "expo-local-authentication"
@@ -71,7 +72,7 @@ export function AppLockGate({ children }: { children: ReactNode }) {
         <Pressable
           onPress={() => void unlock()}
           style={{
-            backgroundColor: "#1d4ed8",
+            backgroundColor: colors.brand,
             borderRadius: 8,
             paddingHorizontal: 20,
             paddingVertical: 12,

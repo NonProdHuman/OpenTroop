@@ -1,3 +1,4 @@
+import { colors } from "@/lib/theme"
 import { FlatList, Pressable, RefreshControl, Text } from "react-native"
 import { Link } from "expo-router"
 import { useMirrorMembers } from "@/hooks/use-mirror"
@@ -17,7 +18,7 @@ export default function RosterScreen() {
       renderItem={({ item }) => (
         <Link href={{ pathname: "/member/[id]", params: { id: item.id } }} asChild>
           <Pressable
-            style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: "#f3f4f6" }}
+            style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.hairline }}
           >
             <Text style={{ fontSize: 15 }}>
               {formatMemberName(item)}
@@ -28,7 +29,7 @@ export default function RosterScreen() {
         </Link>
       )}
       ListEmptyComponent={
-        <Text style={{ color: "#666" }}>
+        <Text style={{ color: colors.textMuted }}>
           The roster mirrors for members with the member-read permission — your own
           family&apos;s records live in the web app for now.
         </Text>

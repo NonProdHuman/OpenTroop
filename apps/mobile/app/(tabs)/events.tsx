@@ -1,3 +1,4 @@
+import { colors } from "@/lib/theme"
 import { useMemo } from "react"
 import { FlatList, Pressable, RefreshControl, Text, View } from "react-native"
 import { Link } from "expo-router"
@@ -13,14 +14,14 @@ function EventRow({ event }: { event: Event }) {
         style={({ pressed }) => ({
           padding: 14,
           borderWidth: 1,
-          borderColor: "#e5e7eb",
+          borderColor: colors.borderLight,
           borderRadius: 12,
           marginBottom: 8,
-          backgroundColor: pressed ? "#f3f4f6" : "white",
+          backgroundColor: pressed ? colors.hairline : "white",
         })}
       >
         <Text style={{ fontSize: 15, fontWeight: "600" }}>{event.name}</Text>
-        <Text style={{ color: "#666", marginTop: 2 }}>
+        <Text style={{ color: colors.textMuted, marginTop: 2 }}>
           {formatEventStart(event.scheduled_start, event.all_day)}
           {event.attendance_taken ? "  ·  attendance taken" : ""}
         </Text>
@@ -43,7 +44,7 @@ export default function EventsScreen() {
       renderItem={({ item }) => <EventRow event={item} />}
       ListHeaderComponent={
         lastOutcome?.error && events.length === 0 ? (
-          <Text style={{ color: "#666", marginBottom: 12 }}>
+          <Text style={{ color: colors.textMuted, marginBottom: 12 }}>
             Offline and nothing synced yet — connect once to mirror your troop&apos;s data.
           </Text>
         ) : null
@@ -51,7 +52,7 @@ export default function EventsScreen() {
       ListFooterComponent={
         sections.past.length > 0 ? (
           <View style={{ marginTop: 16 }}>
-            <Text style={{ color: "#666", fontWeight: "600", marginBottom: 8 }}>Past</Text>
+            <Text style={{ color: colors.textMuted, fontWeight: "600", marginBottom: 8 }}>Past</Text>
             {sections.past.slice(0, 10).map((event) => (
               <EventRow key={event.id} event={event} />
             ))}
@@ -59,7 +60,7 @@ export default function EventsScreen() {
         ) : null
       }
       ListEmptyComponent={
-        !lastOutcome?.error ? <Text style={{ color: "#666" }}>No upcoming events.</Text> : null
+        !lastOutcome?.error ? <Text style={{ color: colors.textMuted }}>No upcoming events.</Text> : null
       }
     />
   )

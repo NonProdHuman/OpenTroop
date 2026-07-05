@@ -1,6 +1,6 @@
 import { useCallback } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { useSyncContext } from "@/lib/sync-context"
+import { useApiRequest } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
 import type { Group, MessageCreate, MessageWithPreview } from "@/lib/types"
 
@@ -10,27 +10,8 @@ import type { Group, MessageCreate, MessageWithPreview } from "@/lib/types"
  * client; the resulting message lands in every recipient's inbox (and pushes).
  */
 
-function useRequest() {
-  const { http } = useSyncContext()
-  return useCallback(
-    async <T>(path: string, init?: { method: string; body?: unknown }): Promise<T> => {
-      if (!http) throw new Error("No active troop")
-      const response = await http(path, init ?? { method: "GET" })
-      if (response.status >= 400) {
-        const detail =
-          response.body && typeof response.body === "object" && "detail" in response.body
-            ? String((response.body as { detail: unknown }).detail)
-            : `HTTP ${response.status}`
-        throw new Error(detail)
-      }
-      return response.body as T
-    },
-    [http],
-  )
-}
-
 export function useGroupsOnline(enabled: boolean) {
-  const request = useRequest()
+  const request = useApiRequest()
   const { activeTenant } = useActiveTenant()
   return useQuery({
     queryKey: [activeTenant?.tenant_id, "groups-online"],
@@ -42,7 +23,7 @@ export function useGroupsOnline(enabled: boolean) {
 
 /** Compose → send in one call (draft then send), returning the delivery preview. */
 export function useComposeAndSend() {
-  const request = useRequest()
+  const request = useApiRequest()
   return useCallback(
     async (data: MessageCreate): Promise<MessageWithPreview> => {
       const created = await request<MessageWithPreview>("/messages", {

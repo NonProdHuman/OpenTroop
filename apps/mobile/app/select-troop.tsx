@@ -1,3 +1,4 @@
+import { colors } from "@/lib/theme"
 import { FlatList, Pressable, Text, View } from "react-native"
 import { Redirect, useRouter } from "expo-router"
 import { useAuth } from "@clerk/clerk-expo"
@@ -19,12 +20,12 @@ export default function SelectTroopScreen() {
     <View style={{ flex: 1, padding: 24, paddingTop: 80 }}>
       <Text style={{ fontSize: 22, fontWeight: "700", marginBottom: 16 }}>Choose your troop</Text>
       {error && (
-        <Text style={{ color: "#b91c1c", marginBottom: 12 }}>
+        <Text style={{ color: colors.danger, marginBottom: 12 }}>
           Couldn&apos;t load your troops. Pull to retry or check your connection.
         </Text>
       )}
       {memberships?.length === 0 && (
-        <Text style={{ color: "#666" }}>
+        <Text style={{ color: colors.textMuted }}>
           Your account isn&apos;t linked to a troop yet. Ask a troop admin for an invite, then
           claim it on the web first.
         </Text>
@@ -41,14 +42,14 @@ export default function SelectTroopScreen() {
             style={({ pressed }) => ({
               padding: 16,
               borderWidth: 1,
-              borderColor: "#e5e7eb",
+              borderColor: colors.borderLight,
               borderRadius: 12,
               marginBottom: 10,
-              backgroundColor: pressed ? "#f3f4f6" : "white",
+              backgroundColor: pressed ? colors.hairline : "white",
             })}
           >
             <Text style={{ fontSize: 16, fontWeight: "600" }}>{item.tenant_name}</Text>
-            <Text style={{ color: "#666", marginTop: 2 }}>
+            <Text style={{ color: colors.textMuted, marginTop: 2 }}>
               {item.tenant_slug}
               {item.is_admin ? " · admin" : ""}
             </Text>
