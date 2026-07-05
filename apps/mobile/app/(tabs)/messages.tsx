@@ -1,4 +1,4 @@
-import { colors } from "@/lib/theme"
+import { useColors } from "@/lib/theme"
 import { useState } from "react"
 import { FlatList, Pressable, Text, View } from "react-native"
 import { Link } from "expo-router"
@@ -12,6 +12,7 @@ function formatSent(iso: string | null): string {
 }
 
 function InboxRow({ item }: { item: InboxItem }) {
+  const colors = useColors()
   const [open, setOpen] = useState(false)
   const markRead = useMarkInboxRead()
   const unread = item.readAt === null
@@ -42,6 +43,7 @@ function InboxRow({ item }: { item: InboxItem }) {
 }
 
 export default function MessagesScreen() {
+  const colors = useColors()
   const { items, unreadCount } = useInbox()
   const { sync, isSyncing } = useSyncContext()
   const { has } = useCachedPermissions()
@@ -61,7 +63,7 @@ export default function MessagesScreen() {
               alignItems: "center",
             }}
           >
-            <Text style={{ color: "white", fontWeight: "600" }}>New announcement</Text>
+            <Text style={{ color: colors.onBrand, fontWeight: "600" }}>New announcement</Text>
           </Pressable>
         </Link>
       )}

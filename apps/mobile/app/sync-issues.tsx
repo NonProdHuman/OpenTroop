@@ -1,4 +1,4 @@
-import { colors } from "@/lib/theme"
+import { useColors } from "@/lib/theme"
 import { FlatList, Pressable, Text, View } from "react-native"
 import { Stack } from "expo-router"
 import { useSyncContext } from "@/lib/sync-context"
@@ -16,6 +16,7 @@ const KIND_LABELS: Record<PendingCommand["kind"], string> = {
  * in the UI (which enqueues a fresh command).
  */
 export default function SyncIssuesScreen() {
+  const colors = useColors()
   const { failedCommands, discard } = useSyncContext()
 
   return (

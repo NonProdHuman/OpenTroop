@@ -1,4 +1,4 @@
-import { colors } from "@/lib/theme"
+import { useColors } from "@/lib/theme"
 import { useCallback, useEffect, useState, type ReactNode } from "react"
 import { AppState, Pressable, Text, View } from "react-native"
 import * as LocalAuthentication from "expo-local-authentication"
@@ -33,6 +33,7 @@ export async function setAppLockEnabled(enabled: boolean): Promise<boolean> {
 }
 
 export function AppLockGate({ children }: { children: ReactNode }) {
+  const colors = useColors()
   // null = still reading the setting; keep rendering children (no flash) and
   // lock only once we know the lock is on.
   const [locked, setLocked] = useState<boolean | null>(null)
@@ -78,7 +79,7 @@ export function AppLockGate({ children }: { children: ReactNode }) {
             paddingVertical: 12,
           }}
         >
-          <Text style={{ color: "white", fontWeight: "600" }}>Unlock with Face ID</Text>
+          <Text style={{ color: colors.onBrand, fontWeight: "600" }}>Unlock with Face ID</Text>
         </Pressable>
       </View>
     )

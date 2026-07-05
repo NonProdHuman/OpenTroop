@@ -1,4 +1,4 @@
-import { colors } from "@/lib/theme"
+import { useColors } from "@/lib/theme"
 import { FlatList, Pressable, RefreshControl, Text } from "react-native"
 import { Link } from "expo-router"
 import { useMirrorMembers } from "@/hooks/use-mirror"
@@ -6,6 +6,7 @@ import { useSyncContext } from "@/lib/sync-context"
 import { formatMemberName } from "@/lib/format"
 
 export default function RosterScreen() {
+  const colors = useColors()
   const members = useMirrorMembers()
   const { sync, isSyncing } = useSyncContext()
 

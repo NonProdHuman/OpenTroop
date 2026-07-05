@@ -1,4 +1,4 @@
-import { colors } from "@/lib/theme"
+import { useColors } from "@/lib/theme"
 import { FlatList, Pressable, Text, View } from "react-native"
 import { Redirect, useRouter } from "expo-router"
 import { useAuth } from "@clerk/clerk-expo"
@@ -7,6 +7,7 @@ import { useActiveTenant } from "@/lib/tenant-context"
 import { LoadingScreen } from "@/components/loading-screen"
 
 export default function SelectTroopScreen() {
+  const colors = useColors()
   const router = useRouter()
   const { isSignedIn, isLoaded } = useAuth()
   const { setActiveTenant } = useActiveTenant()
@@ -45,7 +46,7 @@ export default function SelectTroopScreen() {
               borderColor: colors.borderLight,
               borderRadius: 12,
               marginBottom: 10,
-              backgroundColor: pressed ? colors.hairline : "white",
+              backgroundColor: pressed ? colors.hairline : colors.surface,
             })}
           >
             <Text style={{ fontSize: 16, fontWeight: "600" }}>{item.tenant_name}</Text>

@@ -1,4 +1,4 @@
-import { colors } from "@/lib/theme"
+import { useColors } from "@/lib/theme"
 import { useState } from "react"
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native"
 import { Stack, useLocalSearchParams } from "expo-router"
@@ -28,6 +28,7 @@ function RsvpRow({
   participant: EventParticipant | undefined
   eventId: string
 }) {
+  const colors = useColors()
   const { enqueue } = useSyncContext()
   const [expanded, setExpanded] = useState(false)
   const current = participant?.rsvp_status ?? "no_response"
@@ -60,11 +61,11 @@ function RsvpRow({
               paddingVertical: 6,
               borderRadius: 999,
               borderWidth: 1,
-              borderColor: current === option.value ? colors.brand : colors.border,
-              backgroundColor: current === option.value ? colors.brandTint : "white",
+              borderColor: current === option.value ? colors.accent : colors.border,
+              backgroundColor: current === option.value ? colors.accentTint : colors.surface,
             }}
           >
-            <Text style={{ color: current === option.value ? colors.brand : colors.text }}>
+            <Text style={{ color: current === option.value ? colors.accent : colors.text }}>
               {option.label}
             </Text>
           </Pressable>
@@ -86,13 +87,13 @@ function RsvpRow({
               <Pressable
                 onPress={() => patch({ guest_count: Math.max(0, (participant?.guest_count ?? 0) - 1) })}
               >
-                <Text style={{ fontSize: 20, color: colors.brand }}>−</Text>
+                <Text style={{ fontSize: 20, color: colors.accent }}>−</Text>
               </Pressable>
               <Text style={{ minWidth: 20, textAlign: "center" }}>
                 {participant?.guest_count ?? 0}
               </Text>
               <Pressable onPress={() => patch({ guest_count: (participant?.guest_count ?? 0) + 1 })}>
-                <Text style={{ fontSize: 20, color: colors.brand }}>+</Text>
+                <Text style={{ fontSize: 20, color: colors.accent }}>+</Text>
               </Pressable>
             </View>
           </View>
@@ -109,6 +110,7 @@ function RsvpRow({
 }
 
 export default function EventDetailScreen() {
+  const colors = useColors()
   const { id } = useLocalSearchParams<{ id: string }>()
   const event = useMirrorEvent(id)
   const participants = useMirrorParticipants(id)
@@ -193,7 +195,7 @@ export default function EventDetailScreen() {
                     paddingVertical: 8,
                   }}
                 >
-                  <Text style={{ color: "white", fontWeight: "600" }}>Take attendance</Text>
+                  <Text style={{ color: colors.onBrand, fontWeight: "600" }}>Take attendance</Text>
                 </Pressable>
               )}
             </View>
