@@ -59,6 +59,12 @@ export type Location = Schemas["LocationRead"]
 export type EventParticipant = Schemas["EventParticipantRead"]
 export type EventParticipantCounts = Schemas["EventParticipantCounts"]
 export type EventAudience = Schemas["EventAudienceRead"]
+export type EventPhoto = Schemas["EventPhotoWithUrl"]
+export type PhotoUploadTarget = Schemas["PhotoUploadTarget"]
+export type PhotoInitiateItem = Schemas["PhotoInitiateItem"]
+export type PhotoInitiateResponse = Schemas["PhotoInitiateResponse"]
+export type PhotoDownload = Schemas["PhotoDownload"]
+export type StorageUsage = Schemas["StorageUsageRead"]
 export type EventOrganizer = Schemas["EventOrganizerRead"]
 
 // ── Tenant settings ───────────────────────────────────────────────────────────

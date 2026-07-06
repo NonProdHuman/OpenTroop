@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { Pencil } from "lucide-react"
+import { Images, Pencil } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -33,6 +33,11 @@ export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheet
   function handleEdit() {
     onOpenChange(false)
     router.push(`/events/${event!.id}/edit`)
+  }
+
+  function handlePhotos() {
+    onOpenChange(false)
+    router.push(`/events/${event!.id}/photos`)
   }
 
   const loc = event.location
@@ -68,12 +73,25 @@ export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheet
           <SheetDescription className="flex items-center gap-2">
             <EventTypeBadge type={event.event_type} />
           </SheetDescription>
-          {has("event:write") && (
+          {(has("event:write") || has("photo:read")) && (
             <div className="flex items-center gap-2 pt-1">
-              <Button size="sm" variant="outline" onClick={handleEdit}>
-                <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                Edit
-              </Button>
+              {has("event:write") && (
+                <Button size="sm" variant="outline" onClick={handleEdit}>
+                  <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                  Edit
+                </Button>
+              )}
+              {has("photo:read") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handlePhotos}
+                  data-testid="event-photos-link"
+                >
+                  <Images className="h-3.5 w-3.5 mr-1.5" />
+                  Photos
+                </Button>
+              )}
             </div>
           )}
         </SheetHeader>
