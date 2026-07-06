@@ -163,7 +163,10 @@ export into the target tenant. Supported record types (in import order):
 
 **Advancement precondition:** the global catalog must be seeded (`uv run seed-advancement`)
 before import — with no `Rank` rows, all advancement records are skipped behind one warning.
-Run `uv run recompute-advancement` after import to pick up auto-credit thresholds.
+Deployed environments seed automatically: the image CMD runs `seed-advancement` (with the
+migrate credentials) right after `alembic upgrade head`, and the API logs a startup WARNING
+if the catalog is still empty (GH-241). Run `uv run recompute-advancement` after import to
+pick up auto-credit thresholds.
 
 **All other record types are deliberately skipped** (GH-205 sweep of a full 68-type export;
 field inventory in [`data/twh/export_schema.json`](data/twh/export_schema.json)):

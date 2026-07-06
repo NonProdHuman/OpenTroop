@@ -38,6 +38,18 @@ from app.models.enums import MetricKind, MetricWindow, RankCode
 DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "advancement"
 
 
+def catalog_is_empty(session: Session) -> bool:
+    """True when the global advancement catalog has no live ranks.
+
+    Mirrors the TWH importer's precondition check (``_import_advancement``): with
+    no ``Rank`` rows the importer skips every advancement record behind a single
+    warning, so a deployed environment that never ran ``seed-advancement`` silently
+    drops all imported advancement data (GH-241). Used by the startup guardrail to
+    make that state loud instead of silent.
+    """
+    return session.scalar(select(Rank.id).where(Rank.is_deleted.is_(False)).limit(1)) is None
+
+
 @dataclass
 class CatalogLoadStats:
     """Counts of what a load actually changed — surfaced by the CLI."""
