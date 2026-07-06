@@ -114,10 +114,15 @@ describe("AppSidebar", () => {
     expect(importLink).toHaveAttribute("data-active", "")
   })
 
-  it("nav items link to the correct paths", () => {
+  it("nav items link to the correct paths", async () => {
     renderSidebar()
+    // Members is under the Membership group, which auto-opens on the /members route.
     expect(screen.getByText("Members").closest("a")).toHaveAttribute("href", "/members")
-    expect(screen.getByText("Events").closest("a")).toHaveAttribute("href", "/events")
+    // Events is now a collapsible folder; expand it and check its Event List child.
+    await userEvent.click(screen.getByText("Events"))
+    expect(screen.getByText("Event List").closest("a")).toHaveAttribute("href", "/events")
+    expect(screen.getByText("Calendar").closest("a")).toHaveAttribute("href", "/events/calendar")
+    expect(screen.getByText("Event Types").closest("a")).toHaveAttribute("href", "/events/types")
   })
 
   it("marks the current route as active", () => {
