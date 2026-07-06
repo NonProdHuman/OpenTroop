@@ -18,6 +18,11 @@ env:
   # `import_worker_service_name` Terraform output) to have deploys roll it too;
   # empty (inprocess/self-host) skips the step.
   IMPORT_WORKER_SERVICE: ${{ vars.GCP_IMPORT_WORKER_SERVICE_NAME || '' }}
+  # Optional: the weekly maintenance Cloud Run Job (reap-photo-uploads +
+  # reap-tombstones) runs the SAME backend image. Set GCP_MAINTENANCE_JOB_NAME
+  # (to the `maintenance_job_name` Terraform output) to have deploys roll it
+  # too; empty (self-host cron) skips the step.
+  MAINTENANCE_JOB: ${{ vars.GCP_MAINTENANCE_JOB_NAME || '' }}
   DEPLOY_ENVIRONMENT: ${{ vars.DEPLOY_ENVIRONMENT || vars.ENVIRONMENT || 'production' }}
   PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || vars.API_PUBLIC_URL || '' }}
   BACKEND_IMAGE: ${{ vars.GCP_REGION || vars.REGION || 'us-central1' }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID || vars.PROJECT_ID || 'opentroop' }}/${{ vars.GCP_ARTIFACT_REPOSITORY || vars.AR_REPO || 'opentroop-containers' }}/opentroop-api:${{ github.sha }}
@@ -105,6 +110,17 @@ jobs:
           image: ${{ env.BACKEND_IMAGE }}
           flags: >-
             --port=8000
+
+      # The weekly maintenance job (GH-145/GH-222 reapers) runs the same backend
+      # image; roll it to the new revision too. Env, SA, and the schedule are
+      # Terraform-managed — this only updates the image (ADR 0009).
+      - name: Roll Maintenance Job image
+        if: env.MAINTENANCE_JOB != ''
+        run: |
+          gcloud run jobs update "$MAINTENANCE_JOB" \
+            --region "$REGION" \
+            --image "$BACKEND_IMAGE" \
+            --quiet
 
       # --- FRONTEND ---
       - name: Build Frontend Image

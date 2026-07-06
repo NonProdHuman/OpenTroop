@@ -64,16 +64,18 @@ locals {
   ))
 
   runtime_secret_values = {
-    APP_SECRET           = local.app_secret
-    AUTH_AUDIENCE        = var.auth_audience
-    AUTH_ISSUER          = local.auth_issuer
-    AUTH_JWKS_URI        = local.auth_jwks_uri
-    CLERK_SECRET_KEY     = var.clerk_secret_key
-    DATABASE_URL         = local.database_url
-    DATABASE_URL_ADMIN   = local.database_url_admin
-    DATABASE_URL_MIGRATE = local.database_url_migrate
-    ORIGIN_SHARED_SECRET = local.origin_shared_secret
-    RESEND_API_KEY       = var.resend_api_key
+    APP_SECRET                = local.app_secret
+    AUTH_AUDIENCE             = var.auth_audience
+    AUTH_ISSUER               = local.auth_issuer
+    AUTH_JWKS_URI             = local.auth_jwks_uri
+    CLERK_SECRET_KEY          = var.clerk_secret_key
+    DATABASE_URL              = local.database_url
+    DATABASE_URL_ADMIN        = local.database_url_admin
+    DATABASE_URL_MIGRATE      = local.database_url_migrate
+    ORIGIN_SHARED_SECRET      = local.origin_shared_secret
+    RESEND_API_KEY            = var.resend_api_key
+    STORAGE_ACCESS_KEY_ID     = var.storage_access_key_id
+    STORAGE_SECRET_ACCESS_KEY = var.storage_secret_access_key
   }
 
   runtime_secret_names = nonsensitive(toset(concat(
@@ -87,6 +89,8 @@ locals {
     var.database_url_migrate != null || var.manage_neon || var.database_url != null ? ["DATABASE_URL_MIGRATE"] : [],
     var.cloudflare_enabled ? ["ORIGIN_SHARED_SECRET"] : [],
     var.resend_api_key != null ? ["RESEND_API_KEY"] : [],
+    var.storage_access_key_id != null ? ["STORAGE_ACCESS_KEY_ID"] : [],
+    var.storage_secret_access_key != null ? ["STORAGE_SECRET_ACCESS_KEY"] : [],
   )))
 
   api_secret_env_names = nonsensitive(compact([
@@ -99,6 +103,8 @@ locals {
     var.database_url_migrate != null || var.manage_neon || var.database_url != null ? "DATABASE_URL_MIGRATE" : "",
     var.cloudflare_enabled ? "ORIGIN_SHARED_SECRET" : "",
     var.resend_api_key != null ? "RESEND_API_KEY" : "",
+    var.storage_access_key_id != null ? "STORAGE_ACCESS_KEY_ID" : "",
+    var.storage_secret_access_key != null ? "STORAGE_SECRET_ACCESS_KEY" : "",
   ]))
 
   web_secret_env_names = nonsensitive(compact([
@@ -108,6 +114,26 @@ locals {
   api_service_account_id = "${substr(local.name_prefix, 0, 20)}-api"
   web_service_account_id = "${substr(local.name_prefix, 0, 20)}-web"
   worker_name            = "${local.name_prefix}-proxy"
+
+  # Object storage for event photos (GH-145, ADR 0011). The bucket name and the
+  # R2 endpoint derive from the environment; both flow to the API service and the
+  # maintenance job as plain env (the keys are Secret Manager secrets).
+  storage_enabled     = var.storage_backend != "none"
+  storage_bucket_name = local.storage_enabled ? coalesce(var.storage_bucket, "${local.name_prefix}-media") : ""
+  storage_s3_endpoint = local.storage_enabled ? coalesce(
+    var.storage_s3_endpoint,
+    var.storage_backend == "r2" && var.cloudflare_account_id != null ? "https://${var.cloudflare_account_id}.r2.cloudflarestorage.com" : "",
+  ) : ""
+
+  # Weekly maintenance job (reap-photo-uploads + reap-tombstones). Terraform owns
+  # the job shell; GitHub Actions rolls its image on deploy (ADR 0009).
+  maintenance_enabled  = var.maintenance_job_enabled
+  maintenance_job_name = coalesce(var.maintenance_job_name, "${local.name_prefix}-maintenance")
+  maintenance_sa_id    = "${substr(local.name_prefix, 0, 20)}-mnt"
+  scheduler_sa_id      = "${substr(local.name_prefix, 0, 20)}-sch"
+
+  # The job never serves HTTP, so it has no use for the origin secret.
+  maintenance_secret_env_names = [for n in local.api_secret_env_names : n if n != "ORIGIN_SHARED_SECRET"]
 
   # Async TWH import worker (GH-240). Provisioned only when the SaaS Cloud Tasks
   # backend is selected; self-host/dev use the in-process drain loop and none of

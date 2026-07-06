@@ -18,7 +18,9 @@ resource "google_project_service" "required" {
     "iamcredentials.googleapis.com",
     "run.googleapis.com",
     "secretmanager.googleapis.com",
-    ], local.cloudtasks_enabled ? ["cloudtasks.googleapis.com"] : []
+    ],
+    local.cloudtasks_enabled ? ["cloudtasks.googleapis.com"] : [],
+    local.maintenance_enabled ? ["cloudscheduler.googleapis.com"] : [],
   ))
 
   project            = var.gcp_project_id
@@ -168,6 +170,21 @@ resource "google_cloud_run_v2_service" "api" {
       env {
         name  = "EMAIL_FROM_ADDRESS"
         value = coalesce(var.email_from_address, "")
+      }
+
+      # Object storage for event photos (GH-145, ADR 0011). Empty/none when the
+      # feature is disabled; the access keys ride the secret env block below.
+      env {
+        name  = "STORAGE_BACKEND"
+        value = var.storage_backend
+      }
+      env {
+        name  = "STORAGE_BUCKET"
+        value = local.storage_bucket_name
+      }
+      env {
+        name  = "STORAGE_S3_ENDPOINT"
+        value = local.storage_s3_endpoint
       }
 
       # Async TWH import dispatch (GH-240). The queue/worker values are empty
