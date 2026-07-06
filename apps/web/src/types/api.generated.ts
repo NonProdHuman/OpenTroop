@@ -1130,6 +1130,32 @@ export interface paths {
         patch: operations["update_position_term_members__member_id__positions__assignment_id__patch"];
         trace?: never;
     };
+    "/members/{member_id}/purge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Purge Member Endpoint
+         * @description Permanently delete a member's PII (GH-222) — anonymize-in-place hard delete.
+         *
+         *     Stricter than the soft DELETE: requires the caller to be a tenant
+         *     administrator (not just ``member:delete``) and to echo the member's full
+         *     name. Irreversible — the row becomes a faceless sync tombstone; the reaper
+         *     physically removes it after the retention window. 409 for self-purge, the
+         *     tenant's last administrator, or an already-purged member.
+         */
+        post: operations["purge_member_endpoint_members__member_id__purge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/merit-badges": {
         parameters: {
             query?: never;
@@ -1408,7 +1434,17 @@ export interface paths {
         get: operations["get_tenant_platform_tenants__tenant_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Tenant
+         * @description Permanently delete a tenant and every row it owns (superadmin only, GH-222).
+         *
+         *     Immediate and irreversible — the export is the recovery path, so the gate
+         *     is strict: the tenant must be **suspended**, an export must have been taken
+         *     **after** the suspension, and the request must echo the slug. The slug is
+         *     freed at once (re-provisioning it works immediately). Platform User/Identity
+         *     rows survive — they may span tenants.
+         */
+        delete: operations["delete_tenant_platform_tenants__tenant_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1462,6 +1498,32 @@ export interface paths {
          *     tenant's last remaining administrator (a troop must keep at least one).
          */
         delete: operations["revoke_tenant_admin_platform_tenants__tenant_id__admins__member_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/platform/tenants/{tenant_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Tenant Data
+         * @description Download the tenant's full data bundle as JSON (superadmin only, GH-222).
+         *
+         *     Every tenant-scoped table (soft-deleted rows included), the tenant row, and
+         *     a minimal directory of linked platform users. Stamps ``last_export_at`` —
+         *     tenant deletion requires an export taken *after* suspension, making this
+         *     both the offboarding artifact and the accidental-delete recovery path.
+         *     Superadmin-only because the bundle is the troop's complete PII.
+         */
+        get: operations["export_tenant_data_platform_tenants__tenant_id__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3551,6 +3613,18 @@ export interface components {
             /** Start Date */
             start_date?: string | null;
         };
+        /**
+         * MemberPurgeRequest
+         * @description Body for POST /members/{id}/purge — the type-to-confirm phrase (GH-222).
+         *
+         *     Must match the member's "first_name last_name" (case-insensitive,
+         *     whitespace-normalized). Enforced server-side so no client can offer a
+         *     one-click irreversible delete.
+         */
+        MemberPurgeRequest: {
+            /** Confirm Name */
+            confirm_name: string;
+        };
         /** MemberRankView */
         MemberRankView: {
             /** Is Complete */
@@ -4794,6 +4868,16 @@ export interface components {
             user_id: string | null;
         };
         /**
+         * TenantDeleteRequest
+         * @description Body for DELETE /platform/tenants/{id} — type-to-confirm (GH-222).
+         *
+         *     Must match the tenant's slug exactly; enforced server-side.
+         */
+        TenantDeleteRequest: {
+            /** Confirm Slug */
+            confirm_slug: string;
+        };
+        /**
          * TenantProvision
          * @description Request body for the platform-admin tenant onboarding endpoint.
          *
@@ -4848,6 +4932,8 @@ export interface components {
             invite_token: string;
             /** Is Deleted */
             is_deleted: boolean;
+            /** Last Export At */
+            last_export_at?: string | null;
             /** Name */
             name: string;
             /** Permission Message */
@@ -4876,6 +4962,8 @@ export interface components {
             id: string;
             /** Is Deleted */
             is_deleted: boolean;
+            /** Last Export At */
+            last_export_at?: string | null;
             /** Name */
             name: string;
             /** Permission Message */
@@ -7832,6 +7920,41 @@ export interface operations {
             };
         };
     };
+    purge_member_endpoint_members__member_id__purge_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MemberPurgeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_merit_badges_merit_badges_get: {
         parameters: {
             query?: never;
@@ -8394,6 +8517,39 @@ export interface operations {
             };
         };
     };
+    delete_tenant_platform_tenants__tenant_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TenantDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_tenant_admins_platform_tenants__tenant_id__admins_get: {
         parameters: {
             query?: never;
@@ -8478,6 +8634,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_tenant_data_platform_tenants__tenant_id__export_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
             };
             /** @description Validation Error */
             422: {

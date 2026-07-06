@@ -28,6 +28,9 @@ uv run reset-db --yes             # same, no prompt (CI/scripts)
 # Advancement (Pillar 4, GH-92)
 uv run seed-advancement           # load/refresh the global rank & merit badge catalog
 uv run recompute-advancement      # scheduled auto-credit pass (tenure/POR thresholds)
+
+# Hard delete (GH-222, ADR 0010)
+uv run reap-tombstones            # physically delete purged-member tombstones past retention (cron)
 ```
 
 ## Scripts

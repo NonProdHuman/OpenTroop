@@ -1,5 +1,6 @@
 import { Text, useColorScheme, View } from "react-native"
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router"
+import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native"
+import { Stack } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import { ClerkProvider } from "@clerk/clerk-expo"
 import { tokenCache } from "@clerk/clerk-expo/token-cache"

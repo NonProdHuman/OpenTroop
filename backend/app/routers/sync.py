@@ -31,6 +31,7 @@ from app.models.event_type import EventType
 from app.models.location import Location
 from app.models.member import Member, MemberRelationship
 from app.models.message import Message, MessageRecipient
+from app.models.tenant import Tenant
 from app.schemas.event import EventParticipantRead, EventRead
 from app.schemas.event_type import EventTypeRead
 from app.schemas.location import LocationRead
@@ -56,6 +57,7 @@ _LIMIT = Query(default=500, ge=1, le=1000)
 def _pull_page[T](
     model: type[T],
     db: Any,
+    tenant_id: uuid.UUID,
     since_seq: int,
     since_id: uuid.UUID | None,
     limit: int,
@@ -65,7 +67,25 @@ def _pull_page[T](
 
     Returns ``(rows, next_since_seq, next_since_id, has_more)``. Tenant scoping is
     automatic; the soft-delete filter is deliberately lifted so tombstones flow.
+
+    **Reap watermark (GH-222, sync-protocol Decision 5):** once the tombstone
+    reaper has physically deleted rows, an incremental cursor from before the
+    reap may have missed deletions that no tombstone can express any more. Such
+    cursors (``0 < since_seq < purged_through_seq``) are answered **410 Gone** —
+    the client must full-refetch from ``since_seq=0`` (mark-and-sweep, the same
+    reconciliation path as visibility loss). A completed walk's cursor is
+    clamped up to the watermark so a freshly-refetched client converges instead
+    of looping on 410.
     """
+    tenant = db.get(Tenant, tenant_id)
+    watermark = (tenant.purged_through_seq if tenant is not None else None) or 0
+    if 0 < since_seq < watermark:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="resync_required: tombstones were purged past this cursor; "
+            "restart from since_seq=0",
+        )
+
     seq = model.sync_seq  # type: ignore[attr-defined]
     id_col = model.id  # type: ignore[attr-defined]
     after_cursor: ColumnElement[bool]
@@ -93,6 +113,9 @@ def _pull_page[T](
     else:
         next_since_seq = since_seq
         next_since_id = since_id
+    if not has_more and next_since_seq < watermark:
+        next_since_seq = watermark
+        next_since_id = None
     return page, next_since_seq, next_since_id, has_more
 
 
@@ -139,7 +162,7 @@ def sync_members(
     family = _family_scope(ctx, db)
     extra = Member.id.in_(family) if family is not None else None
     page, next_seq, next_id, has_more = _pull_page(
-        Member, db, since_seq, since_id, limit, extra_clause=extra
+        Member, db, tenant_id, since_seq, since_id, limit, extra_clause=extra
     )
     items = [MemberRead.model_validate(m) for m in page]
     if family is not None:
@@ -178,7 +201,7 @@ def sync_member_relationships(
         else None
     )
     page, next_seq, next_id, has_more = _pull_page(
-        MemberRelationship, db, since_seq, since_id, limit, extra_clause=extra
+        MemberRelationship, db, tenant_id, since_seq, since_id, limit, extra_clause=extra
     )
     return SyncMemberRelationshipsPage(
         items=[MemberRelationshipRead.model_validate(r) for r in page],
@@ -200,7 +223,9 @@ def sync_event_types(
     since_id: uuid.UUID | None = None,
     limit: int = _LIMIT,
 ) -> SyncEventTypesPage:
-    page, next_seq, next_id, has_more = _pull_page(EventType, db, since_seq, since_id, limit)
+    page, next_seq, next_id, has_more = _pull_page(
+        EventType, db, tenant_id, since_seq, since_id, limit
+    )
     return SyncEventTypesPage(
         items=[EventTypeRead.model_validate(t) for t in page],
         next_since_seq=next_seq,
@@ -221,7 +246,9 @@ def sync_locations(
     since_id: uuid.UUID | None = None,
     limit: int = _LIMIT,
 ) -> SyncLocationsPage:
-    page, next_seq, next_id, has_more = _pull_page(Location, db, since_seq, since_id, limit)
+    page, next_seq, next_id, has_more = _pull_page(
+        Location, db, tenant_id, since_seq, since_id, limit
+    )
     return SyncLocationsPage(
         items=[LocationRead.model_validate(loc) for loc in page],
         next_since_seq=next_seq,
@@ -242,7 +269,13 @@ def sync_events(
     """Pull events, narrowed by the caller's audience visibility (GH-153)."""
     _require_from_ctx(ctx, Permission.EVENT_READ)
     page, next_seq, next_id, has_more = _pull_page(
-        Event, db, since_seq, since_id, limit, extra_clause=_event_visibility_for(ctx, db)
+        Event,
+        db,
+        tenant_id,
+        since_seq,
+        since_id,
+        limit,
+        extra_clause=_event_visibility_for(ctx, db),
     )
     return SyncEventsPage(
         items=[EventRead.model_validate(e) for e in page],
@@ -272,7 +305,7 @@ def sync_event_participants(
     if visibility is not None:
         extra = EventParticipant.event_id.in_(select(Event.id).where(visibility))
     page, next_seq, next_id, has_more = _pull_page(
-        EventParticipant, db, since_seq, since_id, limit, extra_clause=extra
+        EventParticipant, db, tenant_id, since_seq, since_id, limit, extra_clause=extra
     )
     return SyncEventParticipantsPage(
         items=[EventParticipantRead.model_validate(p) for p in page],
@@ -295,7 +328,7 @@ def sync_inbox_messages(
     actor, _ = ctx
     mine = select(MessageRecipient.message_id).where(MessageRecipient.member_id == actor.id)
     page, next_seq, next_id, has_more = _pull_page(
-        Message, db, since_seq, since_id, limit, extra_clause=Message.id.in_(mine)
+        Message, db, tenant_id, since_seq, since_id, limit, extra_clause=Message.id.in_(mine)
     )
     return SyncInboxMessagesPage(
         items=[MessageRead.model_validate(m) for m in page],
@@ -319,6 +352,7 @@ def sync_inbox_recipients(
     page, next_seq, next_id, has_more = _pull_page(
         MessageRecipient,
         db,
+        tenant_id,
         since_seq,
         since_id,
         limit,

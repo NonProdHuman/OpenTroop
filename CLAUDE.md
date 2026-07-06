@@ -143,7 +143,10 @@ strictly monotonic cursor bumped on every insert/update (Postgres `sync_seq`
 sequence; `MAX+1` fallback on SQLite). Adopting tables must also add a
 `(tenant_id, sync_seq)` index. `Member` is live today via
 `GET /sync/members` (`app/routers/sync.py`), keyset-paged on `(sync_seq, id)`.
-See [`docs/spec/sync-protocol.md`](docs/spec/sync-protocol.md).
+After the tombstone reaper hard-deletes purged members (GH-222), every `/sync/*`
+endpoint answers **410** to a cursor behind `Tenant.purged_through_seq` (client must
+full-refetch from `since_seq=0`) and clamps a completed walk's cursor up to the
+watermark. See [`docs/spec/sync-protocol.md`](docs/spec/sync-protocol.md) and ADR 0010.
 
 The dialect-agnostic SQLAlchemy `Uuid` type lets the Postgres-targeted models run
 unmodified on SQLite, which is how the test suite stays DB-free.
@@ -154,7 +157,7 @@ unmodified on SQLite, which is how the test suite stays DB-free.
 
 - `Tenant` — one row per troop. Fields: `name`, `slug` (unique; used for subdomain
   routing), `suspended_at` (nullable; SaaS suspension marker, distinct from `is_deleted` —
-  a suspended tenant still exists but is locked out of all tenant-scoped requests).
+  a suspended tenant still exists but is locked out of all tenant-scoped requests), `last_export_at` (when a platform admin last took the full JSON export — tenant deletion requires an export after suspension), and `purged_through_seq` (reap watermark; see the sync section and ADR 0010).
   `Tenant.id` is the value stored in `tenant_id` on all `TrackedBase` rows.
 - `User` — a platform-level person identity. Fields: `email`, `display_name`,
   `platform_role`. One `User` may have `Member` records in multiple tenants. To fetch
@@ -217,7 +220,10 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   within a troop while permitting multiple null values. It is declared in
   `Member.__table_args__` and created by the initial Alembic migration.
   `user_id` (nullable FK → `users.id`) links the roster record to the platform
-  identity once a member claims their account. `calendar_token_hash` (nullable, unique)
+  identity once a member claims their account. `purged_at` (nullable) marks a hard-deleted
+  member: `POST /members/{id}/purge` (admin-only, name-confirmed) anonymizes the row in
+  place — PII nulled, tombstoned for sync — and `uv run reap-tombstones` physically deletes
+  it after ≥180 days (GH-222, ADR 0010). `calendar_token_hash` (nullable, unique)
   stores the SHA-256 hash of the secret bearer token for the member's personal iCal
   feed (`/calendar/{token}.ics`); the raw token is shown once at mint time and never
   persisted.
@@ -384,6 +390,12 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   - `GET /platform/tenants`, `GET /platform/tenants/{id}` — list / inspect tenants.
   - `POST /platform/tenants/{id}/suspend` · `/unsuspend` — set/clear `suspended_at`
     (idempotent); a suspended tenant rejects all tenant-scoped requests.
+  - `GET /platform/tenants/{id}/export` — full-tenant JSON bundle (every tenant-scoped
+    table + linked-user directory); stamps `last_export_at`. Superadmin only.
+  - `DELETE /platform/tenants/{id}` — **immediate, irreversible tenant purge** (GH-222,
+    ADR 0010). Superadmin only; requires suspended + an export taken after suspension +
+    `confirm_slug` in the body. Deletes every `tenant_id` row and the Tenant; platform
+    Users/Identities survive; the slug is immediately reusable.
   - `GET /platform/tenants/{id}/admins` — members holding the is_admin role.
   - `POST /platform/tenants/{id}/admins` — invite another admin (unclaimed Member + claim token).
   - `DELETE /platform/tenants/{id}/admins/{member_id}` — revoke admin; 409 if it would remove

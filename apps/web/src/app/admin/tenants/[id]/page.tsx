@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowLeft, Loader2, Pause, Play } from "lucide-react"
+import { ArrowLeft, Download, Loader2, Pause, Play } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { toast } from "sonner"
@@ -14,7 +14,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import type { Tenant } from "@/types/api"
 import {
+  useExportTenant,
   useRevokeTenantAdmin,
   useSetTenantSuspended,
   useTenant,
@@ -22,6 +24,7 @@ import {
 } from "@/hooks/use-platform"
 import { ConsoleHeader } from "../../_components/console-header"
 import { TenantStatusBadge } from "../../_components/tenant-status-badge"
+import { DeleteTenantDialog, deleteGatesSatisfied } from "./delete-tenant-dialog"
 import { InviteAdminDialog } from "./invite-admin-dialog"
 
 export default function TenantDetailPage() {
@@ -79,10 +82,75 @@ export default function TenantDetailPage() {
             </section>
 
             <AdminsSection tenantId={id} />
+
+            <DangerZoneSection tenant={tenant} />
           </>
         )}
       </div>
     </>
+  )
+}
+
+function DangerZoneSection({ tenant }: { tenant: Tenant }) {
+  const exportTenant = useExportTenant(tenant.id)
+
+  async function handleExport() {
+    try {
+      const bundle = await exportTenant.mutateAsync()
+      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `${tenant.slug}-export-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success("Export downloaded")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Export failed")
+    }
+  }
+
+  const ready = deleteGatesSatisfied(tenant)
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-base font-semibold tracking-tight">Danger zone</h2>
+      <div className="space-y-4 rounded-lg border border-destructive/30 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">Export all data</p>
+            <p className="text-sm text-muted-foreground">
+              Full JSON bundle of every record this troop owns. Deleting the tenant requires an
+              export taken after suspension — the file is also the only recovery path.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExport}
+            disabled={exportTenant.isPending}
+          >
+            {exportTenant.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            Export
+          </Button>
+        </div>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">Delete tenant</p>
+            <p className="text-sm text-muted-foreground">
+              {ready
+                ? "All gates passed — deletion is armed and immediate."
+                : "Locked: suspend the tenant, then take a fresh export to unlock deletion."}
+            </p>
+          </div>
+          <DeleteTenantDialog tenant={tenant} />
+        </div>
+      </div>
+    </section>
   )
 }
 

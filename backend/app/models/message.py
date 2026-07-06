@@ -36,7 +36,9 @@ class Message(Syncable, TrackedBase):
     send_to_all: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    sent_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("members.id"), nullable=False)
+    # Nullable: the reaper nulls this when the sender is hard-deleted after the
+    # tombstone retention window (GH-222) — the message reads as "deleted member".
+    sent_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("members.id"), nullable=True)
 
 
 class MessageGroup(TrackedBase):

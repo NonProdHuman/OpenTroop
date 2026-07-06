@@ -113,8 +113,12 @@ ok "Migrations up to date"
 # ---------------------------------------------------------------------------
 # 7. Backend (uvicorn — reads backend/.env directly)
 # ---------------------------------------------------------------------------
+# Loopback by default (nothing exposed on the LAN). For testing the mobile app
+# on a physical phone (Expo Go), run: OPENTROOP_BACKEND_HOST=0.0.0.0 ./start.sh
+# and point EXPO_PUBLIC_API_URL at this machine's LAN IP.
+BACKEND_HOST="${OPENTROOP_BACKEND_HOST:-127.0.0.1}"
 info "Starting backend..."
-(cd "$REPO/backend" && uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000) \
+(cd "$REPO/backend" && uv run uvicorn app.main:app --reload --host "$BACKEND_HOST" --port 8000) \
   >"${TMPDIR:-/tmp}/opentroop-backend.log" 2>&1 &
 BACKEND_PID=$!
 

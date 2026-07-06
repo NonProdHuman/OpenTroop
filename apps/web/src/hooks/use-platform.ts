@@ -95,6 +95,33 @@ export function useRevokeTenantAdmin(id: string) {
   })
 }
 
+export function useExportTenant(id: string) {
+  const { request } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    // The bundle is the troop's complete data — the caller downloads it as a
+    // file. Exporting stamps last_export_at, which arms the delete gate.
+    mutationFn: () => request<Record<string, unknown>>(`/platform/tenants/${id}/export`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: tenantKey(id) })
+      qc.invalidateQueries({ queryKey: tenantsKey })
+    },
+  })
+}
+
+export function useDeleteTenant(id: string) {
+  const { request } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (confirmSlug: string) =>
+      request<void>(`/platform/tenants/${id}`, {
+        method: "DELETE",
+        body: JSON.stringify({ confirm_slug: confirmSlug }),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: tenantsKey }),
+  })
+}
+
 // ── Platform administrators (the global tier) ────────────────────────────────
 
 export function usePlatformAdmins() {

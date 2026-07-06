@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, DateTime, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,6 +29,15 @@ class Tenant(PlatformBase):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # When a platform admin last took a full data export (GH-222). Tenant deletion
+    # requires an export *after* suspension — the export is the recovery path for
+    # an accidental delete, since the purge itself is immediate and irreversible.
+    last_export_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Highest sync_seq among rows the tombstone reaper has physically deleted for
+    # this tenant (GH-222; sync-protocol Decision 5). A pull cursor behind this
+    # watermark may have missed tombstones — the sync endpoints answer 410 so the
+    # client full-refetches from since_seq=0. Null ⇒ nothing ever reaped.
+    purged_through_seq: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     # Customizable parental permission-slip language shown before a parent clicks "I Agree".
     # Static text (no merge fields). Null ⇒ a built-in default is shown (see DEFAULT_PERMISSION_MESSAGE).
     permission_message: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -109,6 +109,13 @@ class Settings(BaseSettings):
     rate_limit_calendar_per_minute: int = 60  # per client IP on /calendar/* (token guessing)
     rate_limit_auth_per_minute: int = 30  # per client IP on /auth/* (invite-token spray)
 
+    # How long an anonymized member tombstone must remain in the sync stream before
+    # the reaper (`uv run reap-tombstones`) may physically delete it (GH-222).
+    # Sync-protocol Decision 5 sets a 180-day floor — a client offline longer than
+    # this cannot converge incrementally and is told to full-refetch. Raising it is
+    # safe; the ge=180 bound stops anyone from silently under-delivering tombstones.
+    tombstone_retention_days: int = Field(default=180, ge=180)
+
     # Cloudflare Access belt for the platform control plane (GH-117). When the team
     # domain is set, /platform/* additionally requires a valid Cf-Access-Jwt-Assertion
     # issued by <team>.cloudflareaccess.com (audience pinned when cf_access_aud set).

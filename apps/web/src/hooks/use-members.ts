@@ -63,6 +63,23 @@ export function useUpdateMember() {
   })
 }
 
+export function usePurgeMember() {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, confirmName }: { id: string; confirmName: string }) =>
+      request<void>(`/members/${id}/purge`, {
+        method: "POST",
+        body: JSON.stringify({ confirm_name: confirmName }),
+      }),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.members(activeTenantId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.member(activeTenantId, id) })
+    },
+  })
+}
+
 export function useInviteMember() {
   const { request } = useApi()
   return useMutation({
