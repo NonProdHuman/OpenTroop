@@ -13,6 +13,7 @@ from __future__ import annotations
 import html
 import logging
 import uuid
+from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
@@ -42,24 +43,45 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-def resolve_message_audience(message: Message, db: Session) -> set[uuid.UUID]:
-    """The deduplicated member ids a message reaches, per its group targets."""
+def all_member_ids(tenant_id: uuid.UUID, db: Session) -> set[uuid.UUID]:
+    """Every non-deleted member in the tenant — the 'entire troop' audience (#217)."""
+    return set(
+        db.scalars(
+            select(Member.id).where(Member.tenant_id == tenant_id, Member.is_deleted.is_(False))
+        ).all()
+    )
+
+
+def resolve_group_targets(
+    targets: Iterable[tuple[uuid.UUID, AudienceType]], db: Session
+) -> set[uuid.UUID]:
+    """Deduplicated member ids reached by a set of (group_id, audience_type) targets.
+
+    Shared by the persisted send path and the stateless compose preview (#217).
+    """
     audience: set[uuid.UUID] = set()
-    targets = db.scalars(select(MessageGroup).where(MessageGroup.message_id == message.id)).all()
-    for target in targets:
-        members = set(resolve_group_members(target.group_id, db))
-        if target.audience_type == AudienceType.MEMBERS:
+    for group_id, audience_type in targets:
+        members = set(resolve_group_members(group_id, db))
+        if audience_type == AudienceType.MEMBERS:
             audience |= members
-        elif target.audience_type == AudienceType.MEMBERS_AND_PARENTS:
+        elif audience_type == AudienceType.MEMBERS_AND_PARENTS:
             audience |= members | _parents_of(members, db)
         else:  # PARENTS_ONLY
             audience |= _parents_of(members, db)
     return audience
 
 
-def initial_email_state(message: Message, member: Member) -> EmailState:
+def resolve_message_audience(message: Message, db: Session) -> set[uuid.UUID]:
+    """The deduplicated member ids a message reaches (entire-troop or its group targets)."""
+    if message.send_to_all:
+        return all_member_ids(message.tenant_id, db)
+    targets = db.scalars(select(MessageGroup).where(MessageGroup.message_id == message.id)).all()
+    return resolve_group_targets(((t.group_id, t.audience_type) for t in targets), db)
+
+
+def initial_email_state(member: Member, *, send_email: bool) -> EmailState:
     """Decided at resolve time; skipped states are never queued (CAN-SPAM)."""
-    if not message.send_email:
+    if not send_email:
         return EmailState.SKIPPED_NO_EMAIL
     if member.email is None or not member.email.strip():
         return EmailState.SKIPPED_NO_EMAIL
@@ -98,7 +120,7 @@ def send_message(
             MessageRecipient(
                 message_id=message.id,
                 member_id=member.id,
-                email_state=initial_email_state(message, member),
+                email_state=initial_email_state(member, send_email=message.send_email),
                 push_state=PushState.NO_DEVICES,
             )
         )

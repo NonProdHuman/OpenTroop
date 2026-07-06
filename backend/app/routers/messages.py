@@ -16,7 +16,14 @@ from app.core.deps import (
     get_or_404,
     require,
 )
-from app.core.messaging import drain_email_outbox, resolve_message_audience, send_message
+from app.core.messaging import (
+    all_member_ids,
+    drain_email_outbox,
+    initial_email_state,
+    resolve_group_targets,
+    resolve_message_audience,
+    send_message,
+)
 from app.core.notifications import get_notification_service
 from app.models.enums import EmailState, MessageStatus, Permission, PushState
 from app.models.group import Group
@@ -34,7 +41,9 @@ from app.schemas.message import (
     MessageRead,
     MessageRecipientRead,
     MessageWithPreview,
+    RecipientPreview,
     RecipientPreviewEntry,
+    RecipientPreviewRequest,
 )
 
 router = APIRouter(prefix="/messages", tags=["messages"])
@@ -61,8 +70,9 @@ def _members_with_devices(member_ids: list[uuid.UUID], db: DbDep) -> set[uuid.UU
     )
 
 
-def _preview(message: Message, db: DbDep) -> AudiencePreview:
-    members = _audience_members(message, db)
+def _audience_preview(
+    members: list[Member], send_email: bool, send_push: bool, db: DbDep
+) -> AudiencePreview:
     with_devices = _members_with_devices([m.id for m in members], db)
     email = opted_out = bounced = no_email = 0
     for m in members:
@@ -76,11 +86,33 @@ def _preview(message: Message, db: DbDep) -> AudiencePreview:
             email += 1
     return AudiencePreview(
         total=len(members),
-        email=email if message.send_email else 0,
-        push_devices=len(with_devices) if message.send_push else 0,
+        email=email if send_email else 0,
+        push_devices=len(with_devices) if send_push else 0,
         opted_out=opted_out,
         bounced=bounced,
         no_email=no_email,
+    )
+
+
+def _recipient_entries(
+    members: list[Member], send_email: bool, db: DbDep
+) -> list[RecipientPreviewEntry]:
+    with_devices = _members_with_devices([m.id for m in members], db)
+    return [
+        RecipientPreviewEntry(
+            member_id=m.id,
+            first_name=m.first_name,
+            last_name=m.last_name,
+            email_state=initial_email_state(m, send_email=send_email),
+            has_push_device=m.id in with_devices,
+        )
+        for m in members
+    ]
+
+
+def _preview(message: Message, db: DbDep) -> AudiencePreview:
+    return _audience_preview(
+        _audience_members(message, db), message.send_email, message.send_push, db
     )
 
 
@@ -159,32 +191,61 @@ def create_message(
     body: MessageCreate, ctx: MemberContextDep, tenant_id: TenantDep, db: DbDep
 ) -> MessageWithPreview:
     actor, _ = ctx
-    seen: set[uuid.UUID] = set()
-    for target in body.group_targets:
-        if target.group_id in seen:
-            raise HTTPException(status_code=422, detail="Duplicate group target")
-        seen.add(target.group_id)
-        group = db.get(Group, target.group_id)
-        if group is None or group.is_deleted:
-            raise HTTPException(status_code=422, detail="group_id not found")
+    if not body.send_to_all:
+        seen: set[uuid.UUID] = set()
+        for target in body.group_targets:
+            if target.group_id in seen:
+                raise HTTPException(status_code=422, detail="Duplicate group target")
+            seen.add(target.group_id)
+            group = db.get(Group, target.group_id)
+            if group is None or group.is_deleted:
+                raise HTTPException(status_code=422, detail="group_id not found")
 
     message = Message(
         subject=body.subject,
         body=body.body,
         send_email=body.send_email,
         send_push=body.send_push,
+        send_to_all=body.send_to_all,
         scheduled_at=body.scheduled_at,
         sent_by_id=actor.id,
     )
     db.add(message)
     db.flush()
-    db.add_all(
-        MessageGroup(message_id=message.id, group_id=t.group_id, audience_type=t.audience_type)
-        for t in body.group_targets
-    )
+    if not body.send_to_all:  # entire-troop targets everyone; no group rows to store
+        db.add_all(
+            MessageGroup(message_id=message.id, group_id=t.group_id, audience_type=t.audience_type)
+            for t in body.group_targets
+        )
     db.commit()
     db.refresh(message)
     return _with_preview(message, db)
+
+
+@router.post("/recipients/preview", response_model=RecipientPreview, dependencies=[_SEND])
+def preview_recipients_stateless(
+    body: RecipientPreviewRequest, tenant_id: TenantDep, db: DbDep
+) -> RecipientPreview:
+    """Resolve who a not-yet-saved announcement would reach (#217).
+
+    Powers the always-on live recipient list on compose — no draft Message row is
+    created (unlike creating and reading back a draft).
+    """
+    if body.send_to_all:
+        audience = all_member_ids(tenant_id, db)
+    else:
+        audience = resolve_group_targets(
+            ((t.group_id, t.audience_type) for t in body.group_targets), db
+        )
+    members = (
+        list(db.scalars(select(Member).where(Member.id.in_(audience)).order_by(Member.last_name)))
+        if audience
+        else []
+    )
+    return RecipientPreview(
+        preview=_audience_preview(members, body.send_email, body.send_push, db),
+        recipients=_recipient_entries(members, body.send_email, db),
+    )
 
 
 @router.get("", response_model=list[MessageRead], dependencies=[_SEND])
@@ -236,21 +297,8 @@ def get_message(message_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Messa
 def preview_recipients(
     message_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
 ) -> list[RecipientPreviewEntry]:
-    from app.core.messaging import initial_email_state
-
     message = get_or_404(db, Message, message_id, "Message not found")
-    members = _audience_members(message, db)
-    with_devices = _members_with_devices([m.id for m in members], db)
-    return [
-        RecipientPreviewEntry(
-            member_id=m.id,
-            first_name=m.first_name,
-            last_name=m.last_name,
-            email_state=initial_email_state(message, m),
-            has_push_device=m.id in with_devices,
-        )
-        for m in members
-    ]
+    return _recipient_entries(_audience_members(message, db), message.send_email, db)
 
 
 @router.get(
