@@ -119,6 +119,8 @@ allocated** if draining in-process on Cloud Run).
 ## Photo storage (R2) + weekly maintenance job (GH-145, ADR 0011)
 
 Event photos live in **Cloudflare R2**, spoken through the S3-compatible API.
+Step-by-step dashboard instructions (R2 enablement, API token, **CORS policy —
+required for browser uploads**) live in [`docs/r2-setup.md`](../docs/r2-setup.md).
 Enable storage with:
 
 ```hcl
