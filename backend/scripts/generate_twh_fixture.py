@@ -418,7 +418,6 @@ class FixtureBuilder:
                 Last_Update_UTC=self._stamp(date(2025, 8, 1)),
             )
         scouts = [p for p in self.people if not p.adult]
-        adults = {(p.last, True): p for p in self.people if p.adult}
         for scout in scouts:
             for person in self.people:
                 if person.adult and person.last == scout.last:
@@ -429,7 +428,6 @@ class FixtureBuilder:
                         Relationship_Type="Parent",
                         Last_Update_UTC=self._stamp(scout.join),
                     )
-        del adults
 
     def emit_leadership(self) -> None:
         for pos_id, name, code, adult, seq in POSITIONS:
