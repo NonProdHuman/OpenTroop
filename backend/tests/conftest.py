@@ -197,6 +197,23 @@ def db_session() -> Generator[Session, None, None]:
 
 
 @pytest.fixture
+def import_worker(db_session: Session, monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+    """Bind the async import worker's SessionLocal to the test engine; return a drainer.
+
+    The worker (app/core/import_jobs.py) runs on its own SessionLocal rather than the
+    request session. Pointing it at the same in-memory engine lets a test drive the
+    full POST → drain → poll flow synchronously. Returns ``run_import_pass``.
+    """
+    from sqlalchemy.orm import sessionmaker as _sessionmaker
+
+    worker_session = _sessionmaker(bind=db_session.get_bind(), autoflush=False, future=True)
+    monkeypatch.setattr("app.core.import_jobs.SessionLocal", worker_session)
+    from app.core.import_jobs import run_import_pass
+
+    return run_import_pass
+
+
+@pytest.fixture
 def client(db_session: Session) -> Generator[TestClient, None, None]:
     """TestClient scoped to TENANT_A, authenticated as ADMIN_USER_ID."""
     _seed_admin(db_session, TENANT_A)

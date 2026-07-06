@@ -97,7 +97,7 @@ export type Membership = Schemas["MembershipRead"]
 
 // ── Import ────────────────────────────────────────────────────────────────────
 
-export type TwhImportRead = Schemas["TwhImportRead"]
+export type ImportJob = Schemas["ImportJobRead"]
 
 // ── Advancement (Pillar 4, GH-92) ─────────────────────────────────────────────
 

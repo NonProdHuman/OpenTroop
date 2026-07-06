@@ -849,6 +849,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/import/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List import jobs for the current tenant (newest first) */
+        get: operations["list_import_jobs_import_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/import/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one import job (poll for progress and the final summary) */
+        get: operations["get_import_job_import_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/import/twh": {
         parameters: {
             query?: never;
@@ -859,22 +893,18 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Import a TroopWebHost XML full-data export
-         * @description Upload a TroopWebHost XML export and import its roster and events.
+         * Queue a TroopWebHost XML full-data export for import
+         * @description Validate and **queue** a TroopWebHost XML export; the import runs in the background.
          *
-         *     Creates Patrol, Member, MemberRelationship, Position (with dated
-         *     MemberPositionAssignment terms for leadership history), Location, EventType,
-         *     Event, EventParticipant, and advancement records (MemberRankProgress,
-         *     MemberRequirementCompletion, MemberMeritBadge — requires the global
-         *     advancement catalog to be seeded) for the current tenant.  The import is additive;
-         *     running it twice will attempt to create duplicate records (BSA ID uniqueness
-         *     will raise a 409 on the second run if the same persons are re-imported).
+         *     A real full-troop export takes minutes to import against a remote database — far
+         *     longer than a gateway request timeout (GH-240). So this endpoint validates the
+         *     upload synchronously (size caps, XML well-formedness, timezone), stores the
+         *     compressed payload, creates an :class:`ImportJob`, and returns **202** with the job.
+         *     Poll ``GET /import/jobs/{id}`` for progress and the final summary + warnings.
          *
-         *     ``timezone`` is the IANA zone the export's naive datetimes are expressed in;
-         *     they are converted to UTC for storage (defaults to UTC).
-         *
-         *     Returns a summary of created and skipped records, plus any warnings for
-         *     rows that could not be mapped (unknown foreign keys, missing required fields).
+         *     Rejects fast (409) when the tenant already contains imported TWH data (re-import
+         *     is additive and would duplicate) or already has an import running — so a retry
+         *     never stacks a second concurrent or duplicate import.
          */
         post: operations["import_twh_import_twh_post"];
         delete?: never;
@@ -3200,6 +3230,74 @@ export interface components {
             user_id: string;
         };
         /**
+         * ImportJobRead
+         * @description An async import job (GH-240) — returned by POST (202) and the poll endpoints.
+         */
+        ImportJobRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error */
+            error: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Original Filename */
+            original_filename: string | null;
+            /** Payload Bytes */
+            payload_bytes: number;
+            /** Progress */
+            progress: {
+                [key: string]: number;
+            } | null;
+            /** Requested By Id */
+            requested_by_id: string | null;
+            /** Source Timezone */
+            source_timezone: string;
+            /** Stage */
+            stage: string | null;
+            /** Started At */
+            started_at: string | null;
+            status: components["schemas"]["ImportJobStatus"];
+            /** Summary */
+            summary: {
+                [key: string]: number;
+            } | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Warnings */
+            warnings: string[] | null;
+        };
+        /**
+         * ImportJobStatus
+         * @description Lifecycle of an async TWH import job (GH-240).
+         *
+         *     QUEUED    — persisted and waiting for a worker to pick it up.
+         *     RUNNING   — a worker is actively parsing + writing rows.
+         *     SUCCEEDED — committed; ``summary`` + ``warnings`` are final.
+         *     FAILED    — aborted and rolled back; ``error`` explains why.
+         *
+         *     QUEUED and RUNNING are the "active" states — at most one per tenant.
+         * @enum {string}
+         */
+        ImportJobStatus: "queued" | "running" | "succeeded" | "failed";
+        /**
          * InboxEntry
          * @description One inbox row + the message content it points at (member-facing).
          */
@@ -4992,40 +5090,6 @@ export interface components {
             advancement_mode?: components["schemas"]["AdvancementMode"] | null;
             /** Permission Message */
             permission_message?: string | null;
-        };
-        /**
-         * TwhImportRead
-         * @description Summary returned by POST /import/twh.
-         */
-        TwhImportRead: {
-            /** Event Types */
-            event_types: number;
-            /** Events */
-            events: number;
-            /** Locations */
-            locations: number;
-            /** Members */
-            members: number;
-            /** Merit Badges */
-            merit_badges: number;
-            /** Participants */
-            participants: number;
-            /** Patrols */
-            patrols: number;
-            /** Position Assignments */
-            position_assignments: number;
-            /** Positions */
-            positions: number;
-            /** Rank Progress */
-            rank_progress: number;
-            /** Relationships */
-            relationships: number;
-            /** Requirement Completions */
-            requirement_completions: number;
-            /** Skipped */
-            skipped: number;
-            /** Warnings */
-            warnings: string[];
         };
         /** UserRead */
         UserRead: {
@@ -7193,6 +7257,70 @@ export interface operations {
             };
         };
     };
+    list_import_jobs_import_jobs_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJobRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_import_job_import_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJobRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     import_twh_import_twh_post: {
         parameters: {
             query?: never;
@@ -7209,12 +7337,12 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TwhImportRead"];
+                    "application/json": components["schemas"]["ImportJobRead"];
                 };
             };
             /** @description Validation Error */

@@ -1,5 +1,6 @@
-"""API tests for POST /import/twh."""
+"""API tests for POST /import/twh (async job flow, GH-240)."""
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -11,35 +12,57 @@ from app.core.config import settings
 _FIXTURE = Path(__file__).parent / "fixtures" / "sample_twh_minimal.xml"
 
 
-def _upload(client: TestClient, path: Path = _FIXTURE) -> dict:
+def _post(client: TestClient, path: Path = _FIXTURE, **data: str):  # type: ignore[no-untyped-def]
     with open(path, "rb") as f:
-        r = client.post("/import/twh", files={"file": ("export.xml", f, "application/xml")})
-    return r
+        return client.post(
+            "/import/twh", files={"file": ("export.xml", f, "application/xml")}, data=data
+        )
 
 
-def test_import_returns_summary(client: TestClient) -> None:
-    r = _upload(client)
-    assert r.status_code == 200, r.text
-    body = r.json()
-    assert body["patrols"] == 2
-    assert body["members"] == 5
-    assert body["relationships"] == 2
-    assert body["locations"] == 2
-    assert body["event_types"] == 3
-    assert body["events"] == 3
-    assert body["participants"] == 3
-    assert body["skipped"] >= 1
+def _run_to_completion(
+    client: TestClient, drain: Callable[[], dict], path: Path = _FIXTURE, **data: str
+) -> dict:
+    """POST the export, drain the worker, and return the finished job body."""
+    resp = _post(client, path, **data)
+    assert resp.status_code == 202, resp.text
+    job = resp.json()
+    assert job["status"] == "queued"
+    drain()
+    finished = client.get(f"/import/jobs/{job['id']}")
+    assert finished.status_code == 200, finished.text
+    return finished.json()
 
 
-def test_import_includes_warnings(client: TestClient) -> None:
-    body = _upload(client).json()
-    # Unknown relationship person and unknown event type each produce a warning.
-    assert len(body["warnings"]) >= 2
+def test_import_queues_and_completes_with_summary(
+    client: TestClient, import_worker: Callable[[], dict]
+) -> None:
+    job = _run_to_completion(client, import_worker)
+    assert job["status"] == "succeeded"
+    summary = job["summary"]
+    assert summary["patrols"] == 2
+    assert summary["members"] == 5
+    assert summary["relationships"] == 2
+    assert summary["locations"] == 2
+    assert summary["event_types"] == 3
+    assert summary["events"] == 3
+    assert summary["participants"] == 3
+    assert summary["skipped"] >= 1
 
 
-def test_import_is_tenant_scoped(client: TestClient, other_client: TestClient) -> None:
+def test_import_persists_warnings_on_the_job(
+    client: TestClient, import_worker: Callable[[], dict]
+) -> None:
+    # The durable home for warnings a 504 used to eat: unknown relationship person
+    # and unknown event type each produce a warning.
+    job = _run_to_completion(client, import_worker)
+    assert len(job["warnings"]) >= 2
+
+
+def test_import_is_tenant_scoped(
+    client: TestClient, other_client: TestClient, import_worker: Callable[[], dict]
+) -> None:
     """Data imported via client must not be visible via other_client."""
-    _upload(client)
+    _run_to_completion(client, import_worker)
     r = other_client.get("/members/")
     assert r.status_code == 200
     # other_client's tenant has no imported members (only the seeded admin)
@@ -47,14 +70,11 @@ def test_import_is_tenant_scoped(client: TestClient, other_client: TestClient) -
     assert "Alice" not in names
 
 
-def test_import_with_timezone_converts_event_times_to_utc(client: TestClient) -> None:
-    with open(_FIXTURE, "rb") as f:
-        r = client.post(
-            "/import/twh",
-            files={"file": ("export.xml", f, "application/xml")},
-            data={"timezone": "America/New_York"},
-        )
-    assert r.status_code == 200, r.text
+def test_import_with_timezone_converts_event_times_to_utc(
+    client: TestClient, import_worker: Callable[[], dict]
+) -> None:
+    job = _run_to_completion(client, import_worker, timezone="America/New_York")
+    assert job["status"] == "succeeded"
 
     events = client.get("/events/").json()
     meeting = next(e for e in events if e["name"] == "Weekly Meeting")
@@ -114,10 +134,8 @@ def test_import_with_gzipped_file(client: TestClient) -> None:
         "/import/twh",
         files={"file": ("export.xml.gz", gz_data, "application/gzip")},
     )
-    assert r.status_code == 200, r.text
-    body = r.json()
-    assert body["patrols"] == 2
-    assert body["members"] == 5
+    assert r.status_code == 202, r.text
+    assert r.json()["status"] == "queued"
 
 
 def test_import_with_zipped_file(client: TestClient) -> None:
@@ -136,10 +154,8 @@ def test_import_with_zipped_file(client: TestClient) -> None:
         "/import/twh",
         files={"file": ("export.zip", zip_data, "application/zip")},
     )
-    assert r.status_code == 200, r.text
-    body = r.json()
-    assert body["patrols"] == 2
-    assert body["members"] == 5
+    assert r.status_code == 202, r.text
+    assert r.json()["status"] == "queued"
 
 
 def test_import_invalid_gzip_returns_422(client: TestClient) -> None:

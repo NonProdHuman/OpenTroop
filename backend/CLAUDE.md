@@ -196,8 +196,37 @@ Every imported row carries **source provenance** (`SourceTracked` mixin: `source
 sync can match-and-upsert instead of duplicating. This is groundwork only — no sync engine
 reads it yet. See [`docs/spec/twh-sync.md`](../docs/spec/twh-sync.md).
 
-Invoke via `uv run import-twh <tenant-uuid> path/to/export.xml [--timezone America/New_York]`.
-The same `timezone` is accepted as a form field on `POST /import/twh`.
+Invoke via `uv run import-twh <tenant-uuid> path/to/export.xml [--timezone America/New_York]`
+(synchronous — the CLI runs the importer directly).
+
+### Async import queue (GH-240)
+
+`POST /import/twh` never runs the importer inside the request — a real full-troop export
+takes minutes and would ride past any gateway timeout (the 2026-07-06 opentroop.dev 504).
+Instead it **validates** the upload synchronously (size caps, XML well-formedness, timezone;
+same 413/422 as before), stores the gzip-compressed payload + an `ImportJob` row, and returns
+**202** with the job. The same `timezone` is accepted as a form field.
+
+- **Poll** `GET /import/jobs/{id}` (and `GET /import/jobs`) for `status`
+  (queued/running/succeeded/failed), live `stage`/`progress`, and the final `summary` +
+  **`warnings`** — the durable home for skip warnings (e.g. "advancement catalog not seeded")
+  that a 504 used to eat.
+- **Worker** (`app/core/import_jobs.py`): claims a job atomically (`queued → running`), runs
+  the importer with **chunked commits per stage** (real progress; a failure is reportable),
+  and lands `succeeded`/`failed`. A duplicate-key race becomes a clean FAILED job with reset
+  guidance, never a raw 500.
+- **Idempotency**: one active import per tenant (partial unique index on
+  `(tenant_id) WHERE status IN ('queued','running')`); a re-import of a tenant that already
+  holds TWH data (`source_system='twh'`) 409s with reset guidance instead of duplicating.
+- **Driver** (`IMPORT_QUEUE_BACKEND`, `app/core/import_queue.py`), mirroring `EMAIL_BACKEND`:
+  - `inprocess` (default) — the lifespan loop (`IMPORT_LOOP_ENABLED`) or the
+    `uv run drain-import-jobs` CLI (cron/self-host belt) drains queued jobs. On Cloud Run
+    this needs **CPU always allocated** (min-instances ≥ 1, `cpu_idle=false`) or the loop is
+    throttled to a crawl between requests.
+  - `cloudtasks` — enqueue pushes each job to a dedicated worker Cloud Run service via a
+    Cloud Tasks HTTP task with an OIDC token; the worker's `POST /import/jobs/execute`
+    verifies it (`import_worker_auth`). The Terraform worker service + queue is the remaining
+    SaaS-scale wiring.
 
 Test fixtures: `backend/tests/fixtures/sample_twh_minimal.xml` (hand-written minimal roster)
 and `synthetic_troop1.xml.gz` / `synthetic_troop2.xml.gz` — **fully synthetic** full exports

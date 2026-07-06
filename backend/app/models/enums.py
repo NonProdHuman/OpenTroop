@@ -365,3 +365,20 @@ class PlatformRole(enum.StrEnum):
     SUPERADMIN = "superadmin"
     SUPPORT = "support"
     BILLING = "billing"
+
+
+class ImportJobStatus(enum.StrEnum):
+    """Lifecycle of an async TWH import job (GH-240).
+
+    QUEUED    — persisted and waiting for a worker to pick it up.
+    RUNNING   — a worker is actively parsing + writing rows.
+    SUCCEEDED — committed; ``summary`` + ``warnings`` are final.
+    FAILED    — aborted and rolled back; ``error`` explains why.
+
+    QUEUED and RUNNING are the "active" states — at most one per tenant.
+    """
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
