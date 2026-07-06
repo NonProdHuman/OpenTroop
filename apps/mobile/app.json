@@ -33,6 +33,20 @@
         {
           "faceIDPermission": "OpenTroop uses Face ID to unlock the app and protect roster data."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "OpenTroop uses your photo library so you can share event photos with your troop."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "OpenTroop uses your photo library so you can share event photos with your troop.",
+          "savePhotosPermission": "OpenTroop saves event photos you download to your photo library.",
+          "isAccessMediaLocationEnabled": false
+        }
       ]
     ],
     "experiments": {
