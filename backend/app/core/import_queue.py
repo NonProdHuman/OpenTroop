@@ -29,7 +29,9 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 # A metadata-server URL (returns the instance's access token), not a credential.
-_METADATA_TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"  # noqa: S105, E501
+_METADATA_TOKEN_URL = (
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"  # noqa: S105, E501
+)
 
 
 def enqueue_import_job(job_id: uuid.UUID) -> None:
