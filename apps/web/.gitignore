@@ -47,4 +47,5 @@ next-env.d.ts
 # playwright (e2e)
 /e2e/.auth/
 /e2e/.results/
+/e2e/.seed-manifest.json
 /playwright-report/

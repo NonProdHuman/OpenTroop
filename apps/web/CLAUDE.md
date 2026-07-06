@@ -101,14 +101,14 @@ with source (e.g., `foo.test.tsx` next to `foo.tsx`) — any file matching
 
 ## E2E smoke tests (Playwright)
 
-`apps/web/e2e/` holds a small Playwright smoke suite (GH-171) — a verification
-loop, not a coverage suite. It runs against an **already-running** local stack
-with the deterministic demo tenant seeded:
+`apps/web/e2e/` holds a small Playwright suite (GH-171, expanded in GH-245) — a
+verification loop, not a coverage suite. It runs against an **already-running**
+local stack with the deterministic demo tenant seeded:
 
 ```bash
-./start.sh                                             # stack up
-cd backend && uv run seed-dev-data --email <you> --reset
-pnpm --filter web e2e                                  # or e2e:ui
+./start.sh                          # stack up (Postgres + backend + web)
+scripts/e2e-seed-and-run.sh         # re-seed (+ emit manifest) and run e2e
+scripts/e2e-seed-and-run.sh --ui    # same, Playwright UI mode
 ```
 
 Auth uses Clerk Testing Tokens (`@clerk/testing`): `e2e/global.setup.ts` signs in
@@ -117,5 +117,20 @@ test user in the Clerk dev instance; same email as `seed-dev-data --email`) and
 persists storage state for all specs. Base URL defaults to the demo tenant's
 subdomain (`http://demo.localhost:3000`); override with `E2E_BASE_URL`.
 
-Assertions rely on the fixed dataset in `backend/scripts/seed_dev_data.py`
-(member/event names) — keep the two in sync when changing either.
+**Seed manifest is the source of truth (GH-245).** Specs never hard-code
+member/event names — they import from `e2e/fixtures/seed-manifest.ts`, which reads
+`e2e/.seed-manifest.json` (gitignored). That JSON is produced by the seeder
+(`seed-dev-data --emit-manifest <path>`, which `scripts/e2e-seed-and-run.sh` runs
+for you), so assertions can't silently drift from the seeded data. Add a field to
+`build_manifest` (backend) + the `SeedManifest` interface (web) rather than
+inlining a new string. A backend test (`tests/test_seed_dev_data.py`) asserts every
+named row in the manifest is actually seeded, so a rename fails CI loudly.
+
+**Stable selectors.** Prefer `data-testid` on our own components over asserting
+visible text or Tailwind classes (e.g. the RSVP control exposes
+`data-testid="rsvp-going"` + `data-selected`). `src/components/ui/`
+(shadcn-generated) stays untouched.
+
+**CI.** `.github/workflows/e2e.yml` stands up the full stack, seeds, and runs the
+suite — gated on the Clerk `E2E_*` repository secrets, so it **skips** (never
+fails) until they're wired. See the workflow header for the required secret list.

@@ -510,6 +510,69 @@ def seed_demo_tenant(  # noqa: C901 — linear seed routine; splitting hurts rea
     return tenant, founder, invite_token, invite_expires
 
 
+def build_manifest(session: Session, tenant: Tenant) -> dict[str, object]:
+    """Return the deterministic dataset as a JSON-serializable manifest (GH-245).
+
+    This is the **single source of truth** the Playwright e2e specs assert against —
+    they import it instead of hard-coding member/event names, so changing the seed
+    can never silently rot an assertion. Counts are queried from the DB (authoritative,
+    self-correcting); the curated names come from the module constants above and the
+    key event titles seeded in ``seed_demo_tenant``. ``tests/test_seed_manifest.py``
+    asserts every named row here actually exists, so a rename fails CI loudly.
+    """
+    from sqlalchemy import func, select
+    from sqlalchemy.sql.elements import ColumnElement
+
+    from app.models.enums import MemberType
+    from app.models.event import Event
+    from app.models.group import Group
+    from app.models.location import Location
+    from app.models.member import Member
+
+    tid = tenant.id
+
+    def count(model: type, *criteria: ColumnElement[bool]) -> int:
+        stmt = select(func.count()).select_from(model).where(model.tenant_id == tid)  # type: ignore[attr-defined]
+        for c in criteria:
+            stmt = stmt.where(c)
+        return int(session.scalar(stmt) or 0)
+
+    return {
+        "tenant": {"slug": tenant.slug, "name": tenant.name, "id": str(tid)},
+        "counts": {
+            "scouts": count(Member, Member.member_type == MemberType.SCOUT),
+            "adults": count(Member, Member.member_type == MemberType.ADULT),
+            "events": count(Event),
+            "locations": count(Location),
+            "groups": count(Group),
+        },
+        # Curated names the specs reference by semantic role (from the constants above).
+        "members": {
+            "seniorPatrolLeader": "Aiden Brooks",
+            "assistantSeniorPatrolLeader": "Ben Carter",
+            "scoutmaster": "Sarah Rivers",
+            "sampleScout": "Aiden Brooks",
+            "sampleAdult": "Sarah Rivers",
+        },
+        # Key event titles seeded in seed_demo_tenant (drift-guarded by the manifest test).
+        "events": {
+            "pastCampout": "Fall Beach Campout",
+            "upcomingMeeting": "Troop Meeting",
+            "winterCampout": "Winter Campout",
+            "plcMeeting": "PLC Meeting",
+        },
+        "locations": {
+            "campWapiti": "Camp Wapiti",
+            "church": "First Methodist Church",
+            "farm": "Miller's Farm",
+        },
+        "groups": {
+            "patrolLeadersCouncil": "Patrol Leaders Council",
+            "fundraiserCrew": "Fundraiser Crew",
+        },
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -525,6 +588,12 @@ def main() -> None:
         "--reset",
         action="store_true",
         help="Tear down an existing demo tenant (all its rows) and re-seed from scratch",
+    )
+    parser.add_argument(
+        "--emit-manifest",
+        default=None,
+        metavar="PATH",
+        help="Write the deterministic dataset manifest as JSON to PATH (for e2e specs; GH-245)",
     )
     args = parser.parse_args()
 
@@ -552,6 +621,14 @@ def main() -> None:
         tenant, founder, invite_token, invite_expires = seed_demo_tenant(
             session, slug=args.slug, troop_name=args.troop_name, email=args.email
         )
+
+        if args.emit_manifest:
+            import json
+            from pathlib import Path
+
+            manifest = build_manifest(session, tenant)
+            Path(args.emit_manifest).write_text(json.dumps(manifest, indent=2) + "\n")
+
         session.commit()
 
         scout_count = sum(len(names) for names in PATROLS.values())
@@ -562,6 +639,8 @@ def main() -> None:
         print(f"  Slug      : {tenant.slug}")
         print(f"  Members   : {scout_count} scouts + {adult_count} adults")
         print(f"  Events    : 11 ({today - timedelta(days=35)} .. {today + timedelta(days=30)})")
+        if args.emit_manifest:
+            print(f"  Manifest  : {args.emit_manifest}")
         if founder.user_id is not None:
             print(f"  Admin     : Demo Admin — linked to {args.email}  ✓ ready to use")
         else:

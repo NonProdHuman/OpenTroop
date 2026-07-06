@@ -150,8 +150,15 @@ uv run uvicorn app.main:app --reload                 # start the API on :8000
 With the stack running, seed a deterministic dev tenant and run the Playwright smoke suite:
 
 ```bash
-uv run seed-dev-data          # from backend/ — idempotent dev tenant + sample data
-pnpm --filter web e2e         # Playwright smoke tests against the running app
+# from backend/ — deterministic demo tenant + sample data (add --reset to re-seed)
+uv run seed-dev-data --reset
+pnpm --filter web e2e         # Playwright tests against the running app
+```
+
+Or in one step (re-seeds, emits the e2e manifest, then runs the suite):
+
+```bash
+scripts/e2e-seed-and-run.sh   # requires the stack up via ./start.sh
 ```
 
 ### Pre-commit Hooks
