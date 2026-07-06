@@ -24,4 +24,10 @@ EXPOSE 8000
 # trailing-slash redirects emit an http:// Location, which the browser blocks as mixed
 # content. Safe behind Cloud Run: the managed proxy sets these headers and clients can't
 # spoof them.
-CMD ["sh", "-c", "uv run --no-dev alembic upgrade head && uv run --no-dev uvicorn app.main:app --host 0.0.0.0 --port 8000 --forwarded-allow-ips='*'"]
+# seed-advancement is an idempotent upsert that must run with the migrate/owner
+# credentials (opentroop_app has SELECT-only on the global catalog tables; writes
+# need opentroop_admin). It no-ops fast when the catalog is current, so running it
+# on every release keeps deployed envs seeded — without it, TWH imports silently
+# skip all advancement data (GH-241). Falls back to DATABASE_URL for self-host,
+# where DATABASE_URL_MIGRATE is unset and DATABASE_URL is already the owner.
+CMD ["sh", "-c", "uv run --no-dev alembic upgrade head && DATABASE_URL=\"${DATABASE_URL_MIGRATE:-$DATABASE_URL}\" uv run --no-dev seed-advancement && uv run --no-dev uvicorn app.main:app --host 0.0.0.0 --port 8000 --forwarded-allow-ips='*'"]

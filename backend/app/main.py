@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import logging
 import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -31,6 +32,35 @@ from app.routers import (
     tenant_settings,
 )
 
+logger = logging.getLogger("app.startup")
+
+
+def _warn_if_advancement_catalog_empty() -> None:
+    """Log a loud WARNING when the global advancement catalog is unseeded (GH-241).
+
+    A deployed environment that never ran ``seed-advancement`` has no ``Rank`` rows,
+    so the TWH importer silently skips every advancement record behind one warning.
+    Surfacing it at startup turns an invisible data-loss condition into a visible
+    signal that the deploy path (Dockerfile CMD / release step) is missing the seed.
+    Best-effort: a lookup failure must never block the app from serving.
+    """
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from app.core.advancement_catalog import catalog_is_empty
+    from app.core.database import SessionLocal
+
+    try:
+        with SessionLocal() as session:
+            empty = catalog_is_empty(session)
+    except SQLAlchemyError:
+        logger.exception("Could not check the advancement catalog at startup")
+        return
+    if empty:
+        logger.warning(
+            "Advancement catalog is empty — no Rank rows. TWH imports will skip ALL "
+            "advancement data. Run `seed-advancement` in the deploy path (see GH-241)."
+        )
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
@@ -39,6 +69,7 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     Off by default (tests, one-shot commands); production/dev API processes set
     OUTBOX_LOOP_ENABLED=true. The drain-outbox CLI is the cron belt either way.
     """
+    _warn_if_advancement_catalog_empty()
     task: asyncio.Task[None] | None = None
     if settings.outbox_loop_enabled:
         from app.core.outbox import outbox_loop
