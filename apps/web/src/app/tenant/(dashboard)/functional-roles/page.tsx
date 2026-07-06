@@ -46,6 +46,9 @@ const PERMISSION_LABELS: Record<Permission, string> = {
   "communication:send_troop": "Communication — Troop",
   "communication:send_patrol": "Communication — Patrol",
   "report:read": "Reports — View",
+  "photo:read": "Photos — View",
+  "photo:upload": "Photos — Add",
+  "photo:moderate": "Photos — Moderate",
 }
 
 const PERM_DOMAINS = [
@@ -56,6 +59,7 @@ const PERM_DOMAINS = [
   { label: "Roles", prefix: "role:" },
   { label: "Communication", prefix: "communication:" },
   { label: "Reports", prefix: "report:" },
+  { label: "Photos", prefix: "photo:" },
 ]
 
 function FunctionalRoleDetailSheet({

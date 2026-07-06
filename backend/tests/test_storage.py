@@ -15,6 +15,7 @@ from app.core.storage import (
     FakeStorage,
     NullStorage,
     ObjectInfo,
+    S3Storage,
     StorageNotConfigured,
     get_storage_service,
 )
@@ -78,11 +79,38 @@ def test_selector_returns_null_by_default(monkeypatch: pytest.MonkeyPatch) -> No
 
 
 @pytest.mark.parametrize("backend", ["r2", "s3", "gcs"])
-def test_selector_s3_backends_not_wired_yet(monkeypatch: pytest.MonkeyPatch, backend: str) -> None:
-    """The S3 driver ships with the storage ADR; until then, fail with a pointer."""
+def test_selector_s3_backends_require_bucket_and_creds(
+    monkeypatch: pytest.MonkeyPatch, backend: str
+) -> None:
     monkeypatch.setattr(storage_mod.settings, "storage_backend", backend)
-    with pytest.raises(StorageNotConfigured, match="not wired yet"):
+    monkeypatch.setattr(storage_mod.settings, "storage_bucket", "")
+    with pytest.raises(StorageNotConfigured, match="STORAGE_BUCKET"):
         get_storage_service()
+    monkeypatch.setattr(storage_mod.settings, "storage_bucket", "troop-media")
+    monkeypatch.setattr(storage_mod.settings, "storage_access_key_id", "")
+    with pytest.raises(StorageNotConfigured, match="STORAGE_ACCESS_KEY_ID"):
+        get_storage_service()
+
+
+def test_s3_driver_presigns_offline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Presigning is a local signature computation — no network, real URLs (ADR 0011)."""
+    monkeypatch.setattr(storage_mod.settings, "storage_backend", "r2")
+    monkeypatch.setattr(storage_mod.settings, "storage_bucket", "troop-media")
+    monkeypatch.setattr(
+        storage_mod.settings, "storage_s3_endpoint", "https://acct.r2.cloudflarestorage.com"
+    )
+    monkeypatch.setattr(storage_mod.settings, "storage_access_key_id", "test-key")
+    monkeypatch.setattr(storage_mod.settings, "storage_secret_access_key", "test-secret")
+    svc = get_storage_service()
+    assert isinstance(svc, S3Storage)
+
+    put_url = svc.presign_put("tenant-1/photo/abc/display.jpg", content_type="image/jpeg")
+    assert put_url.startswith("https://acct.r2.cloudflarestorage.com/troop-media/")
+    assert "tenant-1/photo/abc/display.jpg" in put_url
+    assert "X-Amz-Signature=" in put_url  # SigV4, as R2 requires
+
+    get_url = svc.presign_get("tenant-1/photo/abc/display.jpg")
+    assert "X-Amz-Expires=" in get_url
 
 
 def test_selector_rejects_unknown_backend(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -589,6 +589,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{event_id}/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Event Photos
+         * @description The event's gallery: READY photos plus short-lived presigned GETs.
+         */
+        get: operations["list_event_photos_events__event_id__photos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{event_id}/photos/initiate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Initiate Photo Upload
+         * @description Reserve quota and mint presigned PUT URLs for a batch of photos.
+         */
+        post: operations["initiate_photo_upload_events__event_id__photos_initiate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/functional-roles": {
         parameters: {
             query?: never;
@@ -1371,6 +1411,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/photos/{photo_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Photo
+         * @description Soft-delete a photo (owner, or ``photo:moderate`` for anyone's).
+         *
+         *     Quota is given back immediately; the object bytes are removed later by
+         *     ``uv run reap-photo-uploads`` (the tombstone row stays for sync).
+         */
+        delete: operations["delete_photo_photos__photo_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Photo */
+        patch: operations["update_photo_photos__photo_id__patch"];
+        trace?: never;
+    };
+    "/photos/{photo_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete Photo Upload
+         * @description Confirm an upload: HEAD-verify the object, flip to READY, settle quota.
+         */
+        post: operations["complete_photo_upload_photos__photo_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/photos/{photo_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Photo
+         * @description A short-lived presigned GET for saving the photo back to a device.
+         */
+        get: operations["download_photo_photos__photo_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/platform/admins": {
         parameters: {
             query?: never;
@@ -1709,6 +1813,26 @@ export interface paths {
         head?: never;
         /** Update Relationship */
         patch: operations["update_relationship_relationships__rel_id__patch"];
+        trace?: never;
+    };
+    "/storage/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Storage Usage
+         * @description The tenant's storage meter, for upload UIs.
+         */
+        get: operations["storage_usage_storage_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/sync/event_participants": {
@@ -2608,6 +2732,115 @@ export interface components {
             signed_up?: boolean | null;
             /** Water Hours Override */
             water_hours_override?: number | string | null;
+        };
+        /** EventPhotoRead */
+        EventPhotoRead: {
+            /** Byte Size */
+            byte_size?: number | null;
+            /** Caption */
+            caption?: string | null;
+            /** Checksum Sha256 */
+            checksum_sha256?: string | null;
+            /** Content Type */
+            content_type: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /** Height */
+            height: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            status: components["schemas"]["PhotoStatus"];
+            /** Taken At */
+            taken_at?: string | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Thumbhash */
+            thumbhash?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Uploaded By Member Id
+             * Format: uuid
+             */
+            uploaded_by_member_id: string;
+            /** Width */
+            width: number;
+        };
+        /**
+         * EventPhotoWithUrl
+         * @description A READY photo plus a short-lived presigned GET for its bytes.
+         */
+        EventPhotoWithUrl: {
+            /** Byte Size */
+            byte_size?: number | null;
+            /** Caption */
+            caption?: string | null;
+            /** Checksum Sha256 */
+            checksum_sha256?: string | null;
+            /** Content Type */
+            content_type: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Display Url */
+            display_url: string;
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /** Height */
+            height: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            status: components["schemas"]["PhotoStatus"];
+            /** Taken At */
+            taken_at?: string | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Thumbhash */
+            thumbhash?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Uploaded By Member Id
+             * Format: uuid
+             */
+            uploaded_by_member_id: string;
+            /** Width */
+            width: number;
         };
         /** EventRead */
         EventRead: {
@@ -4274,7 +4507,7 @@ export interface components {
          *     permissions gate whether the action is possible at all.
          * @enum {string}
          */
-        Permission: "member:read" | "member:write" | "member:read_medical" | "member:write_medical" | "member:read_contact" | "member:delete" | "event:read" | "event:create" | "event:write" | "event:delete" | "event:manage_attendance" | "advancement:read" | "advancement:record" | "advancement:approve" | "finance:read" | "finance:write" | "role:assign" | "role:manage" | "communication:send_troop" | "communication:send_patrol" | "report:read";
+        Permission: "member:read" | "member:write" | "member:read_medical" | "member:write_medical" | "member:read_contact" | "member:delete" | "event:read" | "event:create" | "event:write" | "event:delete" | "event:manage_attendance" | "advancement:read" | "advancement:record" | "advancement:approve" | "finance:read" | "finance:write" | "role:assign" | "role:manage" | "communication:send_troop" | "communication:send_patrol" | "report:read" | "photo:read" | "photo:upload" | "photo:moderate";
         /**
          * PermissionSlipStatus
          * @description Derived status of a scout's parental permission slip for an event.
@@ -4289,6 +4522,77 @@ export interface components {
          * @enum {string}
          */
         PermissionSlipStatus: "not_required" | "pending" | "granted";
+        /** PhotoDownload */
+        PhotoDownload: {
+            /** Expires In Seconds */
+            expires_in_seconds: number;
+            /** Url */
+            url: string;
+        };
+        /**
+         * PhotoInitiateItem
+         * @description One photo the client wants to upload (post-downscale facts).
+         */
+        PhotoInitiateItem: {
+            /** Byte Length */
+            byte_length: number;
+            /** Caption */
+            caption?: string | null;
+            /** Checksum Sha256 */
+            checksum_sha256?: string | null;
+            /** Content Type */
+            content_type: string;
+            /** Height */
+            height: number;
+            /** Taken At */
+            taken_at?: string | null;
+            /** Thumbhash */
+            thumbhash?: string | null;
+            /** Width */
+            width: number;
+        };
+        /** PhotoInitiateRequest */
+        PhotoInitiateRequest: {
+            /** Photos */
+            photos: components["schemas"]["PhotoInitiateItem"][];
+        };
+        /** PhotoInitiateResponse */
+        PhotoInitiateResponse: {
+            /** Uploads */
+            uploads: components["schemas"]["PhotoUploadTarget"][];
+        };
+        /**
+         * PhotoStatus
+         * @description Lifecycle of an uploaded event photo (GH-145).
+         *
+         *     PENDING — quota reserved, presigned PUT issued, bytes not yet confirmed.
+         *     READY   — the server HEAD-verified the object; it appears in galleries.
+         *     FAILED  — the upload never confirmed (abandoned/stale); reservation released.
+         *     PURGED  — the reaper deleted the underlying object(s); the tombstone row
+         *               remains so the deletion syncs to offline mirrors.
+         * @enum {string}
+         */
+        PhotoStatus: "pending" | "ready" | "failed" | "purged";
+        /** PhotoUpdate */
+        PhotoUpdate: {
+            /** Caption */
+            caption?: string | null;
+        };
+        /**
+         * PhotoUploadTarget
+         * @description Where the client PUTs one photo's bytes.
+         */
+        PhotoUploadTarget: {
+            /** Expires In Seconds */
+            expires_in_seconds: number;
+            /**
+             * Photo Id
+             * Format: uuid
+             */
+            photo_id: string;
+            /** Upload Url */
+            upload_url: string;
+        };
         /**
          * PlatformAdminGrant
          * @description Grant a platform role to an existing (already signed-in) user, by email.
@@ -4816,6 +5120,20 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /**
+         * StorageUsageRead
+         * @description The tenant's storage meter, for upload UIs (GH-145 §7).
+         */
+        StorageUsageRead: {
+            /** Quota Bytes */
+            quota_bytes: number;
+            /** Remaining Bytes */
+            remaining_bytes: number;
+            /** Reserved Bytes */
+            reserved_bytes: number;
+            /** Used Bytes */
+            used_bytes: number;
         };
         /**
          * SwimClassification
@@ -6517,6 +6835,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventParticipantRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_event_photos_events__event_id__photos_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventPhotoWithUrl"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    initiate_photo_upload_events__event_id__photos_initiate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhotoInitiateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoInitiateResponse"];
                 };
             };
             /** @description Validation Error */
@@ -8479,6 +8870,142 @@ export interface operations {
             };
         };
     };
+    delete_photo_photos__photo_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_photo_photos__photo_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhotoUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventPhotoRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_photo_upload_photos__photo_id__complete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventPhotoRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_photo_photos__photo_id__download_get: {
+        parameters: {
+            query?: {
+                variant?: string;
+            };
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoDownload"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_platform_admins_platform_admins_get: {
         parameters: {
             query?: never;
@@ -9292,6 +9819,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberRelationshipRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    storage_usage_storage_usage_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageUsageRead"];
                 };
             };
             /** @description Validation Error */

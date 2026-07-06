@@ -49,3 +49,12 @@ class Tenant(PlatformBase):
         nullable=False,
         default=AdvancementMode.CHAIR_ENTRY,
     )
+    # Object-storage metering (GH-145; the platform's first storage meter).
+    # `used_storage_bytes` counts HEAD-verified bytes plus live PENDING
+    # reservations are tracked on EventPhoto rows — enforcement compares
+    # used + reserved against the effective quota. `storage_quota_bytes` is the
+    # per-tenant override; null falls back to
+    # settings.tenant_storage_quota_default_bytes (the tier placeholder until
+    # billing lands).
+    used_storage_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    storage_quota_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)

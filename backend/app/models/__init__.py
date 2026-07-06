@@ -23,6 +23,7 @@ from app.models.enums import (
     MetricKind,
     MetricWindow,
     Permission,
+    PhotoStatus,
     PlatformRole,
     PositionScope,
     RankCode,
@@ -35,6 +36,7 @@ from app.models.enums import (
 )
 from app.models.event import Event, EventOrganizer, EventParticipant
 from app.models.event_audience import EventAudience
+from app.models.event_photo import EventPhoto
 from app.models.event_type import EventType
 from app.models.group import Group, GroupMember, GroupRule
 from app.models.import_job import ImportJob
@@ -62,6 +64,7 @@ __all__ = [
     "ConsentMethod",
     "Event",
     "EventAudience",
+    "EventPhoto",
     "EventOrganizer",
     "EventParticipant",
     "EventType",
@@ -102,6 +105,7 @@ __all__ = [
     "MemberStatus",
     "MemberType",
     "Permission",
+    "PhotoStatus",
     "PlatformRole",
     "PositionScope",
     "RsvpStatus",

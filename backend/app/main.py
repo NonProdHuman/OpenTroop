@@ -24,6 +24,7 @@ from app.routers import (
     member_positions,
     members,
     messages,
+    photos,
     platform,
     positions,
     push_tokens,
@@ -137,6 +138,7 @@ app.include_router(platform.router)
 app.include_router(locations.router)
 app.include_router(event_types.router)
 app.include_router(events.router)
+app.include_router(photos.router)
 app.include_router(calendar.router)
 app.include_router(imports.router)
 app.include_router(tenant_settings.router)

@@ -118,7 +118,7 @@ class Settings(BaseSettings):
     # Vendor-agnostic: app code talks to app/core/storage.py's StorageService,
     # never a cloud SDK directly. The backend is selected once here. R2 and
     # GCS-interop are both "an S3 endpoint", so one S3 driver covers them; the
-    # "R2 vs GCS" decision is an env choice, not a code fork (pending the ADR).
+    # "R2 vs GCS" decision is an env choice, not a code fork (ADR 0011: R2).
     #   "none" (default, inert — no storage configured)
     #   "fake" (in-memory, for tests / local dev — no cloud call)
     #   "r2" / "s3" / "gcs" (S3-compatible; requires bucket + endpoint + creds)
@@ -139,6 +139,9 @@ class Settings(BaseSettings):
     # shared API is multi-tenant, so a single request must not be unbounded.
     photo_max_upload_bytes: int = 15 * 1024 * 1024  # 15 MiB post-downscale
     photo_max_batch: int = 30
+    # How long a PENDING upload may sit unconfirmed before `uv run
+    # reap-photo-uploads` releases its quota reservation and tombstones it.
+    photo_pending_reap_hours: int = 24
 
     # --- Edge security (GH-116 / GH-117) ---
 
