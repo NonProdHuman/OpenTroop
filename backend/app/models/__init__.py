@@ -10,9 +10,12 @@ from app.models.advancement import (
     RequirementSet,
 )
 from app.models.base import Base, PlatformBase, TrackedBase
+from app.models.consent import ConsentRecord
 from app.models.enums import (
     AdvancementMode,
     CompletionStatus,
+    ConsentMethod,
+    ConsentScope,
     GroupType,
     MemberStatus,
     MemberType,
@@ -52,6 +55,9 @@ __all__ = [
     "Base",
     "PlatformBase",
     "TrackedBase",
+    "ConsentRecord",
+    "ConsentScope",
+    "ConsentMethod",
     "Event",
     "EventAudience",
     "EventOrganizer",

@@ -13,6 +13,7 @@ from app.routers import (
     advancement,
     auth,
     calendar,
+    consents,
     event_types,
     events,
     functional_roles,
@@ -102,6 +103,7 @@ app.include_router(calendar.router)
 app.include_router(imports.router)
 app.include_router(tenant_settings.router)
 app.include_router(sync.router)
+app.include_router(consents.router)
 app.include_router(advancement.router)
 
 
