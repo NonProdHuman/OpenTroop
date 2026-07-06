@@ -56,3 +56,13 @@ output "cloudflare_record_names" {
     api      = local.cloudflare_api_record
   } : null
 }
+
+output "maintenance_job_name" {
+  description = "Cloud Run maintenance job name — set GCP_MAINTENANCE_JOB_NAME to this so deploys roll its image (ADR 0009)."
+  value       = local.maintenance_enabled ? google_cloud_run_v2_job.maintenance[0].name : null
+}
+
+output "storage_bucket_name" {
+  description = "Object storage bucket for event photos (empty when storage_backend=none)."
+  value       = local.storage_bucket_name
+}

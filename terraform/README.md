@@ -116,6 +116,36 @@ The default (`inprocess`) creates none of this: the API drains queued jobs in a
 background loop / the `drain-import-jobs` CLI (self-host needs **CPU always
 allocated** if draining in-process on Cloud Run).
 
+## Photo storage (R2) + weekly maintenance job (GH-145, ADR 0011)
+
+Event photos live in **Cloudflare R2**, spoken through the S3-compatible API.
+Enable storage with:
+
+```hcl
+storage_backend           = "r2"
+manage_r2_bucket          = true   # or supply an existing bucket via storage_bucket
+storage_access_key_id     = "..."  # an R2 API token's S3 key pair — created in the
+storage_secret_access_key = "..."  # Cloudflare dashboard; the provider can't mint these
+```
+
+Terraform then creates the `<prefix>-media` R2 bucket (private — the backend
+mints short-lived presigned URLs for every access), derives the endpoint from
+`cloudflare_account_id`, wires `STORAGE_*` env onto the API service, and stores
+the key pair in Secret Manager.
+
+A **weekly maintenance Cloud Run Job** (`<prefix>-maintenance`, on by default via
+`maintenance_job_enabled`) runs `reap-photo-uploads && reap-tombstones` —
+releasing abandoned upload reservations, deleting soft-deleted photos' objects,
+and hard-deleting purged-member tombstones past retention. **Cloud Scheduler**
+triggers it on `maintenance_schedule` (default `0 8 * * 1`, Mondays 08:00 UTC);
+both reapers are idempotent and cumulative, so a missed week self-heals.
+
+One operator follow-up, mirroring the import worker (ADR 0009): **set
+`GCP_MAINTENANCE_JOB_NAME`** in the deploy workflow's GitHub environment to the
+`maintenance_job_name` output so deploys roll the job's image; Terraform only
+bootstraps it. Self-host deployments can set `maintenance_job_enabled = false`
+and run both CLIs from their own cron instead.
+
 ## Scalr Workspaces
 
 Use separate Scalr workspaces and state for dev and prod. Keep secrets, Neon
