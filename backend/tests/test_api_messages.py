@@ -131,6 +131,72 @@ def test_compose_rejects_bad_targets(client: TestClient, db_session: Session) ->
     assert r.status_code == 422  # unknown group
 
 
+def test_compose_requires_an_audience(client: TestClient, db_session: Session) -> None:
+    # Neither a group target nor send_to_all → 422 (schema validator).
+    r = client.post("/messages", json={"subject": "x", "body": "y", "group_targets": []})
+    assert r.status_code == 422
+
+
+def test_compose_entire_troop_reaches_all_members(
+    client: TestClient, db_session: Session, fakes: _Fakes
+) -> None:
+    a = _member(db_session, "A", email="a@x.test")
+    b = _member(db_session, "B", email="b@x.test")
+    gone = _member(db_session, "Gone", email="g@x.test", is_deleted=True)
+    # In no group at all — entire-troop must still reach them.
+    loner = _member(db_session, "Loner", email="loner@x.test")
+    _group_with(db_session, a, b)
+    db_session.commit()
+
+    # Everyone non-deleted (the exact set includes the fixture admin member).
+    expected = set(
+        db_session.scalars(
+            select(Member.id).where(Member.tenant_id == TENANT_A, Member.is_deleted.is_(False))
+        )
+    )
+    assert {a.id, b.id, loner.id} <= expected and gone.id not in expected
+
+    created = _compose(client, [], send_to_all=True)
+    assert created["message"]["send_to_all"] is True
+    assert created["groups"] == []  # no group rows stored for entire-troop
+    assert created["preview"]["total"] == len(expected)
+
+    send = client.post(f"/messages/{created['message']['id']}/send")
+    assert send.status_code == 200
+    reached = {r.member_id for r in db_session.scalars(select(MessageRecipient)).all()}
+    assert reached == expected  # all non-deleted reached; the soft-deleted one is not
+
+
+def test_stateless_recipient_preview(
+    client: TestClient, db_session: Session, fakes: _Fakes
+) -> None:
+    a = _member(db_session, "A", email="a@x.test")
+    b = _member(db_session, "B")  # no email
+    group = _group_with(db_session, a, b)
+    db_session.commit()
+
+    # By group target — returns counts + the resolved member list, no draft created.
+    r = client.post(
+        "/messages/recipients/preview",
+        json={"group_targets": [{"group_id": str(group.id), "audience_type": "members"}]},
+    )
+    assert r.status_code == 200, r.text
+    payload = r.json()
+    assert payload["preview"]["total"] == 2
+    assert payload["preview"]["email"] == 1
+    assert payload["preview"]["no_email"] == 1
+    assert {e["first_name"] for e in payload["recipients"]} == {"A", "B"}
+    # No Message row was persisted by previewing.
+    assert db_session.scalar(select(Message)) is None
+
+    # Entire-troop preview reaches everyone (at least our two, plus the fixture admin).
+    r = client.post("/messages/recipients/preview", json={"send_to_all": True})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["preview"]["total"] >= 2
+    assert {"A", "B"} <= {e["first_name"] for e in data["recipients"]}
+
+
 def test_send_writes_inbox_pushes_and_queues_email(
     client: TestClient, db_session: Session, fakes: _Fakes
 ) -> None:

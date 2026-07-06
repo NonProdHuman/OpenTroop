@@ -10,7 +10,9 @@ import type {
   MessageCreate,
   MessageDetail,
   MessageWithPreview,
+  RecipientPreview,
   RecipientPreviewEntry,
+  RecipientPreviewRequest,
 } from "@/types/api"
 
 export function useMessages(enabled = true) {
@@ -40,6 +42,24 @@ export function useRecipientPreview(id: string | null) {
     queryKey: queryKeys.messagePreview(activeTenantId, id),
     queryFn: () => request<RecipientPreviewEntry[]>(`/messages/${id}/recipients/preview`),
     enabled: id !== null && Boolean(activeTenantId),
+  })
+}
+
+/**
+ * Live compose preview (#217): resolve who an unsaved announcement would reach,
+ * without creating a draft Message. Pass null to disable (no recipients chosen).
+ */
+export function useRecipientPreviewFor(body: RecipientPreviewRequest | null) {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  return useQuery({
+    queryKey: [activeTenantId, "recipient-preview", body],
+    queryFn: () =>
+      request<RecipientPreview>("/messages/recipients/preview", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    enabled: Boolean(activeTenantId) && body !== null,
   })
 }
 

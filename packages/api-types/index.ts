@@ -1164,6 +1164,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/messages/recipients/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Recipients Stateless
+         * @description Resolve who a not-yet-saved announcement would reach (#217).
+         *
+         *     Powers the always-on live recipient list on compose — no draft Message row is
+         *     created (unlike creating and reading back a draft).
+         */
+        post: operations["preview_recipients_stateless_messages_recipients_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/messages/{message_id}": {
         parameters: {
             query?: never;
@@ -3757,7 +3780,7 @@ export interface components {
             /** Body */
             body: string;
             /** Group Targets */
-            group_targets: components["schemas"]["MessageGroupTarget"][];
+            group_targets?: components["schemas"]["MessageGroupTarget"][];
             /** Scheduled At */
             scheduled_at?: string | null;
             /**
@@ -3770,6 +3793,11 @@ export interface components {
              * @default true
              */
             send_push: boolean;
+            /**
+             * Send To All
+             * @default false
+             */
+            send_to_all: boolean;
             /** Subject */
             subject: string;
         };
@@ -3848,6 +3876,8 @@ export interface components {
             send_email: boolean;
             /** Send Push */
             send_push: boolean;
+            /** Send To All */
+            send_to_all: boolean;
             /** Sent At */
             sent_at: string | null;
             /**
@@ -4260,6 +4290,15 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * RecipientPreview
+         * @description The live compose panel payload: rollup counts + the resolved member list.
+         */
+        RecipientPreview: {
+            preview: components["schemas"]["AudiencePreview"];
+            /** Recipients */
+            recipients: components["schemas"]["RecipientPreviewEntry"][];
+        };
         /** RecipientPreviewEntry */
         RecipientPreviewEntry: {
             email_state: components["schemas"]["EmailState"];
@@ -4274,6 +4313,29 @@ export interface components {
              * Format: uuid
              */
             member_id: string;
+        };
+        /**
+         * RecipientPreviewRequest
+         * @description Stateless compose preview (#217): resolve an audience without saving a draft.
+         */
+        RecipientPreviewRequest: {
+            /** Group Targets */
+            group_targets?: components["schemas"]["MessageGroupTarget"][];
+            /**
+             * Send Email
+             * @default true
+             */
+            send_email: boolean;
+            /**
+             * Send Push
+             * @default true
+             */
+            send_push: boolean;
+            /**
+             * Send To All
+             * @default false
+             */
+            send_to_all: boolean;
         };
         /**
          * RecordedVia
@@ -7703,6 +7765,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessageRecipientRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_recipients_stateless_messages_recipients_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipientPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipientPreview"];
                 };
             };
             /** @description Validation Error */

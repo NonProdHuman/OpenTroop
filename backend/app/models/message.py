@@ -31,6 +31,9 @@ class Message(Syncable, TrackedBase):
     # Send push alerts for this message (email gating is per-member opt-out).
     send_push: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     send_email: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # "Entire troop" target (#217): reaches every non-deleted member. When set,
+    # group targets are ignored by audience resolution.
+    send_to_all: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     sent_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("members.id"), nullable=False)

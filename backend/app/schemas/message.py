@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.models.enums import AudienceType, EmailState, MessageStatus, PushState
 from app.schemas.base import TrackedRead
@@ -19,10 +19,17 @@ class MessageGroupTarget(BaseModel):
 class MessageCreate(BaseModel):
     subject: str = Field(min_length=1, max_length=200)
     body: str = Field(min_length=1)
-    group_targets: list[MessageGroupTarget] = Field(min_length=1)
+    group_targets: list[MessageGroupTarget] = Field(default_factory=list)
+    send_to_all: bool = False
     send_email: bool = True
     send_push: bool = True
     scheduled_at: UtcDateTime | None = None
+
+    @model_validator(mode="after")
+    def _require_audience(self) -> MessageCreate:
+        if not self.send_to_all and not self.group_targets:
+            raise ValueError("Provide at least one group target, or set send_to_all")
+        return self
 
 
 class MessageRead(TrackedRead):
@@ -31,6 +38,7 @@ class MessageRead(TrackedRead):
     status: MessageStatus
     send_email: bool
     send_push: bool
+    send_to_all: bool
     scheduled_at: UtcDateTime | None
     sent_at: UtcDateTime | None
     sent_by_id: uuid.UUID
@@ -65,6 +73,22 @@ class RecipientPreviewEntry(BaseModel):
     last_name: str
     email_state: EmailState
     has_push_device: bool
+
+
+class RecipientPreviewRequest(BaseModel):
+    """Stateless compose preview (#217): resolve an audience without saving a draft."""
+
+    group_targets: list[MessageGroupTarget] = Field(default_factory=list)
+    send_to_all: bool = False
+    send_email: bool = True
+    send_push: bool = True
+
+
+class RecipientPreview(BaseModel):
+    """The live compose panel payload: rollup counts + the resolved member list."""
+
+    preview: AudiencePreview
+    recipients: list[RecipientPreviewEntry]
 
 
 class MessageRecipientRead(TrackedRead):
