@@ -65,7 +65,15 @@ const tenantNavItems: NavItem[] = [
       { title: "Functional Roles", url: "/functional-roles", requires: "role:manage" },
     ],
   },
-  { title: "Events", url: "/events", icon: CalendarDays, requires: "event:read" },
+  {
+    title: "Events",
+    icon: CalendarDays,
+    children: [
+      { title: "Event List", url: "/events", requires: "event:read" },
+      { title: "Calendar", url: "/events/calendar", requires: "event:read" },
+      { title: "Event Types", url: "/events/types", requires: "event:write" },
+    ],
+  },
   {
     title: "Messaging",
     icon: MessageSquare,
@@ -195,6 +203,17 @@ export function AppSidebar({ isAdminView = false }: { isAdminView?: boolean }) {
               const visibleChildren = item.children.filter((child) => !child.requires || has(child.requires))
               if (visibleChildren.length === 0) return null
 
+              // Most-specific match wins: with sibling routes sharing a prefix
+              // (/events, /events/calendar, /events/types), only the longest
+              // matching child highlights — otherwise the index child (/events)
+              // lights up on every /events/* route.
+              const activeChildUrl = visibleChildren
+                .filter((child) => isActive(child.url))
+                .reduce<string | null>(
+                  (best, child) => (best && best.length >= child.url.length ? best : child.url),
+                  null,
+                )
+
               return (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
@@ -218,7 +237,7 @@ export function AppSidebar({ isAdminView = false }: { isAdminView?: boolean }) {
                           <SidebarMenuSubItem key={child.title}>
                             <SidebarMenuSubButton
                               render={childIsDisabled ? <span /> : <Link href={child.url} />}
-                              isActive={isActive(child.url)}
+                              isActive={child.url === activeChildUrl}
                               className={childIsDisabled ? "opacity-50 cursor-not-allowed" : ""}
                               onClick={childIsDisabled ? undefined : handleNavClick}
                             >

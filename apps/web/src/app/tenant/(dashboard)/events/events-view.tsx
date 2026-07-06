@@ -20,10 +20,11 @@ import { CalendarSubscriptionDialog } from "./calendar-subscription-dialog"
 export type View = "list" | "calendar"
 
 /**
- * Shared Events surface, mounted at two routes: `/events` (List) and
- * `/events/calendar` (Calendar). The active view is the route, not local state —
- * the List/Calendar switch navigates so the sidebar highlight and the URL stay
- * in sync (see docs/spec/navigation.md). Filters are per-view by design.
+ * Shared Events surface, mounted at two sidebar destinations: `/events` (List)
+ * and `/events/calendar` (Calendar). Both are findable in the NavBar (ADR 0008);
+ * the in-page switcher below is a convenience that navigates between those two
+ * routes (route-linked, not a hidden-view tab), so the URL and sidebar highlight
+ * stay in sync. Filters are per-view.
  */
 export function EventsView({ initialView }: { initialView: View }) {
   const router = useRouter()
@@ -89,13 +90,9 @@ export function EventsView({ initialView }: { initialView: View }) {
 
   return (
     <>
-      <PageHeader title={`Events (${count})`}>
+      <PageHeader title={`${view === "calendar" ? "Calendar" : "Events"} (${count})`}>
         <div className="flex items-center rounded-md border p-0.5">
-          <ViewButton
-            active={view === "list"}
-            onClick={() => router.push("/events")}
-            icon={List}
-          >
+          <ViewButton active={view === "list"} onClick={() => router.push("/events")} icon={List}>
             List
           </ViewButton>
           <ViewButton

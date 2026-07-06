@@ -78,6 +78,9 @@ export function EventTypeForm({
   error,
   onSubmit,
   onCancel,
+  onDelete,
+  deleting,
+  deletable,
 }: {
   title: string
   initial?: EventType
@@ -86,9 +89,21 @@ export function EventTypeForm({
   error: string | null
   onSubmit: (values: EventTypeFormValues) => void
   onCancel: () => void
+  onDelete?: () => void
+  deleting?: boolean
+  deletable?: boolean
 }) {
   const [values, setValues] = useState<EventTypeFormValues>(() => initialValues(initial))
   const [localError, setLocalError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  function handleDelete() {
+    if (!confirmDelete) {
+      setConfirmDelete(true)
+      return
+    }
+    onDelete?.()
+  }
 
   function set<K extends keyof EventTypeFormValues>(key: K, value: EventTypeFormValues[K]) {
     setValues((prev) => {
@@ -111,6 +126,15 @@ export function EventTypeForm({
   return (
     <>
       <PageHeader title={title}>
+        {deletable && onDelete && (
+          <Button
+            variant={confirmDelete ? "destructive" : "outline"}
+            onClick={handleDelete}
+            disabled={deleting}
+          >
+            {confirmDelete ? "Confirm delete" : "Delete"}
+          </Button>
+        )}
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
