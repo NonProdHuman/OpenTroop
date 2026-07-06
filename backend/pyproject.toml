@@ -21,6 +21,8 @@ dependencies = [
     # HTTP client used by ResendEmailBackend (app/core/notifications.py).
     "httpx2>=0.28",
     "defusedxml>=0.7",
+    # S3-compatible object storage driver — Cloudflare R2 (ADR 0011, GH-145).
+    "boto3>=1.34",
 ]
 
 [dependency-groups]
@@ -89,6 +91,7 @@ recompute-advancement = "scripts.recompute_advancement:main"
 drain-outbox = "scripts.drain_outbox:main"
 drain-import-jobs = "scripts.drain_import_jobs:main"
 reap-tombstones = "scripts.reap_tombstones:main"
+reap-photo-uploads = "scripts.reap_photo_uploads:main"
 
 [build-system]
 requires = ["setuptools>=68"]

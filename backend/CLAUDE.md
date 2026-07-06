@@ -31,6 +31,9 @@ uv run recompute-advancement      # scheduled auto-credit pass (tenure/POR thres
 
 # Hard delete (GH-222, ADR 0010)
 uv run reap-tombstones            # physically delete purged-member tombstones past retention (cron)
+
+# Event photos (GH-145, ADR 0011)
+uv run reap-photo-uploads         # sweep abandoned/deleted photo uploads + release quota (cron)
 ```
 
 ## Scripts

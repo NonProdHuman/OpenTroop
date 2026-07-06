@@ -113,6 +113,36 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     email_from_address: str = ""
 
+    # --- Object storage for event photos (GH-145) ---
+    #
+    # Vendor-agnostic: app code talks to app/core/storage.py's StorageService,
+    # never a cloud SDK directly. The backend is selected once here. R2 and
+    # GCS-interop are both "an S3 endpoint", so one S3 driver covers them; the
+    # "R2 vs GCS" decision is an env choice, not a code fork (ADR 0011: R2).
+    #   "none" (default, inert — no storage configured)
+    #   "fake" (in-memory, for tests / local dev — no cloud call)
+    #   "r2" / "s3" / "gcs" (S3-compatible; requires bucket + endpoint + creds)
+    storage_backend: str = "none"
+    storage_bucket: str = ""
+    storage_s3_endpoint: str = ""  # R2/GCS-interop endpoint; empty = AWS default
+    storage_region: str = "auto"  # R2 uses "auto"
+    storage_access_key_id: str = ""
+    storage_secret_access_key: str = ""  # secret — from env, never committed
+    # Presigned PUT/GET URLs are short-lived credentials; keep the window tight.
+    storage_presign_ttl_seconds: int = Field(default=600, ge=60, le=3600)
+
+    # Per-troop storage quota (bytes). The platform's first storage meter — the
+    # placeholder tier ceiling until real billing lands (Tenant.storage_quota_bytes
+    # overrides per-tenant). Photo upload reserves against this and 413s on overflow.
+    tenant_storage_quota_default_bytes: int = 5 * 1024 * 1024 * 1024  # 5 GiB
+    # Per-file cap after client-side downscale, and per-initiate batch cap — the
+    # shared API is multi-tenant, so a single request must not be unbounded.
+    photo_max_upload_bytes: int = 15 * 1024 * 1024  # 15 MiB post-downscale
+    photo_max_batch: int = 30
+    # How long a PENDING upload may sit unconfirmed before `uv run
+    # reap-photo-uploads` releases its quota reservation and tombstones it.
+    photo_pending_reap_hours: int = 24
+
     # --- Edge security (GH-116 / GH-117) ---
 
     # Shared secret proving a request traversed the trusted edge proxy — the
