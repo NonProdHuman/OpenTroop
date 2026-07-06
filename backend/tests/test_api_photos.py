@@ -352,7 +352,8 @@ def test_cross_tenant_photo_is_404(
     event = _event(client)
     photo = _upload_and_complete(client, fake_storage, event["id"])
     assert other_client.get(f"/photos/{photo['id']}/download").status_code == 404
-    assert other_client.delete(f"/photos/{photo['id']}").status_code == 404
+    cross_delete = other_client.delete(f"/photos/{photo['id']}")
+    assert cross_delete.status_code == 404
 
 
 # --- Download / caption / delete ------------------------------------------
@@ -420,7 +421,8 @@ def test_non_owner_without_moderate_cannot_delete(
     blocked = claim_client.delete(f"/photos/{admin_photo['id']}", headers=headers)
     assert blocked.status_code == 403
     # The admin holds the is_admin role (⇒ photo:moderate) and may delete anyone's.
-    assert client.delete(f"/photos/{admin_photo['id']}").status_code == 204
+    moderated = client.delete(f"/photos/{admin_photo['id']}")
+    assert moderated.status_code == 204
 
 
 # --- Reaper -----------------------------------------------------------------
@@ -462,4 +464,5 @@ def test_reaper_sweeps_stale_pending_and_deleted(
     assert reaped.is_deleted is True
 
     # Idempotent: nothing left to sweep.
-    assert reap_photo_uploads(db_session, fake_storage) == (0, 0)
+    rerun = reap_photo_uploads(db_session, fake_storage)
+    assert rerun == (0, 0)
