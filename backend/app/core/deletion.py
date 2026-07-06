@@ -38,13 +38,10 @@ import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import CursorResult, delete, func, select, text, update
 from sqlalchemy.orm import Session
-
-if TYPE_CHECKING:
-    from sqlalchemy import CursorResult
 
 from app.core.config import settings
 from app.core.tenant_context import include_deleted, unscoped
@@ -340,7 +337,7 @@ def purge_tenant(db: Session, tenant: Tenant) -> dict[str, int]:
     counts: dict[str, int] = {}
     for table in reversed(_tenant_scoped_tables()):
         result = cast(
-            "CursorResult[Any]", db.execute(table.delete().where(table.c.tenant_id == tenant.id))
+            CursorResult[Any], db.execute(table.delete().where(table.c.tenant_id == tenant.id))
         )
         if result.rowcount:
             counts[table.name] = result.rowcount
