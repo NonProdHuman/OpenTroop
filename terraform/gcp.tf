@@ -186,6 +186,12 @@ resource "google_cloud_run_v2_service" "api" {
     }
   }
 
+  # GitHub Actions owns the running image/revision; Terraform only bootstraps it
+  # (ADR 0009). Ignoring image drift keeps `terraform apply` from reverting a deploy.
+  lifecycle {
+    ignore_changes = [template[0].containers[0].image]
+  }
+
   depends_on = [
     google_project_service.required,
     google_secret_manager_secret_iam_member.api_secret_access,
@@ -257,6 +263,12 @@ resource "google_cloud_run_v2_service" "web" {
         }
       }
     }
+  }
+
+  # GitHub Actions owns the running image/revision; Terraform only bootstraps it
+  # (ADR 0009). Ignoring image drift keeps `terraform apply` from reverting a deploy.
+  lifecycle {
+    ignore_changes = [template[0].containers[0].image]
   }
 
   depends_on = [

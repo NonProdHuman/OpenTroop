@@ -29,12 +29,16 @@ terraform apply
 ```
 
 The initial `api_image` and `web_image` must already exist because Terraform
-creates Cloud Run services from container images. Once the services and Artifact
-Registry repository exist, the GitHub Actions deploy workflow can push and roll
-forward new images.
+creates Cloud Run services from container images. They are **bootstrap-only**:
+both services set `lifecycle { ignore_changes = [template[0].containers[0].image] }`,
+so once the service exists the **GitHub Actions deploy workflow owns the running
+image/revision** and `terraform apply` will not revert it. Terraform owns the
+service shell (name, scaling, IAM, env, secrets); Actions owns the image. See
+[ADR 0009](../docs/adr/0009-cloud-run-ownership-boundary.md).
 
-After apply, copy these outputs into GitHub repository variables or secrets if
-you continue using the checked-in deploy workflow:
+After apply, copy these outputs into GitHub **environment** variables (set them on
+the `production` environment — the deploy workflow now *requires* them there and
+fails rather than falling back to flat `opentroop-*` service names):
 
 - `GCP_PROJECT_ID`
 - `GCP_REGION`
