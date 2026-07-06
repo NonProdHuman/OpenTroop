@@ -220,8 +220,10 @@ def test_outbox_loop_survives_a_crashing_pass(monkeypatch: pytest.MonkeyPatch) -
                     await asyncio.sleep(0.01)
         finally:
             task.cancel()
-            with pytest.raises(asyncio.CancelledError):
-                await task
+            await asyncio.gather(task, return_exceptions=True)
+            # The loop must propagate cancellation (not swallow it) or app
+            # shutdown would hang waiting on it.
+            assert task.cancelled()
 
     asyncio.run(run_three_ticks())
     assert len(calls) >= 3  # the crash on tick 1 did not kill the loop
