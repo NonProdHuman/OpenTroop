@@ -66,6 +66,7 @@ export default function ComposeScreen() {
         body,
         send_email: sendEmail,
         send_push: sendPush,
+        send_to_all: false,
         group_targets: targets,
         scheduled_at: null,
       })
