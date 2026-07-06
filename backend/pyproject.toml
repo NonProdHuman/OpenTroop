@@ -87,6 +87,7 @@ seed-dev-data    = "scripts.seed_dev_data:main"
 seed-advancement = "scripts.seed_advancement:main"
 recompute-advancement = "scripts.recompute_advancement:main"
 drain-outbox = "scripts.drain_outbox:main"
+drain-import-jobs = "scripts.drain_import_jobs:main"
 reap-tombstones = "scripts.reap_tombstones:main"
 
 [build-system]

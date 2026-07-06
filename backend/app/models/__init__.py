@@ -17,6 +17,7 @@ from app.models.enums import (
     ConsentMethod,
     ConsentScope,
     GroupType,
+    ImportJobStatus,
     MemberStatus,
     MemberType,
     MetricKind,
@@ -36,6 +37,7 @@ from app.models.event import Event, EventOrganizer, EventParticipant
 from app.models.event_audience import EventAudience
 from app.models.event_type import EventType
 from app.models.group import Group, GroupMember, GroupRule
+from app.models.import_job import ImportJob
 from app.models.location import Location
 from app.models.member import Member
 from app.models.message import Message, MessageGroup, MessageRecipient
@@ -67,6 +69,7 @@ __all__ = [
     "PushToken",
     "GroupMember",
     "GroupRule",
+    "ImportJob",
     "Location",
     "Member",
     "Message",
@@ -95,6 +98,7 @@ __all__ = [
     "MetricKind",
     "MetricWindow",
     "GroupType",
+    "ImportJobStatus",
     "MemberStatus",
     "MemberType",
     "Permission",

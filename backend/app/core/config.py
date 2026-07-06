@@ -71,6 +71,32 @@ class Settings(BaseSettings):
     twh_import_max_decompressed_bytes: int = 200 * 1024 * 1024
     twh_import_max_zip_entries: int = 64
 
+    # Async import queue (GH-240). An import is never run inside its HTTP request:
+    # POST /import/twh persists the payload + an ImportJob and returns 202; a worker
+    # drains it. The backend is selected once here, mirroring EMAIL_BACKEND / the
+    # outbox driver:
+    #   "inprocess" (default) — the lifespan loop drains queued jobs (self-host, dev,
+    #                and Cloud Run *with CPU always allocated*); `drain-import-jobs`
+    #                is the cron/self-host belt.
+    #   "cloudtasks" — enqueue pushes each job to a dedicated worker service via
+    #                Cloud Tasks (SaaS; the worker has a long request timeout). See
+    #                app/core/import_queue.py.
+    import_queue_backend: str = "inprocess"
+    # Run the in-process drain loop in this process. Off by default (tests, one-shot
+    # commands, and the cloudtasks worker, which is push-driven not loop-driven).
+    import_loop_enabled: bool = False
+    import_tick_seconds: int = 10
+
+    # --- cloudtasks backend only ---
+    # Fully-qualified queue path: projects/<p>/locations/<loc>/queues/<q>.
+    cloudtasks_queue_path: str = ""
+    # Absolute URL of the worker execute endpoint Cloud Tasks POSTs to
+    # (e.g. https://import-worker-xxxx.run.app/import/jobs/execute).
+    import_worker_url: str = ""
+    # Service account Cloud Tasks mints its OIDC token as; the worker verifies the
+    # token audience == import_worker_url and email == this account.
+    import_worker_service_account: str = ""
+
     # Email delivery backend: "fake" (default, no vendor call — for local dev/tests)
     # or "resend". See app/core/notifications.py.
     # Messaging outbox (GH-146/GH-78): per-tenant emails per drain tick, tick

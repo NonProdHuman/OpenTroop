@@ -64,25 +64,32 @@ def _warn_if_advancement_catalog_empty() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
-    """Start the messaging outbox loop (GH-78) when enabled.
+    """Start the background drain loops (GH-78 outbox, GH-240 import) when enabled.
 
     Off by default (tests, one-shot commands); production/dev API processes set
-    OUTBOX_LOOP_ENABLED=true. The drain-outbox CLI is the cron belt either way.
+    OUTBOX_LOOP_ENABLED / IMPORT_LOOP_ENABLED as appropriate. The drain-outbox and
+    drain-import-jobs CLIs are the cron belts either way. (On SaaS, imports are
+    pushed to a Cloud Tasks worker instead — IMPORT_QUEUE_BACKEND=cloudtasks.)
     """
     _warn_if_advancement_catalog_empty()
-    task: asyncio.Task[None] | None = None
+    tasks: list[asyncio.Task[None]] = []
     if settings.outbox_loop_enabled:
         from app.core.outbox import outbox_loop
 
-        task = asyncio.create_task(outbox_loop())
+        tasks.append(asyncio.create_task(outbox_loop()))
+    if settings.import_loop_enabled:
+        from app.core.import_jobs import import_loop
+
+        tasks.append(asyncio.create_task(import_loop()))
     yield
-    if task is not None:
+    for task in tasks:
         task.cancel()
+    if tasks:
         with contextlib.suppress(asyncio.CancelledError):
-            # Await the cancelled outbox loop so it can unwind before shutdown
-            # continues (gather keeps this a call expression, not a bare
+            # Await the cancelled background loops so they can unwind before
+            # shutdown continues (gather keeps this a call expression, not a bare
             # awaited-name that static analysis reads as having no effect).
-            await asyncio.gather(task)
+            await asyncio.gather(*tasks)
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
