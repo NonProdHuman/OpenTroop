@@ -112,10 +112,10 @@ locals {
   # Async TWH import worker (GH-240). Provisioned only when the SaaS Cloud Tasks
   # backend is selected; self-host/dev use the in-process drain loop and none of
   # the resources below exist.
-  cloudtasks_enabled           = var.import_queue_backend == "cloudtasks"
-  import_worker_service_name   = "${local.name_prefix}-import-worker"
-  import_worker_sa_id          = "${substr(local.name_prefix, 0, 20)}-imp"
-  import_tasks_queue_name      = "${local.name_prefix}-imports"
+  cloudtasks_enabled            = var.import_queue_backend == "cloudtasks"
+  import_worker_service_name    = "${local.name_prefix}-import-worker"
+  import_worker_sa_id           = "${substr(local.name_prefix, 0, 20)}-imp"
+  import_tasks_queue_name       = "${local.name_prefix}-imports"
   import_worker_service_account = local.cloudtasks_enabled ? google_service_account.import_worker[0].email : ""
 
   # Cloud Run's deterministic URL for the worker. Computed (not the resource's own
