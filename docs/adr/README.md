@@ -30,6 +30,7 @@ closed issue, it probably belongs here.
 | [0007](0007-httpx2-http-client.md) | `httpx2` as the backend HTTP client | Accepted |
 | [0008](0008-navigation-sidebar-primary-ia.md) | Navigation IA: sidebar is the complete map; tabs are within-page conveniences | Accepted |
 | [0009](0009-cloud-run-ownership-boundary.md) | Cloud Run ownership: Terraform provisions the shell, GitHub Actions owns the image | Accepted |
+| [0010](0010-hard-delete-anonymize-then-reap.md) | Hard delete: anonymize-then-reap members, export-gated tenant purge | Accepted |
 
 > ADRs 0001–0005 record decisions that were already in force when the log was
 > created (2026-07); their content is reconstructed from the code and specs that

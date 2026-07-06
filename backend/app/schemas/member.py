@@ -105,6 +105,17 @@ class MemberRead(MemberBase, TrackedRead):
     email: str | None = None
 
 
+class MemberPurgeRequest(BaseModel):
+    """Body for POST /members/{id}/purge — the type-to-confirm phrase (GH-222).
+
+    Must match the member's "first_name last_name" (case-insensitive,
+    whitespace-normalized). Enforced server-side so no client can offer a
+    one-click irreversible delete.
+    """
+
+    confirm_name: str
+
+
 class MemberInviteRead(BaseModel):
     """Returned by POST /members/{id}/invite — the token the member uses to claim their account."""
 

@@ -27,7 +27,19 @@ class TenantRead(PlatformRead):
     name: str
     slug: str
     suspended_at: datetime | None = None
+    # When a platform admin last exported this tenant's data (GH-222). The admin
+    # UI uses it to arm the delete flow: deletion requires an export after suspension.
+    last_export_at: datetime | None = None
     permission_message: str | None = None
+
+
+class TenantDeleteRequest(BaseModel):
+    """Body for DELETE /platform/tenants/{id} — type-to-confirm (GH-222).
+
+    Must match the tenant's slug exactly; enforced server-side.
+    """
+
+    confirm_slug: str
 
 
 class TenantSettingsRead(BaseModel):

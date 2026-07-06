@@ -24,6 +24,7 @@ import {
   toFormState,
   type MemberFormState,
 } from "../../member-form"
+import { PurgeMemberDialog } from "./purge-member-dialog"
 
 export default function MemberEditPage() {
   const { id } = useParams<{ id: string }>()
@@ -147,6 +148,21 @@ function MemberEditForm({ id, member }: { id: string; member: Member }) {
             {updateMember.isPending ? "Saving…" : "Save changes"}
           </Button>
         </div>
+
+        {/* ── Danger zone (GH-222) ─────────────────────────── */}
+        {has("member:delete") && (
+          <>
+            <Separator />
+            <SectionTitle>Danger zone</SectionTitle>
+            <div className="flex items-start justify-between gap-4 rounded-lg border border-destructive/30 p-4">
+              <p className="text-sm text-muted-foreground">
+                Permanently erase this member&apos;s personal data. Irreversible, admin-only —
+                for legal-erasure requests and family off-boarding, not routine roster cleanup.
+              </p>
+              <PurgeMemberDialog member={member} />
+            </div>
+          </>
+        )}
       </div>
     </>
   )

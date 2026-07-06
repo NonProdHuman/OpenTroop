@@ -157,10 +157,14 @@ Soft-deleted rows must remain queryable (and keep their `sync_seq` bumping on an
 revival) for **at least 180 days** after deletion. A client that hasn't synced within the
 window cannot converge incrementally and must full-refetch (walk from `since_seq=0`,
 replacing local state) — the same reconciliation path as Decision 2's visibility caveat,
-so it costs no extra client code. The future hard-delete/retention pipeline (#121) must
-respect this floor and, when it purges, record a per-tenant `purged_through_seq`
-watermark so the pull endpoint can tell a too-stale client to full-refetch instead of
-silently under-delivering tombstones.
+so it costs no extra client code. The hard-delete pipeline (GH-222, ADR 0010 — member
+purge + `uv run reap-tombstones`) implements this: the reaper records a per-tenant
+`purged_through_seq` watermark (drawn fresh from the `sync_seq` sequence so it dominates
+every issued cursor, because reaping also hard-deletes never-tombstoned dependent rows),
+the pull endpoints answer **410 Gone** to any cursor behind it, and a completed walk's
+cursor is clamped up to the watermark so a refetched client converges. The config floor
+is enforced (`TOMBSTONE_RETENTION_DAYS` ≥ 180). General retention for other tombstones
+remains #121.
 
 ## Decision 6 — Permissions offline
 

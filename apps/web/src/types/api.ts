@@ -81,6 +81,11 @@ export type TenantAdminInviteInput = Schemas["TenantAdminInvite"]
 export type TenantAdminInviteResult = Schemas["TenantAdminInviteResult"]
 export type PlatformAdmin = Schemas["PlatformAdminRead"]
 export type PlatformAdminGrantInput = Schemas["PlatformAdminGrant"]
+export type TenantDeleteInput = Schemas["TenantDeleteRequest"]
+
+// ── Hard delete (GH-222) ──────────────────────────────────────────────────────
+
+export type MemberPurgeInput = Schemas["MemberPurgeRequest"]
 
 // ── Calendar ──────────────────────────────────────────────────────────────────
 
