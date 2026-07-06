@@ -11,7 +11,7 @@ export default function SelectTroopScreen() {
   const router = useRouter()
   const { isSignedIn, isLoaded } = useAuth()
   const { setActiveTenant } = useActiveTenant()
-  const { data: memberships, isLoading, error } = useMemberships()
+  const { data: memberships, isLoading, error, refetch, isRefetching } = useMemberships()
 
   if (!isLoaded) return <LoadingScreen />
   if (!isSignedIn) return <Redirect href="/sign-in" />
@@ -34,6 +34,10 @@ export default function SelectTroopScreen() {
       <FlatList
         data={memberships ?? []}
         keyExtractor={(item) => item.tenant_id}
+        refreshing={isRefetching}
+        onRefresh={() => void refetch()}
+        // Let the pull gesture work even when the list is empty (error state).
+        contentContainerStyle={{ flexGrow: 1 }}
         renderItem={({ item }) => (
           <Pressable
             onPress={() => {
