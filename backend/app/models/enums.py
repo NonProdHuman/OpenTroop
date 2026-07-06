@@ -21,6 +21,25 @@ class MemberStatus(enum.StrEnum):
     ALUMNI = "alumni"  # left the troop; data retained for history
 
 
+class ConsentScope(enum.StrEnum):
+    """What a consent record covers — one ledger, many scopes (#223)."""
+
+    TOS = "tos"  # terms of service / privacy policy acceptance
+    ACCOUNT = "account"  # COPPA parental consent for a child's account
+    MEDIA = "media"  # photo / talent release
+    SMS = "sms"  # TCPA SMS opt-in
+
+
+class ConsentMethod(enum.StrEnum):
+    """How consent was obtained (COPPA verifiable-consent methods + self-accept)."""
+
+    SELF = "self"  # the adult subject accepted it themselves (ToS)
+    PARENT_PORTAL = "parent_portal"  # a verified parent granted it in-app
+    SMS = "sms"  # text-message-based verifiable consent
+    SIGNED_FORM = "signed_form"  # a signed paper/e-form on file
+    KBA = "kba"  # knowledge-based authentication
+
+
 class Permission(enum.StrEnum):
     """All capabilities that can be granted to a Role.
 

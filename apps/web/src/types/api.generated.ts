@@ -269,6 +269,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/consents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Consents */
+        get: operations["list_consents_consents_get"];
+        put?: never;
+        /** Record Consent */
+        post: operations["record_consent_consents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/consents/{consent_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revoke Consent */
+        post: operations["revoke_consent_consents__consent_id__revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/event-types": {
         parameters: {
             query?: never;
@@ -1962,6 +1997,84 @@ export interface components {
             note?: string | null;
             status?: components["schemas"]["CompletionStatus"] | null;
         };
+        /**
+         * ConsentMethod
+         * @description How consent was obtained (COPPA verifiable-consent methods + self-accept).
+         * @enum {string}
+         */
+        ConsentMethod: "self" | "parent_portal" | "sms" | "signed_form" | "kba";
+        /** ConsentRecordCreate */
+        ConsentRecordCreate: {
+            /** Consented By Member Id */
+            consented_by_member_id?: string | null;
+            /** Granted At */
+            granted_at?: string | null;
+            /** @default self */
+            method: components["schemas"]["ConsentMethod"];
+            /** Notes */
+            notes?: string | null;
+            /** Policy Version */
+            policy_version?: string | null;
+            scope: components["schemas"]["ConsentScope"];
+            /**
+             * Subject Member Id
+             * Format: uuid
+             */
+            subject_member_id: string;
+        };
+        /** ConsentRecordRead */
+        ConsentRecordRead: {
+            /** Consented By Member Id */
+            consented_by_member_id: string | null;
+            /** Consented By User Id */
+            consented_by_user_id: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Granted At
+             * Format: date-time
+             */
+            granted_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            method: components["schemas"]["ConsentMethod"];
+            /** Notes */
+            notes: string | null;
+            /** Policy Version */
+            policy_version: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
+            scope: components["schemas"]["ConsentScope"];
+            /**
+             * Subject Member Id
+             * Format: uuid
+             */
+            subject_member_id: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ConsentScope
+         * @description What a consent record covers — one ledger, many scopes (#223).
+         * @enum {string}
+         */
+        ConsentScope: "tos" | "account" | "media" | "sms";
         /** DeliveryStats */
         DeliveryStats: {
             /** Email Failed */
@@ -5335,6 +5448,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_consents_consents_get: {
+        parameters: {
+            query?: {
+                subject_member_id?: string | null;
+                scope?: components["schemas"]["ConsentScope"] | null;
+            };
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentRecordRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_consent_consents_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConsentRecordCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentRecordRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_consent_consents__consent_id__revoke_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                consent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsentRecordRead"];
                 };
             };
             /** @description Validation Error */
