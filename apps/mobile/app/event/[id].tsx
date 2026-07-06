@@ -1,7 +1,7 @@
 import { useColors } from "@/lib/theme"
 import { useState } from "react"
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native"
-import { Stack, useLocalSearchParams } from "expo-router"
+import { Link, Stack, useLocalSearchParams } from "expo-router"
 import {
   useCachedPermissions,
   useMirrorEvent,
@@ -151,6 +151,13 @@ export default function EventDetailScreen() {
             <Text style={{ color: colors.textMuted, marginTop: 2 }}>{event.location_notes}</Text>
           ) : null}
           {event.description ? <Text style={{ marginTop: 8 }}>{event.description}</Text> : null}
+          {has("photo:read") && (
+            <Link href={`/event/photos/${event.id}`} asChild>
+              <Pressable style={{ marginTop: 10, alignSelf: "flex-start" }}>
+                <Text style={{ color: colors.accent, fontWeight: "600" }}>Photos →</Text>
+              </Pressable>
+            </Link>
+          )}
         </View>
 
         {family.length > 0 && (
