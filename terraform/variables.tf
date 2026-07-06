@@ -401,3 +401,52 @@ variable "deletion_protection" {
   type        = bool
   default     = false
 }
+
+# ── Async TWH import worker (GH-240) ──────────────────────────────────────────
+
+variable "import_queue_backend" {
+  description = "How queued TWH imports are dispatched. 'inprocess' (default; self-host/dev — the API drains jobs in a background loop / CLI) or 'cloudtasks' (SaaS — provisions a Cloud Tasks queue + dedicated worker Cloud Run service). Must match the API's IMPORT_QUEUE_BACKEND env."
+  type        = string
+  default     = "inprocess"
+
+  validation {
+    condition     = contains(["inprocess", "cloudtasks"], var.import_queue_backend)
+    error_message = "import_queue_backend must be 'inprocess' or 'cloudtasks'."
+  }
+}
+
+variable "import_worker_url" {
+  description = "Override for the import worker's URL (the Cloud Tasks OIDC audience). Leave empty to use Cloud Run's deterministic URL; set it to the service's actual URI only if the postcondition reports a mismatch (older projects use a hashed URL)."
+  type        = string
+  default     = ""
+}
+
+variable "import_worker_ingress" {
+  description = "Ingress policy for the import worker service. Only Cloud Tasks (as the worker SA) may invoke it — there is no public invoker binding."
+  type        = string
+  default     = "INGRESS_TRAFFIC_ALL"
+}
+
+variable "import_worker_timeout_seconds" {
+  description = "Request timeout for the import worker (a single import runs inside one Cloud Tasks push). Cloud Run's max is 3600."
+  type        = number
+  default     = 3600
+}
+
+variable "import_worker_cpu" {
+  description = "CPU limit for the import worker service."
+  type        = string
+  default     = "1"
+}
+
+variable "import_worker_memory" {
+  description = "Memory limit for the import worker service (imports stream-parse but stage rows; give it headroom)."
+  type        = string
+  default     = "2Gi"
+}
+
+variable "import_worker_max_instances" {
+  description = "Max instances for the import worker (also the Cloud Tasks max concurrent dispatches). Imports are serialized per tenant; a small ceiling is plenty."
+  type        = number
+  default     = 3
+}

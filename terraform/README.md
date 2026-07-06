@@ -85,6 +85,37 @@ enabled deliberately. Suggested order:
    domain** in the Zero Trust dashboard so the admin console's XHR calls to
    `api.<domain>` carry the Access session.
 
+## Async import worker (GH-240)
+
+Large TWH imports can exceed Cloud Run's request timeout, so on SaaS an import is
+pushed to a **Cloud Tasks queue** that invokes a dedicated **worker Cloud Run
+service** (same image, `timeoutSeconds` 3600, scales to zero). Enable it with:
+
+```hcl
+import_queue_backend = "cloudtasks"   # default "inprocess" (self-host/dev)
+```
+
+When set, `terraform apply` provisions the `cloudtasks.googleapis.com` API, an
+`<prefix>-imports` queue, an `<prefix>-import-worker` service + its service
+account, and the IAM (the API SA gets `cloudtasks.enqueuer` on the queue and
+`actAs` on the worker SA; the worker SA gets `run.invoker` on the worker and
+secret access). The API's `IMPORT_*` env is wired automatically.
+
+Two operator follow-ups:
+
+- **Set `GCP_IMPORT_WORKER_SERVICE_NAME`** in the deploy workflow's GitHub
+  environment to the `import_worker_service_name` output. The worker runs the same
+  backend image, so the deploy workflow must roll it alongside the API — the step
+  is skipped when the variable is empty.
+- **Deterministic URL check.** The worker carries its own URL as the OIDC audience,
+  computed as `https://<service>-<project_number>.<region>.run.app`. If your
+  project uses legacy hashed Cloud Run URLs the apply fails with a postcondition
+  telling you the actual URI — set `import_worker_url` to it and re-apply.
+
+The default (`inprocess`) creates none of this: the API drains queued jobs in a
+background loop / the `drain-import-jobs` CLI (self-host needs **CPU always
+allocated** if draining in-process on Cloud Run).
+
 ## Scalr Workspaces
 
 Use separate Scalr workspaces and state for dev and prod. Keep secrets, Neon
