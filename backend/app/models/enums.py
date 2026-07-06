@@ -21,6 +21,25 @@ class MemberStatus(enum.StrEnum):
     ALUMNI = "alumni"  # left the troop; data retained for history
 
 
+class ConsentScope(enum.StrEnum):
+    """What a consent record covers — one ledger, many scopes (#223)."""
+
+    TOS = "tos"  # terms of service / privacy policy acceptance
+    ACCOUNT = "account"  # COPPA parental consent for a child's account
+    MEDIA = "media"  # photo / talent release
+    SMS = "sms"  # TCPA SMS opt-in
+
+
+class ConsentMethod(enum.StrEnum):
+    """How consent was obtained (COPPA verifiable-consent methods + self-accept)."""
+
+    SELF = "self"  # the adult subject accepted it themselves (ToS)
+    PARENT_PORTAL = "parent_portal"  # a verified parent granted it in-app
+    SMS = "sms"  # text-message-based verifiable consent
+    SIGNED_FORM = "signed_form"  # a signed paper/e-form on file
+    KBA = "kba"  # knowledge-based authentication
+
+
 class Permission(enum.StrEnum):
     """All capabilities that can be granted to a Role.
 
@@ -112,7 +131,100 @@ class RuleDimension(enum.StrEnum):
     OA_ACTIVE = "oa_active"
     POSITION = "position"
     GROUP_MEMBER = "group_member"
-    RANK = "rank"  # Phase 2 — no-op until Pillar 4 advancement model
+    RANK = "rank"  # current rank (highest completed) — see app/core/groups.py
+
+
+class CompletionStatus(enum.StrEnum):
+    """Workflow state of a reported advancement completion (GH-92).
+
+    REPORTED — entered by a scout/parent (mode ``scout_reported``); awaiting the
+               advancement chair's approval.
+    APPROVED — counts toward the rank. Direct chair entry and auto-credits are
+               born approved.
+    REJECTED — reviewed and declined; may be re-reported with new evidence.
+
+    Revocation is the soft-delete tombstone, not a status — a revoked auto-credit
+    must never be re-created by the engine, which treats any existing row
+    (including deleted) as "do not re-create".
+    """
+
+    REPORTED = "reported"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class RecordedVia(enum.StrEnum):
+    """How an advancement completion row came to exist (GH-92)."""
+
+    MANUAL = "manual"  # entered by a person (self-report or chair entry)
+    AUTO = "auto"  # auto-credit engine crossed a metric threshold
+    IMPORT = "import"  # Scoutbook import
+    REMAP = "remap"  # copied across requirement sets on a version-election switch
+
+
+class AdvancementMode(enum.StrEnum):
+    """Per-tenant switch for the advancement workflow (GH-92).
+
+    DISABLED       — nav hidden; advancement endpoints 404; auto-credit inert.
+    CHAIR_ENTRY    — only ``advancement:record`` holders write; entries are born
+                     approved. The default for new tenants.
+    SCOUT_REPORTED — scouts/parents self-report; the approval queue is active.
+    """
+
+    DISABLED = "disabled"
+    CHAIR_ENTRY = "chair_entry"
+    SCOUT_REPORTED = "scout_reported"
+
+
+class RankCode(enum.StrEnum):
+    """The seven sequential Scouts BSA ranks (Pillar 4, see GH-92).
+
+    Scout–First Class may be worked simultaneously but are earned in sequence;
+    ordering lives on ``Rank.sort_order``, this enum is the stable identifier.
+    Eagle Palms are deferred (not a rank row).
+    """
+
+    SCOUT = "scout"
+    TENDERFOOT = "tenderfoot"
+    SECOND_CLASS = "second_class"
+    FIRST_CLASS = "first_class"
+    STAR = "star"
+    LIFE = "life"
+    EAGLE = "eagle"
+
+
+class MetricKind(enum.StrEnum):
+    """Countable quantity a catalog requirement can be measured against (GH-92).
+
+    Stored in ``Requirement.metrics`` JSON conditions; each maps to data OpenTroop
+    already tracks (event activity metrics × attendance, position terms, merit
+    badges, rank dates). See ``app/core/advancement.py`` (Phase 3) for evaluation.
+    """
+
+    CAMPING_NIGHTS = "camping_nights"
+    SERVICE_HOURS = "service_hours"
+    CONSERVATION_HOURS = "conservation_hours"
+    HIKING_MILES = "hiking_miles"
+    ACTIVITY_COUNT = "activity_count"
+    TENURE_MONTHS = "tenure_months"
+    POR_MONTHS = "por_months"
+    MERIT_BADGE_COUNT = "merit_badge_count"
+    MERIT_BADGE_COUNT_EAGLE_REQUIRED = "merit_badge_count_eagle_required"
+
+
+class MetricWindow(enum.StrEnum):
+    """Time window a metric condition accumulates over (GH-92).
+
+    ANY           — all recorded history.
+    SINCE_JOINING — anchored at the member's troop joining (fallback: earliest
+                    attendance).
+    SINCE_RANK    — anchored at the previous rank's board-of-review date
+                    (``MemberRankProgress.completed_date``).
+    """
+
+    ANY = "any"
+    SINCE_JOINING = "since_joining"
+    SINCE_RANK = "since_rank"
 
 
 class PositionScope(enum.StrEnum):
@@ -184,6 +296,57 @@ class RelationshipType(enum.StrEnum):
     GUARDIAN_OF = "guardian_of"  # legal/non-biological guardian
     SIBLING_OF = "sibling_of"  # symmetric
     OTHER = "other"
+
+
+class MessageStatus(enum.StrEnum):
+    """Lifecycle of an announcement (GH-146).
+
+    DRAFT     — composed, audience editable, nothing resolved yet.
+    SCHEDULED — send requested with a future ``scheduled_at``; the outbox loop
+                promotes it when due.
+    SENDING   — recipients resolved and written; email deliveries draining.
+    SENT      — every recipient reached a terminal email state.
+    """
+
+    DRAFT = "draft"
+    SCHEDULED = "scheduled"
+    SENDING = "sending"
+    SENT = "sent"
+
+
+class AudienceType(enum.StrEnum):
+    """Per-group audience expansion for a message (docs/spec/messaging.md)."""
+
+    MEMBERS = "members"
+    MEMBERS_AND_PARENTS = "members_and_parents"
+    PARENTS_ONLY = "parents_only"
+
+
+class EmailState(enum.StrEnum):
+    """Email delivery state for one inbox entry (GH-146/GH-78/GH-79).
+
+    PENDING rows are the outbox queue; SKIPPED_* are decided at resolve time
+    (CAN-SPAM: opted-out and bounced addresses are never queued). FAILED is
+    terminal after max attempts — the dead-letter surface.
+    """
+
+    PENDING = "pending"
+    SENT = "sent"
+    FAILED = "failed"
+    SKIPPED_OPT_OUT = "skipped_opt_out"
+    SKIPPED_BOUNCED = "skipped_bounced"
+    SKIPPED_NO_EMAIL = "skipped_no_email"
+
+
+class PushState(enum.StrEnum):
+    """Push delivery state for one inbox entry — one-shot best-effort (GH-82).
+
+    The inbox row itself is the durable record; push is only the alert.
+    """
+
+    SENT = "sent"
+    NO_DEVICES = "no_devices"
+    FAILED = "failed"
 
 
 class PlatformRole(enum.StrEnum):

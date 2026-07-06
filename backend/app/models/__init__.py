@@ -1,13 +1,31 @@
 """ORM models. Importing this package registers every table on ``Base.metadata``."""
 
+from app.models.advancement import (
+    MemberMeritBadge,
+    MemberRankProgress,
+    MemberRequirementCompletion,
+    MeritBadge,
+    Rank,
+    Requirement,
+    RequirementSet,
+)
 from app.models.base import Base, PlatformBase, TrackedBase
+from app.models.consent import ConsentRecord
 from app.models.enums import (
+    AdvancementMode,
+    CompletionStatus,
+    ConsentMethod,
+    ConsentScope,
     GroupType,
     MemberStatus,
     MemberType,
+    MetricKind,
+    MetricWindow,
     Permission,
     PlatformRole,
     PositionScope,
+    RankCode,
+    RecordedVia,
     RelationshipType,
     RsvpStatus,
     RuleDimension,
@@ -20,6 +38,8 @@ from app.models.event_type import EventType
 from app.models.group import Group, GroupMember, GroupRule
 from app.models.location import Location
 from app.models.member import Member
+from app.models.message import Message, MessageGroup, MessageRecipient
+from app.models.push import PushToken
 from app.models.rbac import (
     FunctionalRole,
     FunctionalRolePermission,
@@ -35,16 +55,23 @@ __all__ = [
     "Base",
     "PlatformBase",
     "TrackedBase",
+    "ConsentRecord",
+    "ConsentScope",
+    "ConsentMethod",
     "Event",
     "EventAudience",
     "EventOrganizer",
     "EventParticipant",
     "EventType",
     "Group",
+    "PushToken",
     "GroupMember",
     "GroupRule",
     "Location",
     "Member",
+    "Message",
+    "MessageGroup",
+    "MessageRecipient",
     "MemberRelationship",
     "Position",
     "FunctionalRole",
@@ -54,6 +81,19 @@ __all__ = [
     "Tenant",
     "User",
     "Identity",
+    "Rank",
+    "RequirementSet",
+    "Requirement",
+    "MeritBadge",
+    "MemberRankProgress",
+    "MemberRequirementCompletion",
+    "MemberMeritBadge",
+    "AdvancementMode",
+    "CompletionStatus",
+    "RecordedVia",
+    "RankCode",
+    "MetricKind",
+    "MetricWindow",
     "GroupType",
     "MemberStatus",
     "MemberType",

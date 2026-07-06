@@ -26,14 +26,18 @@ def visibility_clause(member_group_ids: Collection[uuid.UUID]) -> ColumnElement[
     """SQLAlchemy predicate selecting events visible to a member with these groups.
 
     An event is visible when it has no audience (troop-wide) or its audience
-    includes one of the member's groups. The ``EventAudience`` subqueries are scoped
-    to the current tenant and to non-deleted rows automatically by the session-level
-    filter (see ``app.core.database``), so neither predicate is carried here.
+    includes one of the member's groups. Tenant scoping comes from the session-level
+    filter, but the soft-delete predicate is carried **explicitly**: the sync pull
+    endpoints evaluate this clause under ``include_deleted()`` (tombstones must
+    flow), and without it deleted audience rows would grant or withhold visibility.
     """
-    scoped = select(EventAudience.event_id).distinct()
+    scoped = select(EventAudience.event_id).where(EventAudience.is_deleted.is_(False)).distinct()
     allowed = (
         select(EventAudience.event_id)
-        .where(EventAudience.group_id.in_(member_group_ids))
+        .where(
+            EventAudience.group_id.in_(member_group_ids),
+            EventAudience.is_deleted.is_(False),
+        )
         .distinct()
     )
     return or_(Event.id.not_in(scoped), Event.id.in_(allowed))

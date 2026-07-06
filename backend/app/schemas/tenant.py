@@ -3,6 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.models.enums import AdvancementMode
 from app.schemas.base import PlatformRead
 
 
@@ -26,7 +27,19 @@ class TenantRead(PlatformRead):
     name: str
     slug: str
     suspended_at: datetime | None = None
+    # When a platform admin last exported this tenant's data (GH-222). The admin
+    # UI uses it to arm the delete flow: deletion requires an export after suspension.
+    last_export_at: datetime | None = None
     permission_message: str | None = None
+
+
+class TenantDeleteRequest(BaseModel):
+    """Body for DELETE /platform/tenants/{id} — type-to-confirm (GH-222).
+
+    Must match the tenant's slug exactly; enforced server-side.
+    """
+
+    confirm_slug: str
 
 
 class TenantSettingsRead(BaseModel):
@@ -35,11 +48,14 @@ class TenantSettingsRead(BaseModel):
     # The effective permission language shown to parents — the troop's text or the
     # built-in default when unset. Always populated.
     permission_message: str
+    # Advancement workflow switch (GH-92): disabled / chair_entry / scout_reported.
+    advancement_mode: AdvancementMode
 
 
 class TenantSettingsUpdate(BaseModel):
     # Set to null to fall back to the built-in default permission language.
     permission_message: str | None = None
+    advancement_mode: AdvancementMode | None = None
 
 
 class TenantProvisioned(TenantRead):

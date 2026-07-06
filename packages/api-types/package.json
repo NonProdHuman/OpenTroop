@@ -1,0 +1,11 @@
+{
+  "name": "@opentroop/api-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript types generated from the OpenTroop backend OpenAPI spec (pnpm gen:api). Do not edit by hand.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "files": [
+    "index.ts"
+  ]
+}

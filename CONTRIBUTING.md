@@ -53,6 +53,10 @@ Frontend deps install from the repo root with `pnpm install`; run the web app wi
 - **Non-trivial features get a spec first** in `docs/spec/` (see
   [`docs/spec/members-screen.md`](docs/spec/members-screen.md) for the expected depth).
   Skip the spec for bug fixes and small UI tweaks.
+- **Architecturally significant decisions get an ADR** in
+  [`docs/adr/`](docs/adr/) — the *why* and the rejected alternatives, so a
+  choice isn't re-litigated every six months. See
+  [`docs/adr/README.md`](docs/adr/README.md).
 - Install and run the pre-commit hooks (`ruff`, `mypy`, `tsc`, `eslint`, gitleaks) — see
   the Pre-commit section in [`README.md`](README.md). Run `uv run pytest` locally before
   opening a PR.

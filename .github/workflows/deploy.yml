@@ -35,6 +35,23 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
+      # Production must target the Terraform/Scalr-provisioned services explicitly.
+      # Without these, the env defaults below fall back to flat 'opentroop-*' names,
+      # which deploy-cloudrun would happily CREATE as new, hand-managed services
+      # alongside the Terraform-managed 'opentroop-<env>-*' ones (ADR 0009, #220).
+      - name: Require explicit service targets in production
+        if: github.ref == 'refs/heads/main'
+        run: |
+          missing=()
+          [ -n "${{ vars.GCP_PROJECT_ID }}${{ vars.PROJECT_ID }}" ] || missing+=("GCP_PROJECT_ID")
+          [ -n "${{ vars.GCP_API_SERVICE_NAME }}${{ vars.API_SERVICE_NAME }}" ] || missing+=("GCP_API_SERVICE_NAME")
+          [ -n "${{ vars.GCP_WEB_SERVICE_NAME }}${{ vars.WEB_SERVICE_NAME }}" ] || missing+=("GCP_WEB_SERVICE_NAME")
+          [ -n "${{ vars.GCP_ARTIFACT_REPOSITORY }}${{ vars.AR_REPO }}" ] || missing+=("GCP_ARTIFACT_REPOSITORY")
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "::error::Production deploy requires these GitHub Environment variables, set to the Terraform/Scalr-managed names (e.g. GCP_API_SERVICE_NAME=opentroop-prod-api). Refusing to fall back to flat 'opentroop-*' defaults that would create orphaned hand-managed services. Missing: ${missing[*]}"
+            exit 1
+          fi
+
       - name: Google Auth
         id: auth
         uses: google-github-actions/auth@v3

@@ -31,7 +31,7 @@ from app.models.member import Member, MemberRelationship
 _PARENT_EDGES = (RelationshipType.PARENT_OF, RelationshipType.GUARDIAN_OF)
 
 
-def _children_of(member_id: uuid.UUID, session: Session) -> set[uuid.UUID]:
+def children_of(member_id: uuid.UUID, session: Session) -> set[uuid.UUID]:
     """Members the given member is a parent/guardian of (their wards)."""
     return set(
         session.scalars(
@@ -85,7 +85,7 @@ def family_member_ids(member_id: uuid.UUID, session: Session) -> frozenset[uuid.
     for itself". Soft-deleted members and relationships are excluded; the closure is
     deliberately one hop (household), never transitive.
     """
-    children = _children_of(member_id, session)
+    children = children_of(member_id, session)
     # Co-parents: other adults who share one of *my* children with me.
     co_parents = _parents_of(children, session)
 

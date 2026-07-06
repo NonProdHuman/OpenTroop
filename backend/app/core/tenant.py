@@ -69,7 +69,9 @@ async def get_tenant_id(
 
     Resolution order:
     1. Subdomain — ``troop123.opentroop.app`` → slug lookup in DB.
-    2. ``X-Tenant-ID`` header — raw UUID → DB validation.
+    2. ``X-Tenant-ID`` header — raw UUID → DB validation. Honored only when
+       ``ALLOW_TENANT_ID_HEADER`` is true; SaaS production disables it so raw
+       tenant UUIDs are not an existence-probing oracle (GH-116) — subdomain only.
     """
     slug = _extract_subdomain(_resolve_request_host(request), settings.app_domain)
 
@@ -80,7 +82,7 @@ async def get_tenant_id(
         _reject_if_suspended(tenant)
         return tenant.id
 
-    if x_tenant_id is not None:
+    if x_tenant_id is not None and settings.allow_tenant_id_header:
         try:
             tid = uuid.UUID(x_tenant_id)
         except ValueError as exc:
@@ -120,7 +122,7 @@ async def scope_calendar_feed_tenant(
     tenant: Tenant | None = None
     if slug:
         tenant = db.scalar(select(Tenant).where(Tenant.slug == slug))
-    elif x_tenant_id is not None:
+    elif x_tenant_id is not None and settings.allow_tenant_id_header:
         try:
             tid = uuid.UUID(x_tenant_id)
         except ValueError:

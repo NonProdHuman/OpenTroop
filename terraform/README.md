@@ -29,12 +29,16 @@ terraform apply
 ```
 
 The initial `api_image` and `web_image` must already exist because Terraform
-creates Cloud Run services from container images. Once the services and Artifact
-Registry repository exist, the GitHub Actions deploy workflow can push and roll
-forward new images.
+creates Cloud Run services from container images. They are **bootstrap-only**:
+both services set `lifecycle { ignore_changes = [template[0].containers[0].image] }`,
+so once the service exists the **GitHub Actions deploy workflow owns the running
+image/revision** and `terraform apply` will not revert it. Terraform owns the
+service shell (name, scaling, IAM, env, secrets); Actions owns the image. See
+[ADR 0009](../docs/adr/0009-cloud-run-ownership-boundary.md).
 
-After apply, copy these outputs into GitHub repository variables or secrets if
-you continue using the checked-in deploy workflow:
+After apply, copy these outputs into GitHub **environment** variables (set them on
+the `production` environment — the deploy workflow now *requires* them there and
+fails rather than falling back to flat `opentroop-*` service names):
 
 - `GCP_PROJECT_ID`
 - `GCP_REGION`
@@ -44,6 +48,42 @@ you continue using the checked-in deploy workflow:
 - `GCP_API_SERVICE_NAME`
 - `GCP_WEB_SERVICE_NAME`
 - `API_PUBLIC_URL` or `NEXT_PUBLIC_API_URL`
+
+## Edge security rollout (GH-116 / GH-117)
+
+The edge belts are code-complete but staged behind variables so they can be
+enabled deliberately. Suggested order:
+
+1. **Origin shared secret — on by default with Cloudflare.** The next apply
+   generates `ORIGIN_SHARED_SECRET`, binds it to the Worker (which stamps
+   `X-Origin-Auth` on every proxied request), and sets it in the API's Secret
+   Manager config. Once both the Worker and a new API revision are deployed,
+   direct `*.run.app` requests get 403 and `TRUST_FORWARDED_HOST=true` is fully
+   sound. Order matters only in the harmless direction: an API revision with the
+   secret set will reject traffic from an old Worker, so apply Terraform (the
+   Worker updates immediately) **before** the next API deploy picks up the env.
+2. **`ALLOW_TENANT_ID_HEADER=false`** is set automatically when
+   `cloudflare_enabled` — tenant resolution becomes subdomain-only in SaaS.
+   Self-host/direct deployments keep the header.
+3. **App-layer rate limiting** (`api_rate_limit_enabled`, default `true`) —
+   in-process fixed windows: per-tenant on authenticated routes, per-IP on
+   `/calendar/*` and `/auth/*`. Tune via the `RATE_LIMIT_*` env vars if needed.
+4. **Cloudflare WAF** (`cloudflare_waf_enabled = true`) — deploys the Cloudflare
+   Managed + OWASP Core rulesets. **Requires Pro plan.** Watch Security → Events
+   for false positives before tightening.
+5. **Cloudflare rate-limiting rules** (`cloudflare_rate_limit_enabled = true`) —
+   per-IP edge limits on the calendar feed (60/min), auth plane (20/min), and
+   import path (5/min). **Plan limits apply** (Free = one rule with 10s periods;
+   the shipped values assume Pro).
+6. **Cloudflare Access on the control plane** (`cf_access_enabled = true`, plus
+   `cf_access_team_domain` and `cf_access_allowed_emails`) — creates the Access
+   application covering `admin.<domain>` and the `/platform` API paths, and wires
+   `CF_ACCESS_TEAM_DOMAIN` / `CF_ACCESS_AUD` into the API, which then requires a
+   valid `Cf-Access-Jwt-Assertion` on every `/platform/*` request in addition to
+   the platform-role check. Requires a Zero Trust team (free tier is fine).
+   After apply, set the Access application's **cookie domain to the parent
+   domain** in the Zero Trust dashboard so the admin console's XHR calls to
+   `api.<domain>` carry the Access session.
 
 ## Scalr Workspaces
 

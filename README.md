@@ -11,9 +11,9 @@ OpenTroop is being built in phases to ensure a strong foundation before moving t
 - ✅ **Roster & Relationships:** Full membership modeling, family relationships, Groups/Patrols, and a robust Role-Based Access Control (RBAC) system.
 - ✅ **Multi-Tenant Isolation:** Deep isolation via PostgreSQL Row-Level Security, allowing safe scaling from one troop to hundreds on a shared platform.
 - 🚧 **Events & Calendar:** (In Progress) Event types, RSVP, capacity limits, attendance, permission slips, and personalized iCal feeds.
-- 🔜 **Communications:** Email & SMS announcements, automated event notifications, and targeted group messaging.
-- 🧊 **Advancement:** Merit badges, rank requirements, Eagle project tracking, and full Scoutbook sync.
-- 🧊 **Mobile Apps:** Native iOS & Android apps providing full offline-first capabilities.
+- 🚧 **Communications:** (In Progress) A vendor-agnostic notification service already delivers invite emails and event-triggered notifications (creation, cancellation, permission slips); async send queue, SMS, and targeted group announcements are next.
+- 🚧 **Advancement:** (In Progress — core shipped) Versioned rank-requirement catalog, merit badges, report→approve workflow, and automatic credit from event attendance, with live progress meters and an approval queue. Scoutbook CSV sync is the remaining piece.
+- 🚧 **Mobile App:** (In Progress) Expo (React Native) app — iOS first — a full offline local mirror with a replayable outbox for at-camp attendance and RSVP. See [#93](../../issues/93) for the plan and [#153](../../issues/153) for the offline data-layer spec.
 
 For more details on the phases, see our [ROADMAP.md](ROADMAP.md).
 
@@ -23,7 +23,7 @@ For more details on the phases, see our [ROADMAP.md](ROADMAP.md).
 graph TD
     subgraph Clients
         WEB["Web App<br/><small>Next.js 16 · Tailwind 4 · shadcn/ui</small>"]
-        MOBILE["Mobile Apps<br/><small>iOS (Swift) · Android (Kotlin)</small>"]
+        MOBILE["Mobile App<br/><small>Expo · React Native (iOS first)</small>"]
         CALAPP["Calendar Apps<br/><small>Apple / Google Calendar</small>"]
     end
 
@@ -144,6 +144,14 @@ Located in `backend/`. Requires [uv](https://docs.astral.sh/uv/) and Python 3.12
 uv sync                                              # create .venv/ and install all deps
 uv run pytest                                        # run the test suite (no database needed)
 uv run uvicorn app.main:app --reload                 # start the API on :8000
+```
+
+### Dev Verification Loop
+With the stack running, seed a deterministic dev tenant and run the Playwright smoke suite:
+
+```bash
+uv run seed-dev-data          # from backend/ — idempotent dev tenant + sample data
+pnpm --filter web e2e         # Playwright smoke tests against the running app
 ```
 
 ### Pre-commit Hooks

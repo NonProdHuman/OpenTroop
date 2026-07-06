@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, ForeignKey, Index, String, Text, text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, String, Text, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -101,6 +101,12 @@ class Member(SourceTracked, Syncable, TrackedBase):
         String(64), nullable=True, unique=True, index=True
     )
 
+    # Hard-delete (GH-222): set when an admin purges the member — PII fields are
+    # nulled in place and the row becomes an anonymized sync tombstone. The reaper
+    # (`uv run reap-tombstones`) physically deletes the row once
+    # ``tombstone_retention_days`` (≥180, sync-protocol Decision 5) have passed.
+    purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # jti of the currently valid invite/claim token. A claim token is honored only
     # while its jti matches this value, which makes tokens single-use (cleared on
     # claim) and revocable (overwritten when a new invite is minted).
@@ -125,7 +131,7 @@ class Member(SourceTracked, Syncable, TrackedBase):
     )
 
 
-class MemberRelationship(SourceTracked, TrackedBase):
+class MemberRelationship(SourceTracked, Syncable, TrackedBase):
     """Directional family link between two members.
 
     from_member holds the named role (parent_of, guardian_of); to_member is the child/ward.
@@ -133,6 +139,7 @@ class MemberRelationship(SourceTracked, TrackedBase):
     """
 
     __tablename__ = "member_relationships"
+    __table_args__ = (Index("ix_member_relationships_tenant_sync_seq", "tenant_id", "sync_seq"),)
 
     from_member_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("members.id"), nullable=False, index=True

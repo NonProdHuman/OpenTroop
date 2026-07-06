@@ -14,7 +14,9 @@ persons are re-imported).
 Records created for the given tenant:
   Patrol, Member (scouts + adults), MemberRelationship, Position +
   MemberPositionAssignment (dated leadership terms), Location, EventType,
-  Event, EventParticipant
+  Event, EventParticipant, MemberRankProgress, MemberRequirementCompletion,
+  MemberMeritBadge (advancement needs the global catalog: `uv run seed-advancement`
+  first; run `uv run recompute-advancement` afterwards for auto-credit thresholds)
 """
 
 from __future__ import annotations
@@ -88,6 +90,9 @@ def main() -> None:
     print(f"  Event types   {result.event_types:>6}")
     print(f"  Events        {result.events:>6}")
     print(f"  Participants  {result.participants:>6}")
+    print(f"  Rank progress {result.rank_progress:>6}")
+    print(f"  Req. sign-offs{result.requirement_completions:>6}")
+    print(f"  Merit badges  {result.merit_badges:>6}")
     print(f"  Skipped       {result.skipped:>6}")
     if result.warnings:
         print()

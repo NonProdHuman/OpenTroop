@@ -1,0 +1,30 @@
+# Gitleaks configuration for OpenTroop.
+#
+# Extends the upstream default ruleset so every built-in secret rule stays
+# active, and allowlists values that are intentionally fake — not real
+# credentials — which otherwise trip the high-entropy `generic-api-key`
+# heuristic. Entries are exact-literal so a real leak is never masked: a
+# genuine secret (even in the same file) is still reported. This filters
+# findings by content, so it holds regardless of which commit introduced them.
+#
+# NOTE: with `[extend] useDefault`, gitleaks only honors the singular
+# `[allowlist]` table here — a plural `[[allowlists]]` block is silently
+# dropped during the merge. Keep this as `[allowlist]`.
+
+title = "OpenTroop gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Intentional placeholder secrets (test fixtures, not real credentials) and curated reference data"
+regexes = [
+  # backend/tests/test_edge_security.py — origin-auth shared-secret fixture
+  '''edge-secret-0123456789abcdef0123456789abcdef''',
+]
+paths = [
+  # Advancement catalog seed data (GH-92): "stable_key" values are BSA
+  # requirement identifier slugs (e.g. tenderfoot.7b-service), not secrets —
+  # the field name plus slug entropy false-positives the generic-api-key rule.
+  '''backend/data/advancement/.*\.json''',
+]

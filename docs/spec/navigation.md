@@ -1,8 +1,12 @@
 # Navigation & Information Architecture Spec
 
 **Status:** Draft
-**Scope:** App-wide navigation shells, sidebar structure, and the rule for when to
-use sidebar sub-navigation vs. in-page tabs.
+**Scope:** App-wide navigation shells and sidebar structure. The navigation model
+(the sidebar is the single, complete map of the app — every feature findable there;
+in-page tabs are allowed as within-page conveniences, never the only path; one
+shared IA tree that mobile renders as bottom-tabs + stack + segmented controls) is
+fixed by [ADR 0008](../adr/0008-navigation-sidebar-primary-ia.md) — this spec
+details how that model is applied.
 
 ---
 
@@ -32,18 +36,27 @@ where the bulk of upcoming features live.
 
 ---
 
-## Decision rule: sidebar sub-items vs. tabs
+## Decision rule: the sidebar is the complete map (ADR 0008)
 
-Apply this consistently so new pages slot in predictably:
+The invariant is **findability** — the anti-TWH property. Apply consistently:
 
-- **Collapsible sidebar sub-item = a destination.** Different data or a different CRUD
-  area. Example: *Members → Bulk edit* is a different place than the roster.
-- **In-page tab = a lens on the same subject.** Same underlying data, different
-  view/filter. Example: *Events* List vs. Calendar (already shipped); *Advancement*
-  viewed as a scout vs. parent vs. leader.
+- **Every feature is reachable from the sidebar.** Nothing is findable *only* via a
+  tab, a context menu, or a link buried in another page. The sidebar is the single,
+  complete map of the app.
+- **Every distinct page is a collapsible sidebar sub-item with its own route** —
+  deep-linkable, with the active branch auto-expanding from the pathname. Same-data
+  lenses that deserve findability (e.g. *Events* Calendar) get their own destination.
+- **In-page tabs / segmented controls are allowed as a within-page convenience** —
+  for same-data lenses (*Events* List/Calendar, *Advancement* by role) and a single
+  record's sub-views (an event's Details vs. RSVP admin). They **supplement** the
+  sidebar, never replace it. Prefer a **route-linked** switcher for lenses that are
+  also sidebar destinations, so the URL and sidebar highlight stay in sync.
+- **Mobile renders the same tree** with native chrome — bottom tab bar (top
+  sections), stack navigation (drill-in), and a **segmented control** for same-data
+  lenses. The IA is shared; the chrome is per-platform.
 
-The **backbone is the collapsible sidebar**; tabs are a **within-page** control and are
-never the primary section navigation.
+The **backbone is the collapsible sidebar**; tabs are a convenience layered on top,
+never the sole way to reach a feature.
 
 ### Why collapsible sidebar (not top-tabs-per-section) as the backbone
 
@@ -59,22 +72,22 @@ never the primary section navigation.
 
 ## Authenticated app — sidebar structure
 
-Top-level sections (each a sidebar item; sub-items are collapsible groups, in-page
-controls are *tabs*):
+Top-level sections (each a sidebar item; sub-items are collapsible-group
+destinations, each a real route, so every feature is findable here — ADR 0008):
 
-| Section | Subpages (collapsible) / in-page tabs | Notes |
+| Section | Subpages (collapsible sidebar destinations) | Notes |
 |---|---|---|
 | **Home** | Announcements feed · upcoming events · my action items | New landing (today users drop on Members) |
 | **Members** | Roster · **Bulk edit** (medical dates, etc.) · Relationships | Bulk editing = a destination |
 | **Groups** | — | As-is |
-| **Events** | Calendar/List *(tabs)* · Sign-ups · **Gallery** | Photo gallery tied to events |
-| **Advancement** | *Tabs by role:* My advancement (scout) · My scouts (parent) · Troop (leader) · Awards | Role-varying lenses → tabs |
+| **Events** | Event List · Calendar · Event Types · Sign-ups · **Gallery** | List & Calendar are both findable destinations *and* share a route-linked in-page switcher; Gallery tied to events |
+| **Advancement** | My advancement (scout) · My scouts (parent) · Troop (leader) · Awards | Role-varying lenses are permission-scoped destinations (may also expose a role segmented control) |
 | **Messaging** | Announcements · Email/compose · Distribution lists · Sent history | |
 | **Money** | Scout accounts · Transactions · Invoices · Budget | New domain |
 | **Inventory** | Equipment · Assignments/check-out | New domain |
 | **Resources** | Document & link library | |
 | **Reports** | Report catalog *(params as in-page controls)* | Cross-cutting |
-| **Settings / Admin** | Troop settings · **Roles & permissions** · Event types · Locations · **Website content (CMS)** | Import lives here too |
+| **Settings / Admin** | Troop settings · **Roles & permissions** · Locations · **Website content (CMS)** | Event Types moved under **Events**; Import lives here too |
 
 Two structural notes:
 
@@ -88,7 +101,7 @@ Two structural notes:
 ## Rules of thumb
 
 - **Depth cap: two levels.** Section → subpage. Never a third sidebar level. If a
-  section needs more, its landing page becomes a **hub** (cards or tabs to the deeper
+  section needs more, its landing page becomes a **hub** (cards/links to the deeper
   pages).
 - **Permission-driven visibility.** Sidebar items and sub-items render based on the
   member's effective permissions (`resolve_permissions`) — extend the existing
@@ -108,8 +121,10 @@ Two structural notes:
 - The shadcn sidebar already provides everything needed: `SidebarGroup`,
   `SidebarGroupLabel`, `SidebarMenu`, `SidebarMenuSub`, `SidebarMenuSubButton`, and
   `Collapsible`. No new dependency.
-- In-page tabs use the existing `Tabs` component (or the inline segmented control
-  pattern already used on the Events page).
+- The sidebar is the complete map (ADR 0008): every feature is reachable from it,
+  never *only* via a tab. In-page tabs / segmented controls are allowed as a
+  within-page convenience (use the existing `Tabs` component or an inline segmented
+  control); the mobile app renders same-data lenses as a segmented control.
 - Keep `app-sidebar.tsx` as the single nav registry; model the nav as a typed array
   (`title`, `url`, `icon`, optional `children`, optional `requires: Permission`) so
   sections are declarative and testable.

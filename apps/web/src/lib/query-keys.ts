@@ -58,11 +58,26 @@ export const queryKeys = {
   events: (t: TenantId) => [t, "events"] as const,
   event: (t: TenantId, id: string | null) => [t, "events", id] as const,
   eventTypes: (t: TenantId) => [t, "event-types"] as const,
+  eventType: (t: TenantId, id: string | null) => [t, "event-types", id] as const,
   eventParticipants: (t: TenantId, eventId: string | null) => [t, "event-participants", eventId] as const,
   eventCounts: (t: TenantId, eventId: string | null) => [t, "event-counts", eventId] as const,
   eventAudiences: (t: TenantId, eventId: string | null) => [t, "event-audiences", eventId] as const,
   eventOrganizers: (t: TenantId, eventId: string | null) => [t, "event-organizers", eventId] as const,
   locations: (t: TenantId) => [t, "locations"] as const,
+
+  // ── Advancement ───────────────────────────────────────────────────────────
+  advancementRanks: (t: TenantId) => [t, "advancement-ranks"] as const,
+  meritBadges: (t: TenantId) => [t, "merit-badges"] as const,
+  memberAdvancement: (t: TenantId, memberId: string | null) =>
+    [t, "member-advancement", memberId] as const,
+  advancementQueue: (t: TenantId) => [t, "advancement-queue"] as const,
+  advancementScouts: (t: TenantId) => [t, "advancement-scouts"] as const,
+
+  // ── Messaging ─────────────────────────────────────────────────────────────
+  messages: (t: TenantId) => [t, "messages"] as const,
+  message: (t: TenantId, id: string | null) => [t, "message", id] as const,
+  messagePreview: (t: TenantId, id: string | null) => [t, "message-preview", id] as const,
+  inbox: (t: TenantId) => [t, "inbox"] as const,
 
   // ── Tenant settings ───────────────────────────────────────────────────────
   tenantSettings: (t: TenantId) => [t, "tenant-settings"] as const,

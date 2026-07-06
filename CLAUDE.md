@@ -43,10 +43,18 @@ docker compose up --build
 
 For backend-only commands see `backend/CLAUDE.md`. For frontend-only commands see `apps/web/CLAUDE.md`.
 
+### Dev verification loop
+
+```bash
+uv run seed-dev-data     # from backend/ — idempotent deterministic dev tenant + sample data
+pnpm --filter web e2e    # Playwright smoke tests against the running stack
+```
+
 ## Conventions
 
 - **Bug fixes must include a test.** When fixing a bug, add a test that would have caught it before writing the fix.
 - **New features get a spec first, stored in the tracking GitHub issue.** For any non-trivial new feature, write the spec into the issue (body or comment) before implementing — see [#168](../../issues/168) for the expected format and depth. `docs/spec/` holds earlier specs and stays for reference; don't add new specs there. Skip the spec for bug fixes, small UI tweaks, and cases where the user explicitly asks for a direct implementation.
+- **Architecturally significant decisions get an ADR** in [`docs/adr/`](docs/adr/) — the *why* behind a load-bearing, expensive-to-reverse choice and what we rejected (distinct from a spec's *what*). ADRs are append-only: supersede, don't rewrite. See [`docs/adr/README.md`](docs/adr/README.md).
 - **Work is tracked in GitHub Issues.** [`ROADMAP.md`](ROADMAP.md) is the strategic map (six pillars, sequencing); the actionable backlog lives in [GitHub Issues](../../issues), grouped by milestone (one per pillar). Do **not** re-add granular `[ ]` checklists to `ROADMAP.md` — file an issue instead. When starting non-trivial work, check for (or open) a tracking issue; reference it in the PR. `pillar-N` labels map issues to pillars.
 - **PRs target `develop`, not `main`** (`develop` is promoted to `main` on release). See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
@@ -98,13 +106,13 @@ pre-commit environment.
   root domain (e.g. `opentroop.app`) serves the landing page, the `admin` subdomain
   serves the platform control plane, and any other subdomain
   (e.g. `troop123.opentroop.app`) serves that tenant's dashboard.
-- **Mobile** (`apps/mobile/`): Expo (React Native) — stub, to be scaffolded once
-  the web API contract stabilizes. It will consume a generated TypeScript API client
-  produced from the FastAPI OpenAPI spec (`openapi-typescript`); that package will be
-  regenerated and added under `packages/` when mobile work actually begins. The web app
-  does not use it — its types in `apps/web/src/types/api.ts` are thin aliases into
-  `apps/web/src/types/api.generated.ts`, which is generated from the backend OpenAPI spec
-  by `pnpm gen:api`. CI fails if the committed generated file drifts from the backend.
+- **Mobile** (`apps/mobile/`): Expo (React Native), iOS first — Mobile v1 underway
+  (phases in GH-93; offline data-layer spec in GH-153). It consumes
+  `packages/api-types` (`@opentroop/api-types`), generated from the FastAPI OpenAPI
+  spec by the same `pnpm gen:api` run that produces the web app's
+  `apps/web/src/types/api.generated.ts` (thin aliases in `apps/web/src/types/api.ts`;
+  the web app keeps its own copy for import-path stability). CI fails if either
+  committed generated file drifts from the backend.
 
 ### Sync-aware schema contract (critical)
 
@@ -125,6 +133,9 @@ instead. `PlatformBase` has the same `id`, timestamps, and `is_deleted` as
 so a future incremental sync can match an upstream record to its OpenTroop row and
 detect changes. The TWH importer populates these; nothing reads them yet — it's
 groundwork for dual-run sync. See [`docs/spec/twh-sync.md`](docs/spec/twh-sync.md).
+The import endpoint enforces byte caps on upload and zip/gzip decompression plus a
+zip entry-count limit (413 on overflow; limits configurable via `Settings`) and
+parses XML with `defusedxml` (422 on entity attacks).
 
 **Pull-sync cursor.** Tables exposed through the sync API additionally mix in
 `Syncable` (`app/models/base.py`), which supplies `sync_seq` — a server-assigned,
@@ -132,7 +143,10 @@ strictly monotonic cursor bumped on every insert/update (Postgres `sync_seq`
 sequence; `MAX+1` fallback on SQLite). Adopting tables must also add a
 `(tenant_id, sync_seq)` index. `Member` is live today via
 `GET /sync/members` (`app/routers/sync.py`), keyset-paged on `(sync_seq, id)`.
-See [`docs/spec/sync-protocol.md`](docs/spec/sync-protocol.md).
+After the tombstone reaper hard-deletes purged members (GH-222), every `/sync/*`
+endpoint answers **410** to a cursor behind `Tenant.purged_through_seq` (client must
+full-refetch from `since_seq=0`) and clamps a completed walk's cursor up to the
+watermark. See [`docs/spec/sync-protocol.md`](docs/spec/sync-protocol.md) and ADR 0010.
 
 The dialect-agnostic SQLAlchemy `Uuid` type lets the Postgres-targeted models run
 unmodified on SQLite, which is how the test suite stays DB-free.
@@ -143,7 +157,7 @@ unmodified on SQLite, which is how the test suite stays DB-free.
 
 - `Tenant` — one row per troop. Fields: `name`, `slug` (unique; used for subdomain
   routing), `suspended_at` (nullable; SaaS suspension marker, distinct from `is_deleted` —
-  a suspended tenant still exists but is locked out of all tenant-scoped requests).
+  a suspended tenant still exists but is locked out of all tenant-scoped requests), `last_export_at` (when a platform admin last took the full JSON export — tenant deletion requires an export after suspension), and `purged_through_seq` (reap watermark; see the sync section and ADR 0010).
   `Tenant.id` is the value stored in `tenant_id` on all `TrackedBase` rows.
 - `User` — a platform-level person identity. Fields: `email`, `display_name`,
   `platform_role`. One `User` may have `Member` records in multiple tenants. To fetch
@@ -183,8 +197,8 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   presence of the rule is the predicate, `values` is null/empty), `position` (members
   *currently* holding any of the named positions, e.g. PLC = PL/SPL/ASM/SM — termed-out
   members drop out), `group_member` (group-of-groups: members of the referenced group(s),
-  resolved recursively with a cycle guard), and `rank` (Phase 2 — no-op until the Pillar 4
-  advancement model exists). Multiple values for a dimension are stored as a JSON list in
+  resolved recursively with a cycle guard), and `rank` (members whose *current rank* —
+  highest completed — matches; live since Pillar 4 shipped). Multiple values for a dimension are stored as a JSON list in
   `values`.
 - `resolve_group_members(group_id, session)` in `app/core/groups.py` — evaluates each rule
   via `evaluate_rule` (one function per dimension), combines the rule sets per `rule_logic`,
@@ -206,7 +220,10 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   within a troop while permitting multiple null values. It is declared in
   `Member.__table_args__` and created by the initial Alembic migration.
   `user_id` (nullable FK → `users.id`) links the roster record to the platform
-  identity once a member claims their account. `calendar_token_hash` (nullable, unique)
+  identity once a member claims their account. `purged_at` (nullable) marks a hard-deleted
+  member: `POST /members/{id}/purge` (admin-only, name-confirmed) anonymizes the row in
+  place — PII nulled, tombstoned for sync — and `uv run reap-tombstones` physically deletes
+  it after ≥180 days (GH-222, ADR 0010). `calendar_token_hash` (nullable, unique)
   stores the SHA-256 hash of the secret bearer token for the member's personal iCal
   feed (`/calendar/{token}.ics`); the raw token is shown once at mint time and never
   persisted.
@@ -243,7 +260,12 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   across them) and the same position across repeat terms — there is **no**
   `(member_id, position_id)` unique constraint; "at most one current term per
   (member, position)" is enforced in the API. There is deliberately **no** path to assign
-  a functional role or raw permission directly to a member. See
+  a functional role or raw permission directly to a member. **Escalation guardrails:**
+  writes to terms for a *privileged* position (one mapping to an `is_admin` or
+  `role:manage`-granting functional role) require the caller to be an admin (403
+  otherwise), and the tenant-facing PATCH/DELETE refuse to end or delete the tenant's
+  last current administrator term (409) — the admin-set definition is shared with
+  `platform.py` via `app/core/permissions.py`. See
   [`docs/spec/position-history.md`](docs/spec/position-history.md).
 - `Permission` — `StrEnum` in `enums.py` listing all system capabilities, namespaced
   by domain (`member:read`, `event:create`, `role:manage`, etc.).
@@ -293,6 +315,28 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   `electronic_permission_by_id` (FK → members), `electronic_permission_signature`.
   Setting `attended` via PATCH is gated: returns 409 if `Event.attendance_taken` is False.
 
+**Advancement (Pillar 4, GH-92).** Platform-global catalog (`Rank`, `RequirementSet` —
+one complete copy of a rank's requirements per BSA version year, `Requirement` with
+curated cross-version `stable_key`s + JSON metric conditions + `auto_credit`,
+`MeritBadge`) seeded from `backend/data/advancement/` by `uv run seed-advancement`
+(idempotent upsert; text corrections update in place). Tenant-scoped tracking:
+`MemberRankProgress` (per-(member, rank); carries the **version election** and
+BOR/awarded dates), `MemberRequirementCompletion` (leaves only; report→approve
+workflow via `CompletionStatus`; soft delete = revocation), `MemberMeritBadge`.
+`Tenant.advancement_mode` (disabled/chair_entry/scout_reported) gates the whole
+`/advancement` + `/members/{id}/advancement` + `/merit-badges` surface (404 when
+disabled) and whether scouts/parents may self-report. Domain logic in
+`app/core/advancement.py`: election defaulting, version-switch remap by `stable_key`
+(history never rewritten; copies land `recorded_via=remap`), container/leaf
+derivation, `compute_member_metrics` (attended events × overrides, badge counts,
+POR-term interval union) and `apply_auto_credits` — records approved/`auto`
+completions when all metric conditions pass; **never re-creates** (any existing row,
+revoked included, blocks) and **never auto-revokes**. Recompute triggers run
+synchronously on attendance/override/event-metric/badge/rank-date writes;
+`uv run recompute-advancement` covers pure time-passage thresholds. The `GroupRule`
+`rank` dimension resolves on current rank (highest completed). Scoutbook CSV
+import/export is the remaining #92 phase (needs sample files).
+
 Enums live in `app/models/enums.py` and are shared between ORM models and schemas.
 
 ### Auth architecture
@@ -314,6 +358,18 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   overwrites the header (the Cloudflare Worker does; Terraform wires this). Nested
   subdomains are rejected to prevent Host-header spoofing. A **suspended** tenant
   (`Tenant.suspended_at` set) is rejected with 403 on both resolution paths.
+- **Edge security belts** (`app/core/edge_security.py`, `app/core/cf_access.py` —
+  GH-116/GH-117; all inert by default for dev/self-host): when `ORIGIN_SHARED_SECRET`
+  is set, every request must carry the Worker-injected `X-Origin-Auth` header (403
+  otherwise, `/health` exempt) — the precondition that makes `TRUST_FORWARDED_HOST=true`
+  sound. `ALLOW_TENANT_ID_HEADER=false` (SaaS prod) makes tenant resolution
+  subdomain-only so raw tenant UUIDs aren't a probing oracle. `RATE_LIMIT_ENABLED`
+  turns on in-process fixed-window limits (per-tenant bucket, tighter per-IP buckets
+  on `/calendar/*` and `/auth/*`). When `CF_ACCESS_TEAM_DOMAIN` is set, `/platform/*`
+  additionally requires a valid `Cf-Access-Jwt-Assertion` (Cloudflare Access staff
+  SSO), independent of `PlatformAdminDep`. Edge-side counterparts (Worker header
+  injection, WAF/rate-limit rulesets, the Access app) live in `terraform/` — see
+  `terraform/README.md` "Edge security rollout".
 - **FastAPI dependencies** (`app/core/deps.py`): `TenantDep`, `DbDep`,
   `CurrentUserDep` — wire these into route handlers to enforce auth and tenant scope.
   `require(permission)` — dependency factory used as `dependencies=[Depends(require(Permission.X))]`
@@ -334,6 +390,12 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   - `GET /platform/tenants`, `GET /platform/tenants/{id}` — list / inspect tenants.
   - `POST /platform/tenants/{id}/suspend` · `/unsuspend` — set/clear `suspended_at`
     (idempotent); a suspended tenant rejects all tenant-scoped requests.
+  - `GET /platform/tenants/{id}/export` — full-tenant JSON bundle (every tenant-scoped
+    table + linked-user directory); stamps `last_export_at`. Superadmin only.
+  - `DELETE /platform/tenants/{id}` — **immediate, irreversible tenant purge** (GH-222,
+    ADR 0010). Superadmin only; requires suspended + an export taken after suspension +
+    `confirm_slug` in the body. Deletes every `tenant_id` row and the Tenant; platform
+    Users/Identities survive; the slug is immediately reusable.
   - `GET /platform/tenants/{id}/admins` — members holding the is_admin role.
   - `POST /platform/tenants/{id}/admins` — invite another admin (unclaimed Member + claim token).
   - `DELETE /platform/tenants/{id}/admins/{member_id}` — revoke admin; 409 if it would remove

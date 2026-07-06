@@ -32,7 +32,7 @@ from app.models.rbac import (
 from app.models.tenant import Tenant
 
 DEFAULT_EVENT_TYPES: list[dict[str, object]] = [
-    {"name": "Meeting", "color": "#4A90D9", "allow_signups": False},
+    {"name": "Meeting", "color": "#4A90D9", "allow_signups": False, "counts_as_activity": False},
     {
         "name": "Campout",
         "color": "#2ECC71",
@@ -47,7 +47,7 @@ DEFAULT_EVENT_TYPES: list[dict[str, object]] = [
         "tracks_service_hours": True,
         "require_permission_slip": True,
     },
-    {"name": "Court of Honor", "color": "#9B59B6"},
+    {"name": "Court of Honor", "color": "#9B59B6", "counts_as_activity": False},
     {"name": "Fundraiser", "color": "#1ABC9C"},
 ]
 
@@ -205,18 +205,21 @@ DEFAULT_POSITIONS: list[dict[str, object]] = [
         "name": "Senior Patrol Leader",
         "scope": PositionScope.SCOUT,
         "roles": ["event-viewers", "troop-communicators"],
+        "por": True,
     },
     {
         "slug": "assistant-senior-patrol-leader",
         "name": "Assistant Senior Patrol Leader",
         "scope": PositionScope.SCOUT,
         "roles": ["event-viewers", "troop-communicators"],
+        "por": True,
     },
     {
         "slug": "patrol-leader",
         "name": "Patrol Leader",
         "scope": PositionScope.SCOUT,
         "roles": ["patrol-communicators"],
+        "por": True,
     },
     {
         "slug": "assistant-patrol-leader",
@@ -229,17 +232,43 @@ DEFAULT_POSITIONS: list[dict[str, object]] = [
         "name": "Scribe",
         "scope": PositionScope.SCOUT,
         "roles": ["attendance-takers"],
+        "por": True,
     },
-    {"slug": "troop-guide", "name": "Troop Guide", "scope": PositionScope.SCOUT, "roles": []},
-    {"slug": "quartermaster", "name": "Quartermaster", "scope": PositionScope.SCOUT, "roles": []},
-    {"slug": "historian", "name": "Historian", "scope": PositionScope.SCOUT, "roles": []},
-    {"slug": "librarian", "name": "Librarian", "scope": PositionScope.SCOUT, "roles": []},
-    {"slug": "bugler", "name": "Bugler", "scope": PositionScope.SCOUT, "roles": []},
+    {
+        "slug": "troop-guide",
+        "name": "Troop Guide",
+        "scope": PositionScope.SCOUT,
+        "roles": [],
+        "por": True,
+    },
+    {
+        "slug": "quartermaster",
+        "name": "Quartermaster",
+        "scope": PositionScope.SCOUT,
+        "roles": [],
+        "por": True,
+    },
+    {
+        "slug": "historian",
+        "name": "Historian",
+        "scope": PositionScope.SCOUT,
+        "roles": [],
+        "por": True,
+    },
+    {
+        "slug": "librarian",
+        "name": "Librarian",
+        "scope": PositionScope.SCOUT,
+        "roles": [],
+        "por": True,
+    },
+    {"slug": "bugler", "name": "Bugler", "scope": PositionScope.SCOUT, "roles": [], "por": True},
     {
         "slug": "oa-representative",
         "name": "OA Representative",
         "scope": PositionScope.SCOUT,
         "roles": [],
+        "por": True,
     },
     {
         "slug": "member",
@@ -301,6 +330,7 @@ def seed_default_rbac(db: Session, tenant_id: uuid.UUID) -> None:
                 applies_to=spec["scope"],
                 is_system=True,
                 is_default=bool(spec.get("is_default", False)),
+                counts_for_por=bool(spec.get("por", False)),
                 sort_order=order,
             )
             db.add(position)

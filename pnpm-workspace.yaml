@@ -3,8 +3,15 @@ packages:
   - "packages/*"
 
 allowBuilds:
+  # false entries: mobile (Expo/Clerk) transitive postinstalls — optional perf
+  # natives and telemetry, declined so installs stay script-free and reproducible.
+  '@clerk/shared': false
+  browser-tabs-lock: false
+  bufferutil: false
+  core-js: false
   sharp: true
   unrs-resolver: true
+  utf-8-validate: false
 
 # Force patched versions of vulnerable transitive (build-time) deps.
 # postcss <8.5.10: XSS (GHSA-qx2v-qp2m-jg93), pulled via next.

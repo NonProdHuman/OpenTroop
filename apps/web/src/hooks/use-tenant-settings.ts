@@ -1,6 +1,6 @@
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { useApi } from "@/lib/api"
 import { useActiveTenant } from "@/lib/tenant-context"
@@ -13,5 +13,21 @@ export function useTenantSettings() {
     queryKey: queryKeys.tenantSettings(activeTenantId),
     queryFn: () => request<TenantSettings>("/tenant/settings"),
     enabled: Boolean(activeTenantId),
+  })
+}
+
+export function useUpdateTenantSettings() {
+  const { request } = useApi()
+  const { activeTenantId } = useActiveTenant()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Partial<Pick<TenantSettings, "permission_message" | "advancement_mode">>) =>
+      request<TenantSettings>("/tenant/settings", {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tenantSettings(activeTenantId) })
+    },
   })
 }

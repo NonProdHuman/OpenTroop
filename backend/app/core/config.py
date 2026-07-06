@@ -73,9 +73,54 @@ class Settings(BaseSettings):
 
     # Email delivery backend: "fake" (default, no vendor call — for local dev/tests)
     # or "resend". See app/core/notifications.py.
+    # Messaging outbox (GH-146/GH-78): per-tenant emails per drain tick, tick
+    # cadence, and the in-process loop switch (off in tests; CLI covers cron).
+    message_rate_per_minute: int = 60
+    outbox_tick_seconds: int = 20
+    outbox_loop_enabled: bool = False
+
+    # Mobile push (GH-82): "none" (default, inert), "expo", or "fake" (tests).
+    push_backend: str = "none"
+    expo_push_url: str = "https://exp.host/--/api/v2/push/send"
+
     email_backend: str = "fake"
     resend_api_key: str = ""
     email_from_address: str = ""
+
+    # --- Edge security (GH-116 / GH-117) ---
+
+    # Shared secret proving a request traversed the trusted edge proxy — the
+    # Cloudflare Worker injects it as X-Origin-Auth; requests hitting the raw
+    # Cloud Run URL directly lack it and are rejected (403). Empty (default)
+    # disables the check for dev and self-hosted deployments with no edge proxy.
+    # This is the precondition that makes TRUST_FORWARDED_HOST=true sound.
+    origin_shared_secret: str = ""
+
+    # Allow the X-Tenant-ID header as a tenant-resolution fallback. SaaS production
+    # sets this False (subdomain-only) so raw tenant UUIDs are not a probing oracle;
+    # dev, tests, and self-hosted keep the header for tooling.
+    allow_tenant_id_header: bool = True
+
+    # In-process app-layer rate limiting (per instance, fixed one-minute windows).
+    # The Cloudflare edge rules are the first belt; this backstop still applies when
+    # the edge is bypassed or absent. See app/core/edge_security.py.
+    rate_limit_enabled: bool = False
+    rate_limit_per_minute: int = 600  # per resolved tenant key (or per IP when none)
+    rate_limit_calendar_per_minute: int = 60  # per client IP on /calendar/* (token guessing)
+    rate_limit_auth_per_minute: int = 30  # per client IP on /auth/* (invite-token spray)
+
+    # How long an anonymized member tombstone must remain in the sync stream before
+    # the reaper (`uv run reap-tombstones`) may physically delete it (GH-222).
+    # Sync-protocol Decision 5 sets a 180-day floor — a client offline longer than
+    # this cannot converge incrementally and is told to full-refetch. Raising it is
+    # safe; the ge=180 bound stops anyone from silently under-delivering tombstones.
+    tombstone_retention_days: int = Field(default=180, ge=180)
+
+    # Cloudflare Access belt for the platform control plane (GH-117). When the team
+    # domain is set, /platform/* additionally requires a valid Cf-Access-Jwt-Assertion
+    # issued by <team>.cloudflareaccess.com (audience pinned when cf_access_aud set).
+    cf_access_team_domain: str = ""  # e.g. "myteam" for myteam.cloudflareaccess.com
+    cf_access_aud: str = ""
 
 
 settings = Settings()  # type: ignore[call-arg]

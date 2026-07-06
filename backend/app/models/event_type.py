@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from sqlalchemy import Boolean, String, UniqueConstraint
+from sqlalchemy import Boolean, Index, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import SourceTracked, TrackedBase
+from app.models.base import SourceTracked, Syncable, TrackedBase
 
 
-class EventType(SourceTracked, TrackedBase):
+class EventType(SourceTracked, Syncable, TrackedBase):
     __tablename__ = "event_types"
-    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uix_event_types_tenant_name"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name", name="uix_event_types_tenant_name"),
+        Index("ix_event_types_tenant_sync_seq", "tenant_id", "sync_seq"),
+    )
 
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     color: Mapped[str | None] = mapped_column(String(7), nullable=True)
@@ -19,6 +22,10 @@ class EventType(SourceTracked, TrackedBase):
     tracks_camping_nights: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     tracks_mileage: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     allow_signups: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Whether attended events of this type count toward the advancement
+    # "participate in N activities" metric (GH-92: activity_count). Seeded defaults:
+    # Meeting/Court of Honor False, outings True; troop-configurable like the rest.
+    counts_as_activity: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     require_permission_slip: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # When True, the RSVP form exposes a guest-count field for non-roster attendees
     # (e.g. a family BBQ where grandparents come). Independent of allow_signups gating.

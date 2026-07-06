@@ -17,8 +17,11 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 
+from app.core.cf_access import require_cf_access
+from app.core.deletion import export_tenant, purge_tenant
 from app.core.deps import AdminDbDep, SuperadminDep, get_platform_admin
 from app.core.permissions import admin_assignments
 from app.core.provisioning import invite_admin_member, provision_tenant
@@ -34,12 +37,15 @@ from app.schemas.platform import (
     TenantAdminInviteResult,
     TenantAdminRead,
 )
-from app.schemas.tenant import TenantProvision, TenantProvisioned, TenantRead
+from app.schemas.tenant import TenantDeleteRequest, TenantProvision, TenantProvisioned, TenantRead
 
+# The Cloudflare Access belt (GH-117) runs first: an independent, staff-SSO-issued
+# assertion is required *in addition to* the platform role, so a compromised
+# tenant-plane token alone never reaches the control plane. No-op when unconfigured.
 router = APIRouter(
     prefix="/platform",
     tags=["platform"],
-    dependencies=[Depends(get_platform_admin)],
+    dependencies=[Depends(require_cf_access), Depends(get_platform_admin)],
 )
 
 # Control-plane writes are high-consequence and cross-tenant; every one is logged
@@ -141,6 +147,61 @@ def unsuspend_tenant(tenant_id: uuid.UUID, db: AdminDbDep, actor: SuperadminDep)
         db.refresh(tenant)
     _audit(actor, "tenant.unsuspend", tenant=tenant.id, slug=tenant.slug)
     return tenant
+
+
+@router.get("/tenants/{tenant_id}/export")
+def export_tenant_data(tenant_id: uuid.UUID, db: AdminDbDep, actor: SuperadminDep) -> JSONResponse:
+    """Download the tenant's full data bundle as JSON (superadmin only, GH-222).
+
+    Every tenant-scoped table (soft-deleted rows included), the tenant row, and
+    a minimal directory of linked platform users. Stamps ``last_export_at`` —
+    tenant deletion requires an export taken *after* suspension, making this
+    both the offboarding artifact and the accidental-delete recovery path.
+    Superadmin-only because the bundle is the troop's complete PII.
+    """
+    tenant = _get_tenant_or_404(db, tenant_id)
+    bundle = export_tenant(db, tenant)
+    db.commit()
+    _audit(actor, "tenant.export", tenant=tenant.id, slug=tenant.slug)
+    filename = f"{tenant.slug}-export-{bundle['exported_at'][:10]}.json"
+    return JSONResponse(
+        bundle, headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
+@router.delete("/tenants/{tenant_id}", status_code=204)
+def delete_tenant(
+    tenant_id: uuid.UUID, body: TenantDeleteRequest, db: AdminDbDep, actor: SuperadminDep
+) -> None:
+    """Permanently delete a tenant and every row it owns (superadmin only, GH-222).
+
+    Immediate and irreversible — the export is the recovery path, so the gate
+    is strict: the tenant must be **suspended**, an export must have been taken
+    **after** the suspension, and the request must echo the slug. The slug is
+    freed at once (re-provisioning it works immediately). Platform User/Identity
+    rows survive — they may span tenants.
+    """
+    tenant = _get_tenant_or_404(db, tenant_id)
+    if tenant.suspended_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Tenant must be suspended before it can be deleted",
+        )
+    if tenant.last_export_at is None or tenant.last_export_at < tenant.suspended_at:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A data export taken after suspension is required before deletion",
+        )
+    if body.confirm_slug != tenant.slug:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Confirmation slug does not match",
+        )
+
+    slug = tenant.slug
+    counts = purge_tenant(db, tenant)
+    db.commit()
+    _audit(actor, "tenant.delete", tenant=tenant_id, slug=slug, rows=sum(counts.values()))
 
 
 # ---------------------------------------------------------------------------

@@ -32,6 +32,13 @@ function PopoverContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
+        // Viewport-relative ("fixed") rather than document-relative ("absolute")
+        // positioning. With absolute positioning the portaled popup briefly sits
+        // near the top of the document before it is placed, so when Base UI moves
+        // focus into it (e.g. a Command search input) the browser scrolls that
+        // element into view and yanks a long page to the top. Fixed positioning
+        // keeps the popup in the viewport, so focusing it never scrolls the page.
+        positionMethod="fixed"
         className="isolate z-50"
       >
         <PopoverPrimitive.Popup

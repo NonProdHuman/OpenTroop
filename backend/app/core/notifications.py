@@ -50,6 +50,84 @@ class SMSBackend(Protocol):
         pass
 
 
+@dataclass(frozen=True)
+class PushMessage:
+    """One mobile push (GH-82). ``token`` is an Expo push token in v1."""
+
+    token: str
+    title: str
+    body: str
+    data: dict[str, str] | None = None
+
+
+class PushBackend(Protocol):
+    def send_batch(self, messages: list[PushMessage]) -> list[str]:
+        """Deliver best-effort; return tokens the vendor reports as dead."""
+
+
+class NullPushBackend:
+    """Default: push disabled (dev/self-host). Sends nothing, reports nothing."""
+
+    def send_batch(self, messages: list[PushMessage]) -> list[str]:
+        return []
+
+
+class FakePushBackend:
+    """In-memory backend for tests."""
+
+    def __init__(self) -> None:
+        self.sent: list[PushMessage] = []
+        self.dead_tokens: list[str] = []
+
+    def send_batch(self, messages: list[PushMessage]) -> list[str]:
+        self.sent.extend(messages)
+        return [t for t in self.dead_tokens if any(m.token == t for m in messages)]
+
+
+class ExpoPushBackend:
+    """Expo Push Service (https://docs.expo.dev/push-notifications/sending-notifications/).
+
+    One API for iOS and Android; EAS manages APNs/FCM credentials. Chunks of
+    ≤100 per request. ``DeviceNotRegistered`` tickets are returned as dead
+    tokens so the caller can prune them.
+    """
+
+    CHUNK = 100
+
+    def __init__(self, url: str) -> None:
+        self.url = url
+
+    def send_batch(self, messages: list[PushMessage]) -> list[str]:
+        dead: list[str] = []
+        for start in range(0, len(messages), self.CHUNK):
+            chunk = messages[start : start + self.CHUNK]
+            payload = [
+                {
+                    "to": m.token,
+                    "title": m.title,
+                    "body": m.body,
+                    **({"data": m.data} if m.data else {}),
+                }
+                for m in chunk
+            ]
+            try:
+                response = httpx.post(self.url, json=payload, timeout=10.0)
+                response.raise_for_status()
+                tickets = response.json().get("data", [])
+            except (httpx.HTTPError, ValueError) as exc:
+                # Push is best-effort by contract — log and move on.
+                logger.warning("Expo push send failed: %s", exc)
+                continue
+            for message, ticket in zip(chunk, tickets, strict=False):
+                details = ticket.get("details") or {}
+                if (
+                    ticket.get("status") == "error"
+                    and details.get("error") == "DeviceNotRegistered"
+                ):
+                    dead.append(message.token)
+        return dead
+
+
 class FakeEmailBackend:
     """In-memory backend for tests and local dev without a real provider."""
 
@@ -105,12 +183,19 @@ class ResendEmailBackend:
 class NotificationService:
     email_backend: EmailBackend
     sms_backend: SMSBackend = field(default_factory=UnconfiguredSMSBackend)
+    push_backend: PushBackend = field(default_factory=NullPushBackend)
 
     def send_email(self, message: EmailMessage) -> None:
         self.email_backend.send(message)
 
     def send_sms(self, message: SMSMessage) -> None:
         self.sms_backend.send(message)
+
+    def send_push(self, messages: list[PushMessage]) -> list[str]:
+        """Best-effort batch push; returns dead tokens for pruning."""
+        if not messages:
+            return []
+        return self.push_backend.send_batch(messages)
 
 
 def get_email_backend() -> EmailBackend:
@@ -126,5 +211,16 @@ def get_email_backend() -> EmailBackend:
     raise RuntimeError(f"Unknown EMAIL_BACKEND: {backend!r}")
 
 
+def get_push_backend() -> PushBackend:
+    backend = settings.push_backend
+    if backend == "expo":
+        return ExpoPushBackend(settings.expo_push_url)
+    if backend == "fake":
+        return FakePushBackend()
+    if backend == "none":
+        return NullPushBackend()
+    raise RuntimeError(f"Unknown PUSH_BACKEND: {backend!r}")
+
+
 def get_notification_service() -> NotificationService:
-    return NotificationService(email_backend=get_email_backend())
+    return NotificationService(email_backend=get_email_backend(), push_backend=get_push_backend())

@@ -1,12 +1,19 @@
+import asyncio
+import contextlib
 import re
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.core.edge_security import OriginAuthMiddleware, RateLimitMiddleware
 from app.routers import (
+    advancement,
     auth,
     calendar,
+    consents,
     event_types,
     events,
     functional_roles,
@@ -15,14 +22,43 @@ from app.routers import (
     locations,
     member_positions,
     members,
+    messages,
     platform,
     positions,
+    push_tokens,
     relationships,
     sync,
     tenant_settings,
 )
 
-app = FastAPI(title=settings.app_name)
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
+    """Start the messaging outbox loop (GH-78) when enabled.
+
+    Off by default (tests, one-shot commands); production/dev API processes set
+    OUTBOX_LOOP_ENABLED=true. The drain-outbox CLI is the cron belt either way.
+    """
+    task: asyncio.Task[None] | None = None
+    if settings.outbox_loop_enabled:
+        from app.core.outbox import outbox_loop
+
+        task = asyncio.create_task(outbox_loop())
+    yield
+    if task is not None:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            # Await the cancelled outbox loop so it can unwind before shutdown
+            # continues (gather keeps this a call expression, not a bare
+            # awaited-name that static analysis reads as having no effect).
+            await asyncio.gather(task)
+
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
+
+# App-layer rate limiting (GH-116). Added before CORS so preflights short-circuit in
+# CORSMiddleware without consuming budget; inert unless RATE_LIMIT_ENABLED=true.
+app.add_middleware(RateLimitMiddleware)
 
 # Compute regex for CORS origins based on app_domain.
 # Allows https://opentroop.app and https://<one-label>.opentroop.app — a single
@@ -46,10 +82,16 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-Tenant-ID"],
 )
 
+# Outermost belt (GH-116): when ORIGIN_SHARED_SECRET is set, reject any request that
+# didn't traverse the edge proxy before touching CORS, routing, or the database.
+app.add_middleware(OriginAuthMiddleware)
+
 app.include_router(groups.router)
 app.include_router(members.router)
+app.include_router(messages.router)
 app.include_router(relationships.router)
 app.include_router(positions.router)
+app.include_router(push_tokens.router)
 app.include_router(functional_roles.router)
 app.include_router(member_positions.router)
 app.include_router(auth.router)
@@ -61,6 +103,8 @@ app.include_router(calendar.router)
 app.include_router(imports.router)
 app.include_router(tenant_settings.router)
 app.include_router(sync.router)
+app.include_router(consents.router)
+app.include_router(advancement.router)
 
 
 @app.get("/health")

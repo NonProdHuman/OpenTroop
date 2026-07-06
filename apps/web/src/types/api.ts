@@ -81,6 +81,11 @@ export type TenantAdminInviteInput = Schemas["TenantAdminInvite"]
 export type TenantAdminInviteResult = Schemas["TenantAdminInviteResult"]
 export type PlatformAdmin = Schemas["PlatformAdminRead"]
 export type PlatformAdminGrantInput = Schemas["PlatformAdminGrant"]
+export type TenantDeleteInput = Schemas["TenantDeleteRequest"]
+
+// ── Hard delete (GH-222) ──────────────────────────────────────────────────────
+
+export type MemberPurgeInput = Schemas["MemberPurgeRequest"]
 
 // ── Calendar ──────────────────────────────────────────────────────────────────
 
@@ -93,3 +98,41 @@ export type Membership = Schemas["MembershipRead"]
 // ── Import ────────────────────────────────────────────────────────────────────
 
 export type TwhImportRead = Schemas["TwhImportRead"]
+
+// ── Advancement (Pillar 4, GH-92) ─────────────────────────────────────────────
+
+export type AdvancementMode = Schemas["AdvancementMode"]
+export type CompletionStatus = Schemas["CompletionStatus"]
+export type RecordedVia = Schemas["RecordedVia"]
+export type Rank = Schemas["RankRead"]
+export type RankWithSets = Schemas["RankWithSets"]
+export type RequirementSet = Schemas["RequirementSetRead"]
+export type RequirementSetDetail = Schemas["RequirementSetDetail"]
+export type Requirement = Schemas["RequirementRead"]
+export type MeritBadge = Schemas["MeritBadgeRead"]
+export type Completion = Schemas["CompletionRead"]
+export type MemberMeritBadge = Schemas["MemberMeritBadgeRead"]
+export type RankProgress = Schemas["RankProgressRead"]
+export type MemberAdvancement = Schemas["MemberAdvancementRead"]
+export type MemberRankView = Schemas["MemberRankView"]
+export type RequirementProgress = Schemas["RequirementProgress"]
+export type MetricProgress = Schemas["MetricProgress"]
+export type AdvancementQueue = Schemas["AdvancementQueueRead"]
+
+export type AdvancementScout = Schemas["AdvancementScoutRead"]
+
+// ── Messaging (Pillar 5, GH-146) ──────────────────────────────────────────────
+export type Message = Schemas["MessageRead"]
+export type MessageCreate = Schemas["MessageCreate"]
+export type MessageWithPreview = Schemas["MessageWithPreview"]
+export type MessageDetail = Schemas["MessageDetail"]
+export type MessageRecipient = Schemas["MessageRecipientRead"]
+export type AudiencePreview = Schemas["AudiencePreview"]
+export type RecipientPreviewEntry = Schemas["RecipientPreviewEntry"]
+export type RecipientPreview = Schemas["RecipientPreview"]
+export type RecipientPreviewRequest = Schemas["RecipientPreviewRequest"]
+export type MessageGroupTarget = Schemas["MessageGroupTarget"]
+export type InboxPage = Schemas["InboxPage"]
+export type InboxEntry = Schemas["InboxEntry"]
+export type AudienceType = Schemas["AudienceType"]
+export type ElectionResult = Schemas["ElectionResult"]
