@@ -38,10 +38,13 @@ import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from sqlalchemy import CursorResult, delete, func, select, text, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from sqlalchemy import CursorResult
 
 from app.core.config import settings
 from app.core.tenant_context import include_deleted, unscoped

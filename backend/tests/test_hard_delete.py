@@ -175,7 +175,8 @@ def test_purge_nulls_pii_and_tombstones(client: TestClient, db_session: Session)
 
 def test_purge_tombstone_flows_through_sync(client: TestClient) -> None:
     member_id = _mk_member(client, "Sync", "Target")
-    assert _purge(client, member_id, "Sync Target").status_code == 204
+    purged = _purge(client, member_id, "Sync Target")
+    assert purged.status_code == 204
 
     r = client.get("/sync/members")
     assert r.status_code == 200
@@ -212,7 +213,8 @@ def test_purge_cross_tenant_404(client: TestClient, other_client: TestClient) ->
 
 def test_purge_twice_409(client: TestClient) -> None:
     member_id = _mk_member(client)
-    assert _purge(client, member_id, "Erased Person").status_code == 204
+    first = _purge(client, member_id, "Erased Person")
+    assert first.status_code == 204
     r = _purge(client, member_id, "Deleted Member")
     assert r.status_code == 409
     assert "already" in r.json()["detail"]
@@ -220,8 +222,10 @@ def test_purge_twice_409(client: TestClient) -> None:
 
 def test_purge_soft_deleted_member_allowed(client: TestClient) -> None:
     member_id = _mk_member(client)
-    assert client.delete(f"/members/{member_id}").status_code == 204  # roster removal
-    assert _purge(client, member_id, "Erased Person").status_code == 204  # erasure still works
+    removed = client.delete(f"/members/{member_id}")  # roster removal
+    assert removed.status_code == 204
+    purged = _purge(client, member_id, "Erased Person")  # erasure still works
+    assert purged.status_code == 204
 
 
 def test_purge_sole_admin_self_409_last_admin(client: TestClient) -> None:
@@ -473,18 +477,22 @@ def test_delete_gates(platform_admin_client: TestClient) -> None:
     assert r.status_code == 409 and "suspended" in r.json()["detail"]
 
     # 2. Export taken *before* suspension doesn't count.
-    assert platform_admin_client.get(f"/platform/tenants/{tid}/export").status_code == 200
-    assert platform_admin_client.post(f"/platform/tenants/{tid}/suspend").status_code == 200
+    early_export = platform_admin_client.get(f"/platform/tenants/{tid}/export")
+    assert early_export.status_code == 200
+    suspended = platform_admin_client.post(f"/platform/tenants/{tid}/suspend")
+    assert suspended.status_code == 200
     r = _delete(platform_admin_client, tid, "troop-gated")
     assert r.status_code == 409 and "export" in r.json()["detail"]
 
     # 3. Fresh export, wrong slug.
-    assert platform_admin_client.get(f"/platform/tenants/{tid}/export").status_code == 200
+    fresh_export = platform_admin_client.get(f"/platform/tenants/{tid}/export")
+    assert fresh_export.status_code == 200
     r = _delete(platform_admin_client, tid, "troop-wrong")
     assert r.status_code == 400
 
     # 4. All gates passed.
-    assert _delete(platform_admin_client, tid, "troop-gated").status_code == 204
+    deleted = _delete(platform_admin_client, tid, "troop-gated")
+    assert deleted.status_code == 204
     assert platform_admin_client.get(f"/platform/tenants/{tid}").status_code == 404
 
 
@@ -498,9 +506,12 @@ def test_delete_purges_rows_and_frees_slug(
     db_session.add(bystander)
     db_session.commit()
 
-    assert platform_admin_client.post(f"/platform/tenants/{tid}/suspend").status_code == 200
-    assert platform_admin_client.get(f"/platform/tenants/{tid}/export").status_code == 200
-    assert _delete(platform_admin_client, tid, "troop-666").status_code == 204
+    suspended = platform_admin_client.post(f"/platform/tenants/{tid}/suspend")
+    assert suspended.status_code == 200
+    exported = platform_admin_client.get(f"/platform/tenants/{tid}/export")
+    assert exported.status_code == 200
+    deleted = _delete(platform_admin_client, tid, "troop-666")
+    assert deleted.status_code == 204
 
     with unscoped(), include_deleted():
         doomed = uuid.UUID(tid)
@@ -529,7 +540,8 @@ def test_tenant_b_isolated_from_tenant_a_purge(
     """A member purge in tenant A cannot touch tenant B rows (scoping belt)."""
     a_member = _mk_member(client, "Alpha", "Kid")
     b_member = _mk_member(other_client, "Beta", "Kid")
-    assert _purge(client, a_member, "Alpha Kid").status_code == 204
+    purged = _purge(client, a_member, "Alpha Kid")
+    assert purged.status_code == 204
     with unscoped(), include_deleted():
         b = db_session.get(Member, b_member)
         assert b is not None and b.purged_at is None and b.email is not None
