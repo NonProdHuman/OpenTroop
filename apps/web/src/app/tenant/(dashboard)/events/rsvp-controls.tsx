@@ -34,6 +34,9 @@ export function RsvpStatusButtons({
           type="button"
           disabled={disabled}
           onClick={() => onChange(s)}
+          // Stable e2e hooks (GH-245): assert on data-selected, not Tailwind classes.
+          data-testid={`rsvp-${s}`}
+          data-selected={value === s}
           className={cn(
             "text-xs px-2 py-0.5 rounded-full border transition-colors",
             value === s
