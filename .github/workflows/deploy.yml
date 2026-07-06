@@ -13,6 +13,11 @@ env:
   AR_REPO: ${{ vars.GCP_ARTIFACT_REPOSITORY || vars.AR_REPO || 'opentroop-containers' }}
   API_SERVICE: ${{ vars.GCP_API_SERVICE_NAME || vars.API_SERVICE_NAME || 'opentroop-api' }}
   WEB_SERVICE: ${{ vars.GCP_WEB_SERVICE_NAME || vars.WEB_SERVICE_NAME || 'opentroop-web' }}
+  # Optional: the async import worker (GH-240) runs the SAME backend image as a
+  # separate Cloud Run service. Set GCP_IMPORT_WORKER_SERVICE_NAME (to the
+  # `import_worker_service_name` Terraform output) to have deploys roll it too;
+  # empty (inprocess/self-host) skips the step.
+  IMPORT_WORKER_SERVICE: ${{ vars.GCP_IMPORT_WORKER_SERVICE_NAME || '' }}
   DEPLOY_ENVIRONMENT: ${{ vars.DEPLOY_ENVIRONMENT || vars.ENVIRONMENT || 'production' }}
   PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || vars.API_PUBLIC_URL || '' }}
   BACKEND_IMAGE: ${{ vars.GCP_REGION || vars.REGION || 'us-central1' }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID || vars.PROJECT_ID || 'opentroop' }}/${{ vars.GCP_ARTIFACT_REPOSITORY || vars.AR_REPO || 'opentroop-containers' }}/opentroop-api:${{ github.sha }}
@@ -85,6 +90,20 @@ jobs:
           image: ${{ env.BACKEND_IMAGE }}
           flags: >-
             --allow-unauthenticated
+            --port=8000
+
+      # The async import worker (GH-240) runs the same backend image; roll it to
+      # the new revision too. Auth (Cloud Tasks OIDC + invoker IAM), ingress, env,
+      # and the long timeout are Terraform-managed — this only updates the image.
+      # Skipped when GCP_IMPORT_WORKER_SERVICE_NAME is unset (inprocess/self-host).
+      - name: Deploy Import Worker to Cloud Run
+        if: env.IMPORT_WORKER_SERVICE != ''
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          service: ${{ env.IMPORT_WORKER_SERVICE }}
+          region: ${{ env.REGION }}
+          image: ${{ env.BACKEND_IMAGE }}
+          flags: >-
             --port=8000
 
       # --- FRONTEND ---

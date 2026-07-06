@@ -108,6 +108,29 @@ locals {
   api_service_account_id = "${substr(local.name_prefix, 0, 20)}-api"
   web_service_account_id = "${substr(local.name_prefix, 0, 20)}-web"
   worker_name            = "${local.name_prefix}-proxy"
+
+  # Async TWH import worker (GH-240). Provisioned only when the SaaS Cloud Tasks
+  # backend is selected; self-host/dev use the in-process drain loop and none of
+  # the resources below exist.
+  cloudtasks_enabled           = var.import_queue_backend == "cloudtasks"
+  import_worker_service_name   = "${local.name_prefix}-import-worker"
+  import_worker_sa_id          = "${substr(local.name_prefix, 0, 20)}-imp"
+  import_tasks_queue_name      = "${local.name_prefix}-imports"
+  import_worker_service_account = local.cloudtasks_enabled ? google_service_account.import_worker[0].email : ""
+
+  # Cloud Run's deterministic URL for the worker. Computed (not the resource's own
+  # .uri) so the worker can carry its own URL as the OIDC audience without a
+  # self-reference cycle; a postcondition on the service verifies it matches.
+  import_worker_url = local.cloudtasks_enabled ? coalesce(
+    var.import_worker_url,
+    "https://${local.import_worker_service_name}-${data.google_project.this.number}.${var.gcp_region}.run.app",
+  ) : ""
+  import_tasks_queue_path = local.cloudtasks_enabled ? google_cloud_tasks_queue.imports[0].id : ""
+
+  # The worker takes direct Cloud Tasks traffic (not via the Cloudflare Worker), so
+  # it must NOT require X-Origin-Auth — otherwise OriginAuthMiddleware 403s
+  # /import/jobs/execute. Its secret env is the API's minus ORIGIN_SHARED_SECRET.
+  import_worker_secret_env_names = [for n in local.api_secret_env_names : n if n != "ORIGIN_SHARED_SECRET"]
 }
 
 check "database_url_configured" {

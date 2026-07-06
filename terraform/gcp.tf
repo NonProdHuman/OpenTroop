@@ -11,14 +11,15 @@ resource "random_password" "origin_secret" {
 }
 
 resource "google_project_service" "required" {
-  for_each = toset([
+  for_each = toset(concat([
     "artifactregistry.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
     "run.googleapis.com",
     "secretmanager.googleapis.com",
-  ])
+    ], local.cloudtasks_enabled ? ["cloudtasks.googleapis.com"] : []
+  ))
 
   project            = var.gcp_project_id
   service            = each.value
@@ -167,6 +168,27 @@ resource "google_cloud_run_v2_service" "api" {
       env {
         name  = "EMAIL_FROM_ADDRESS"
         value = coalesce(var.email_from_address, "")
+      }
+
+      # Async TWH import dispatch (GH-240). The queue/worker values are empty
+      # unless import_queue_backend == "cloudtasks", in which case the API pushes
+      # each job to the worker via Cloud Tasks; otherwise the backend drains
+      # queued jobs in-process.
+      env {
+        name  = "IMPORT_QUEUE_BACKEND"
+        value = var.import_queue_backend
+      }
+      env {
+        name  = "CLOUDTASKS_QUEUE_PATH"
+        value = local.import_tasks_queue_path
+      }
+      env {
+        name  = "IMPORT_WORKER_URL"
+        value = local.import_worker_url
+      }
+      env {
+        name  = "IMPORT_WORKER_SERVICE_ACCOUNT"
+        value = local.import_worker_service_account
       }
 
       dynamic "env" {
