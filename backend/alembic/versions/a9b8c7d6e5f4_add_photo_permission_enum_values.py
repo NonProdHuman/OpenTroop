@@ -10,7 +10,7 @@ not catch it — SQLite rebuilds its CHECK constraint from the current Python
 enum. The Postgres tier now has an enum-drift test so this class of bug fails
 CI instead of production (tests/rls/test_enum_drift.py).
 
-Revision ID: f0a1b2c3d4e5
+Revision ID: a9b8c7d6e5f4
 Revises: e8f9a0b1c2d3
 Create Date: 2026-07-06
 """
@@ -21,7 +21,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "f0a1b2c3d4e5"
+revision: str = "a9b8c7d6e5f4"
 down_revision: Union[str, None] = "e8f9a0b1c2d3"
 branch_labels: Union[str, None] = None
 depends_on: Union[str, None] = None
