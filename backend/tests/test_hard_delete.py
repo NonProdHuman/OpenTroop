@@ -281,6 +281,7 @@ def test_member_columns_reviewed_for_pii() -> None:
         "email_opt_out",
         "email_bounced",
         "sms_opt_in",
+        "announcement_email_mode",
         # OA booleans/dates: advancement history, no identity content
         "oa_member",
         "oa_active",

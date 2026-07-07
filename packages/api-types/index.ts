@@ -1008,6 +1008,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/members/me/notification-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Notification Preferences */
+        get: operations["get_my_notification_preferences_members_me_notification_preferences_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update My Notification Preferences */
+        patch: operations["update_my_notification_preferences_members_me_notification_preferences_patch"];
+        trace?: never;
+    };
     "/members/{member_id}": {
         parameters: {
             query?: never;
@@ -2094,6 +2112,23 @@ export interface components {
             patrol_name: string | null;
         };
         /**
+         * AnnouncementEmailMode
+         * @description A member's preference for how announcement emails reach them (GH-218).
+         *
+         *     EVERY  — as sent: an immediate announcement mails immediately, a digest one is
+         *              held for the newsletter (the default).
+         *     DIGEST — downgrade *immediate* announcement email to the next digest for this
+         *              member; inbox and push are unaffected.
+         *     NONE   — skip announcement email entirely (``EmailState.SKIPPED_OPT_OUT``).
+         *              Distinct from the global ``Member.email_opt_out``, which also kills
+         *              invite / event mail; this only silences announcements.
+         *
+         *     Only affects announcements (the messaging layer). Event-triggered emails
+         *     (invites, cancellations, permission slips) ignore this preference.
+         * @enum {string}
+         */
+        AnnouncementEmailMode: "every" | "digest" | "none";
+        /**
          * AudiencePreview
          * @description Recipient counts for the compose screen (docs/spec/messaging.md).
          */
@@ -2320,6 +2355,8 @@ export interface components {
         DeliveryStats: {
             /** Email Failed */
             email_failed: number;
+            /** Email Held */
+            email_held: number;
             /** Email Pending */
             email_pending: number;
             /** Email Sent */
@@ -2357,10 +2394,13 @@ export interface components {
          *
          *     PENDING rows are the outbox queue; SKIPPED_* are decided at resolve time
          *     (CAN-SPAM: opted-out and bounced addresses are never queued). FAILED is
-         *     terminal after max attempts — the dead-letter surface.
+         *     terminal after max attempts — the dead-letter surface. HELD_DIGEST rows are
+         *     deliberately withheld from the normal drain (GH-218) — they wait for the
+         *     weekly digest assembly, which bundles them into one email and settles them
+         *     SENT/FAILED via the same retry machinery.
          * @enum {string}
          */
-        EmailState: "pending" | "sent" | "failed" | "skipped_opt_out" | "skipped_bounced" | "skipped_no_email";
+        EmailState: "pending" | "sent" | "failed" | "skipped_opt_out" | "skipped_bounced" | "skipped_no_email" | "held_digest";
         /** EventAudienceCreate */
         EventAudienceCreate: {
             /**
@@ -3715,6 +3755,8 @@ export interface components {
             address_line2?: string | null;
             /** Allergies */
             allergies?: string | null;
+            /** @default every */
+            announcement_email_mode: components["schemas"]["AnnouncementEmailMode"];
             /** Bsa Id */
             bsa_id?: string | null;
             /** City */
@@ -3999,6 +4041,8 @@ export interface components {
             address_line2?: string | null;
             /** Allergies */
             allergies?: string | null;
+            /** @default every */
+            announcement_email_mode: components["schemas"]["AnnouncementEmailMode"];
             /** Bsa Id */
             bsa_id?: string | null;
             /** City */
@@ -4197,6 +4241,7 @@ export interface components {
             address_line2?: string | null;
             /** Allergies */
             allergies?: string | null;
+            announcement_email_mode?: components["schemas"]["AnnouncementEmailMode"] | null;
             /** Bsa Id */
             bsa_id?: string | null;
             /** City */
@@ -4322,6 +4367,8 @@ export interface components {
         MessageCreate: {
             /** Body */
             body: string;
+            /** @default immediate */
+            delivery: components["schemas"]["MessageDelivery"];
             /** Group Targets */
             group_targets?: components["schemas"]["MessageGroupTarget"][];
             /** Scheduled At */
@@ -4344,6 +4391,23 @@ export interface components {
             /** Subject */
             subject: string;
         };
+        /**
+         * MessageDelivery
+         * @description When an announcement's *email* copy is delivered (GH-218).
+         *
+         *     IMMEDIATE — today's behavior: the email drains through the outbox as soon as
+         *                 recipients resolve (``EmailState.PENDING``).
+         *     DIGEST    — recipients still resolve at send time (the inbox entry appears and
+         *                 push fires immediately), but the email copy is *held* for the next
+         *                 tenant newsletter — it lands ``EmailState.HELD_DIGEST`` instead of
+         *                 PENDING and is bundled by the weekly digest assembly.
+         *
+         *     A digest-delivery message still walks DRAFT → SENDING → SENT: since resolution
+         *     writes the inbox rows and merely *holds* the emails, no recipient is left
+         *     PENDING, so the message finalizes to SENT as soon as it resolves.
+         * @enum {string}
+         */
+        MessageDelivery: "immediate" | "digest";
         /** MessageDetail */
         MessageDetail: {
             /** Groups */
@@ -4406,6 +4470,7 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            delivery: components["schemas"]["MessageDelivery"];
             /**
              * Id
              * Format: uuid
@@ -4522,6 +4587,25 @@ export interface components {
             value: number | null;
             /** Window */
             window: string;
+        };
+        /**
+         * NotificationPreferencesRead
+         * @description A member's self-service notification preferences (GH-218).
+         *
+         *     ``announcement_email_mode`` is the editable knob; ``email_opt_out`` and
+         *     ``email_bounced`` are surfaced read-only so the member understands why mail
+         *     may not be arriving (opted out globally, or their address bounced).
+         */
+        NotificationPreferencesRead: {
+            announcement_email_mode: components["schemas"]["AnnouncementEmailMode"];
+            /** Email Bounced */
+            email_bounced: boolean;
+            /** Email Opt Out */
+            email_opt_out: boolean;
+        };
+        /** NotificationPreferencesUpdate */
+        NotificationPreferencesUpdate: {
+            announcement_email_mode: components["schemas"]["AnnouncementEmailMode"];
         };
         /**
          * Permission
@@ -4933,6 +5017,8 @@ export interface components {
          * @description Stateless compose preview (#217): resolve an audience without saving a draft.
          */
         RecipientPreviewRequest: {
+            /** @default immediate */
+            delivery: components["schemas"]["MessageDelivery"];
             /** Group Targets */
             group_targets?: components["schemas"]["MessageGroupTarget"][];
             /**
@@ -6021,12 +6107,20 @@ export interface components {
          */
         TenantSettingsRead: {
             advancement_mode: components["schemas"]["AdvancementMode"];
+            /** Digest Day */
+            digest_day: number;
+            /** Digest Hour Utc */
+            digest_hour_utc: number;
             /** Permission Message */
             permission_message: string;
         };
         /** TenantSettingsUpdate */
         TenantSettingsUpdate: {
             advancement_mode?: components["schemas"]["AdvancementMode"] | null;
+            /** Digest Day */
+            digest_day?: number | null;
+            /** Digest Hour Utc */
+            digest_hour_utc?: number | null;
             /** Permission Message */
             permission_message?: string | null;
         };
@@ -8588,6 +8682,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_notification_preferences_members_me_notification_preferences_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferencesRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_my_notification_preferences_members_me_notification_preferences_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationPreferencesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferencesRead"];
                 };
             };
             /** @description Validation Error */

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.enums import AdvancementMode
 from app.schemas.base import PlatformRead
@@ -50,12 +50,18 @@ class TenantSettingsRead(BaseModel):
     permission_message: str
     # Advancement workflow switch (GH-92): disabled / chair_entry / scout_reported.
     advancement_mode: AdvancementMode
+    # Announcement digest cadence (GH-218). digest_day follows date.weekday():
+    # 0 = Monday … 6 = Sunday. digest_hour_utc is 0–23 UTC.
+    digest_day: int
+    digest_hour_utc: int
 
 
 class TenantSettingsUpdate(BaseModel):
     # Set to null to fall back to the built-in default permission language.
     permission_message: str | None = None
     advancement_mode: AdvancementMode | None = None
+    digest_day: int | None = Field(default=None, ge=0, le=6)
+    digest_hour_utc: int | None = Field(default=None, ge=0, le=23)
 
 
 class TenantProvisioned(TenantRead):

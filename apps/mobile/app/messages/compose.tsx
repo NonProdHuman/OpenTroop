@@ -70,6 +70,8 @@ export default function ComposeScreen() {
         send_push: sendPush,
         send_to_all: false,
         group_targets: targets,
+        // Mobile compose sends immediately; the digest/newsletter choice lives on web (GH-218).
+        delivery: "immediate",
         scheduled_at: null,
       })
       router.back()

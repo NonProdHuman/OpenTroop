@@ -25,7 +25,7 @@ from app.core.messaging import (
     send_message,
 )
 from app.core.notifications import get_notification_service
-from app.models.enums import EmailState, MessageStatus, Permission, PushState
+from app.models.enums import EmailState, MessageDelivery, MessageStatus, Permission, PushState
 from app.models.group import Group
 from app.models.member import Member
 from app.models.message import Message, MessageGroup, MessageRecipient
@@ -95,7 +95,10 @@ def _audience_preview(
 
 
 def _recipient_entries(
-    members: list[Member], send_email: bool, db: DbDep
+    members: list[Member],
+    send_email: bool,
+    db: DbDep,
+    delivery: MessageDelivery = MessageDelivery.IMMEDIATE,
 ) -> list[RecipientPreviewEntry]:
     with_devices = _members_with_devices([m.id for m in members], db)
     return [
@@ -103,7 +106,7 @@ def _recipient_entries(
             member_id=m.id,
             first_name=m.first_name,
             last_name=m.last_name,
-            email_state=initial_email_state(m, send_email=send_email),
+            email_state=initial_email_state(m, send_email=send_email, delivery=delivery),
             has_push_device=m.id in with_devices,
         )
         for m in members
@@ -207,6 +210,7 @@ def create_message(
         send_email=body.send_email,
         send_push=body.send_push,
         send_to_all=body.send_to_all,
+        delivery=body.delivery,
         scheduled_at=body.scheduled_at,
         sent_by_id=actor.id,
     )
@@ -244,7 +248,7 @@ def preview_recipients_stateless(
     )
     return RecipientPreview(
         preview=_audience_preview(members, body.send_email, body.send_push, db),
-        recipients=_recipient_entries(members, body.send_email, db),
+        recipients=_recipient_entries(members, body.send_email, db, body.delivery),
     )
 
 
@@ -279,6 +283,7 @@ def get_message(message_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Messa
         email_pending=count(MessageRecipient.email_state == EmailState.PENDING),
         email_failed=count(MessageRecipient.email_state == EmailState.FAILED),
         email_skipped=count(MessageRecipient.email_state.in_(skipped)),
+        email_held=count(MessageRecipient.email_state == EmailState.HELD_DIGEST),
         push_sent=count(MessageRecipient.push_state == PushState.SENT),
         read=count(MessageRecipient.read_at.is_not(None)),
     )
@@ -298,7 +303,9 @@ def preview_recipients(
     message_id: uuid.UUID, tenant_id: TenantDep, db: DbDep
 ) -> list[RecipientPreviewEntry]:
     message = get_or_404(db, Message, message_id, "Message not found")
-    return _recipient_entries(_audience_members(message, db), message.send_email, db)
+    return _recipient_entries(
+        _audience_members(message, db), message.send_email, db, message.delivery
+    )
 
 
 @router.get(

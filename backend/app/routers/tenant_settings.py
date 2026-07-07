@@ -29,7 +29,12 @@ def get_settings(tenant_id: TenantDep, db: DbDep) -> TenantSettingsRead:
         effective_permission_message(tenant) if tenant is not None else DEFAULT_PERMISSION_MESSAGE
     )
     mode = tenant.advancement_mode if tenant is not None else AdvancementMode.CHAIR_ENTRY
-    return TenantSettingsRead(permission_message=message, advancement_mode=mode)
+    return TenantSettingsRead(
+        permission_message=message,
+        advancement_mode=mode,
+        digest_day=tenant.digest_day if tenant is not None else 6,
+        digest_hour_utc=tenant.digest_hour_utc if tenant is not None else 16,
+    )
 
 
 @router.patch(
@@ -48,9 +53,15 @@ def update_settings(
         tenant.permission_message = body.permission_message
     if "advancement_mode" in fields and body.advancement_mode is not None:
         tenant.advancement_mode = body.advancement_mode
+    if "digest_day" in fields and body.digest_day is not None:
+        tenant.digest_day = body.digest_day
+    if "digest_hour_utc" in fields and body.digest_hour_utc is not None:
+        tenant.digest_hour_utc = body.digest_hour_utc
     db.commit()
     db.refresh(tenant)
     return TenantSettingsRead(
         permission_message=effective_permission_message(tenant),
         advancement_mode=tenant.advancement_mode,
+        digest_day=tenant.digest_day,
+        digest_hour_utc=tenant.digest_hour_utc,
     )

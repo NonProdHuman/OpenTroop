@@ -133,6 +133,7 @@ describe("GroupsPage", () => {
       emergency_contact_2_name: null,
       emergency_contact_2_phone: null,
       email_opt_out: false,
+      announcement_email_mode: "every",
       email_bounced: false,
       sms_opt_in: false,
       notes: null,
