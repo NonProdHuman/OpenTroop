@@ -12,6 +12,7 @@ import datetime
 import uuid
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.member_privacy import MEDICAL_FIELDS
@@ -188,6 +189,30 @@ def test_group_members_redacts_medical_without_read_medical(
 
     items = reader_client.get(f"/groups/{group['id']}/members").json()
     _assert_redacted(_row(items, scout.id))
+
+
+def test_seeded_event_admins_carry_read_medical(client: TestClient, db_session: Session) -> None:
+    """Event leads need the medical bundle for the people at their events —
+    the seeded event-admins role must grant it or the gating breaks camp
+    workflows (the b1c2d3e4f5a6 migration backfills existing tenants)."""
+    from app.core.provisioning import seed_default_rbac
+    from app.models.rbac import FunctionalRole as FR
+
+    tenant_id = uuid.uuid4()
+    seed_default_rbac(db_session, tenant_id)
+    role = db_session.scalar(
+        # seed writes under unscoped(); read the same way.
+        select(FR).where(FR.tenant_id == tenant_id, FR.slug == "event-admins")
+    )
+    assert role is not None
+    perms = set(
+        db_session.scalars(
+            select(FunctionalRolePermission.permission).where(
+                FunctionalRolePermission.functional_role_id == role.id
+            )
+        )
+    )
+    assert Permission.MEMBER_READ_MEDICAL in perms
 
 
 def test_read_medical_holders_see_everything(client: TestClient, db_session: Session) -> None:
