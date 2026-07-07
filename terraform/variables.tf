@@ -470,6 +470,12 @@ variable "manage_r2_bucket" {
   default     = false
 }
 
+variable "manage_r2_cors" {
+  description = "Manage the R2 bucket CORS policy via the Cloudflare provider (requires an API token with R2 edit permission — the same one manage_r2_bucket needs). Origins are derived from cors_origins (app_domain-based) so each environment gets correct browser-upload origins automatically. Set false to manage CORS by hand in the dashboard (e.g. bring-your-own-bucket with a low-privilege provider token)."
+  type        = bool
+  default     = true
+}
+
 variable "storage_bucket" {
   description = "Object storage bucket for event photos. Defaults to '<name_prefix>-media' when storage is enabled."
   type        = string

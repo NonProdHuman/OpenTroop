@@ -79,8 +79,23 @@ The web app PUTs photo bytes **directly to the bucket** from the browser and
 renders gallery images from presigned GETs — both are cross-origin requests, so
 the bucket needs a CORS policy. (Mobile uploads are native HTTP and unaffected.)
 
+**Terraform manages this by default** (`manage_r2_cors = true`). The
+`cloudflare_r2_bucket_cors.media` resource in `terraform/storage.tf` derives the
+allowed origins from `local.cors_origins` — the same `app_domain`-based list
+wired into the backend/worker CORS — so `dev`, staging, and prod each get their
+own correct origins with **no manual, per-environment copy-paste to drift**.
+There is nothing to do in this step unless you are opting out (below). This
+requires the provider's `cloudflare_api_token` to carry **Workers R2 Storage:
+Edit** (the same permission `manage_r2_bucket` needs).
+
+### Manual fallback (self-host / low-privilege token / `manage_r2_cors = false`)
+
+If you keep the provider token low-privilege, or bring your own bucket outside
+Terraform, set `manage_r2_cors = false` and configure CORS by hand:
+
 Dashboard: **R2 → \<bucket\> → Settings → CORS policy → Add CORS policy**, and
-paste (adjust the domain for the environment):
+paste — **adjust the domain to match the environment** (e.g. `opentroop.dev` for
+the dev environment, not the prod `opentroop.app` shown here):
 
 ```json
 [
@@ -100,9 +115,9 @@ For local development against a real bucket, add `http://localhost:3000` and
 `http://*.localhost:3000` to `AllowedOrigins` (or use `STORAGE_BACKEND=fake`,
 which needs no bucket at all).
 
-Symptom of a missing policy: uploads fail in the browser console with a CORS
-preflight error on `…r2.cloudflarestorage.com`, while the same upload from the
-mobile app succeeds.
+Symptom of a missing or wrong-origin policy: uploads fail in the browser console
+with a CORS preflight error on `…r2.cloudflarestorage.com`, while the same upload
+from the mobile app succeeds.
 
 ## Step 5 — Apply and wire the deploy workflow
 
