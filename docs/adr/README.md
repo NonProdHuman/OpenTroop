@@ -32,6 +32,7 @@ closed issue, it probably belongs here.
 | [0009](0009-cloud-run-ownership-boundary.md) | Cloud Run ownership: Terraform provisions the shell, GitHub Actions owns the image | Accepted |
 | [0010](0010-hard-delete-anonymize-then-reap.md) | Hard delete: anonymize-then-reap members, export-gated tenant purge | Accepted |
 | [0011](0011-cloudflare-r2-object-storage.md) | Object storage: Cloudflare R2 via an S3-compatible driver | Accepted |
+| [0012](0012-anonymous-demo-read-only-principal.md) | Anonymous read-only principal for the public demo | Accepted |
 
 > ADRs 0001–0005 record decisions that were already in force when the log was
 > created (2026-07); their content is reconstructed from the code and specs that

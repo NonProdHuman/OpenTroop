@@ -16,9 +16,19 @@ export default clerkMiddleware(async (auth, request) => {
   // live on subdomains of it and the console on admin.<root>.
   const isLanding = hostname === appDomain || hostname === `www.${appDomain}`
 
-  // Treat landing domain's root as public, otherwise protect
+  // Anonymous read-only public demo (GH-246). On this exact host — a tenant
+  // subdomain like demo.opentroop.dev — signed-out visitors must still render the
+  // dashboard, so we skip auth.protect() here. Unset (default) leaves every host
+  // fully protected as before. The backend enforces read-only for the anonymous
+  // principal; this only lets the page load without a Clerk session.
+  const demoHost = process.env.NEXT_PUBLIC_DEMO_HOST || ""
+  const isDemoHost = demoHost !== "" && hostname === demoHost
+
+  // Treat landing domain's root (and the demo host) as public, otherwise protect
   if (isLanding && url.pathname === "/") {
     // skip auth protect
+  } else if (isDemoHost) {
+    // skip auth protect — anonymous demo visitors render the tenant dashboard
   } else if (!isPublicRoute(request)) {
     await auth.protect()
   }

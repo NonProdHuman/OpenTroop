@@ -10,7 +10,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, get_optional_current_user
 from app.core.database import get_admin_db, get_db
 from app.core.tenant import get_tenant_id
 from app.main import app
@@ -97,6 +97,26 @@ async def _test_current_user(
     )
 
 
+async def _test_optional_user(
+    x_test_user_id: Annotated[str | None, Header()] = None,
+) -> User | None:
+    """Test-only override for ``get_optional_current_user``.
+
+    Mirrors ``_test_current_user`` but returns ``None`` when no ``X-Test-User-ID``
+    header is present (the anonymous case the public-demo carve-out keys off), while
+    still 401ing an explicit-but-unknown user id (a bad credential, not absence).
+    """
+    if x_test_user_id is None:
+        return None
+    if x_test_user_id in _USERS:
+        return _USERS[x_test_user_id]
+    raise HTTPException(
+        status_code=http_status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
 def _seed_admin(session: Session, tenant_id: uuid.UUID) -> None:
     """Seed an admin User + Member + Administrator position for the tenant (idempotent).
 
@@ -169,6 +189,7 @@ def _set_shared_overrides(db_session: Session) -> None:
     app.dependency_overrides[get_admin_db] = lambda: db_session
     app.dependency_overrides[get_tenant_id] = _simple_tenant_id
     app.dependency_overrides[get_current_user] = _test_current_user
+    app.dependency_overrides[get_optional_current_user] = _test_optional_user
 
 
 @pytest.fixture

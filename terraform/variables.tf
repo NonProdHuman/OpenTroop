@@ -527,3 +527,35 @@ variable "maintenance_time_zone" {
   type        = string
   default     = "Etc/UTC"
 }
+
+# ── Nightly demo-edit reset job (GH-246) ──────────────────────────────────────
+
+variable "demo_edit_reset_enabled" {
+  description = "Provision the Cloud Run job + nightly Cloud Scheduler trigger that runs `seed-dev-data --reset` against the demo-edit tenant, wiping visitor edits back to the deterministic dataset (GH-246, ADR 0012). Opt-in: only meaningful on a demo environment. Independent of the anonymous read-only demo, which is enabled on the API via DEMO_TENANT_SLUG."
+  type        = bool
+  default     = false
+}
+
+variable "demo_edit_slug" {
+  description = "Tenant slug the nightly reset targets (passed to `seed-dev-data --reset --slug`). This is the private, Clerk-login demo-edit tenant, distinct from the anonymous read-only demo tenant."
+  type        = string
+  default     = "demo-edit"
+}
+
+variable "demo_edit_admin_email" {
+  description = "Verified email to re-link the reseeded founding Demo Admin to (passed as `--email`). Leave null to leave the founder unclaimed after each reset."
+  type        = string
+  default     = null
+}
+
+variable "demo_edit_reset_schedule" {
+  description = "Cron schedule for the demo-edit reset. Default: nightly at 08:00 (overnight US, before the demo sees daytime traffic)."
+  type        = string
+  default     = "0 8 * * *"
+}
+
+variable "demo_edit_reset_time_zone" {
+  description = "IANA time zone the demo_edit_reset_schedule is evaluated in."
+  type        = string
+  default     = "Etc/UTC"
+}
