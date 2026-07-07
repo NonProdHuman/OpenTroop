@@ -150,7 +150,7 @@ def test_run_outbox_pass_drains_every_tenant(
 
     stats = outbox.run_outbox_pass()
 
-    assert stats == {"tenants": 2, "promoted": 0, "emails_attempted": 2}
+    assert stats == {"tenants": 2, "promoted": 0, "emails_attempted": 2, "digests_sent": 0}
     assert {m.to for m in email.sent} == {"a@x.test", "b@x.test"}
     with session_factory() as db, unscoped():
         states = db.scalars(select(MessageRecipient.email_state)).all()
@@ -206,8 +206,8 @@ def test_outbox_loop_survives_a_crashing_pass(monkeypatch: pytest.MonkeyPatch) -
         if len(calls) == 1:
             raise RuntimeError("pass crashed")
         if len(calls) == 2:  # a quiet tick — nothing to log
-            return {"tenants": 0, "promoted": 0, "emails_attempted": 0}
-        return {"tenants": 1, "promoted": 0, "emails_attempted": 1}
+            return {"tenants": 0, "promoted": 0, "emails_attempted": 0, "digests_sent": 0}
+        return {"tenants": 1, "promoted": 0, "emails_attempted": 1, "digests_sent": 0}
 
     monkeypatch.setattr(outbox, "run_outbox_pass", flaky_pass)
     monkeypatch.setattr(settings, "outbox_tick_seconds", 0)

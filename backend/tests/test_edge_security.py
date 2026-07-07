@@ -186,6 +186,30 @@ def test_rate_limit_health_exempt(client: TestClient, monkeypatch: pytest.Monkey
     rate_limiter.reset()
 
 
+def _http_scope(host: str, path: str = "/members") -> dict[str, object]:
+    return {
+        "type": "http",
+        "path": path,
+        "headers": [(b"host", host.encode())],
+        "client": ("1.2.3.4", 0),
+    }
+
+
+def test_is_demo_request_matches_only_demo_subdomain(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The demo per-IP rate-limit bucket (GH-246) is chosen only for the demo tenant's
+    subdomain, and only when the feature is on — inert otherwise."""
+    from app.core.edge_security import _is_demo_request
+
+    # settings.app_domain is opentroop.test in the test env.
+    monkeypatch.setattr(settings, "demo_tenant_slug", "")
+    assert _is_demo_request(_http_scope("demo-public.opentroop.test")) is False
+
+    monkeypatch.setattr(settings, "demo_tenant_slug", "demo-public")
+    assert _is_demo_request(_http_scope("demo-public.opentroop.test")) is True
+    assert _is_demo_request(_http_scope("troop42.opentroop.test")) is False
+    assert _is_demo_request(_http_scope("opentroop.test")) is False
+
+
 # ---------------------------------------------------------------------------
 # 4. Cloudflare Access belt on /platform/*
 # ---------------------------------------------------------------------------

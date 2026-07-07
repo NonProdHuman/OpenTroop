@@ -10,7 +10,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   return (
     <View style={{ marginBottom: 10 }}>
       <Text style={{ color: colors.textMuted, fontSize: 12 }}>{label}</Text>
-      <Text style={{ fontSize: 15 }}>{value}</Text>
+      <Text style={{ fontSize: 15, color: colors.text }}>{value}</Text>
     </View>
   )
 }
@@ -43,7 +43,7 @@ export default function MemberDetailScreen() {
     <>
       <Stack.Screen options={{ headerShown: true, title: formatMemberName(member) }} />
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <Text style={{ fontSize: 20, fontWeight: "700", marginBottom: 2 }}>
+        <Text style={{ fontSize: 20, fontWeight: "700", marginBottom: 2, color: colors.textStrong }}>
           {formatMemberName(member)}
         </Text>
         <Text style={{ color: colors.textMuted, marginBottom: 16 }}>

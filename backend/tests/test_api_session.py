@@ -136,7 +136,7 @@ def _client_for(db: Session, user: User, tenant_id: uuid.UUID) -> Generator[Test
     needing to be pre-registered in the conftest _USERS map. Dependency overrides
     are cleared automatically on exit so callers don't repeat the cleanup.
     """
-    from app.core.auth import get_current_user
+    from app.core.auth import get_current_user, get_optional_current_user
     from app.core.database import get_db
     from app.core.tenant import get_tenant_id
     from app.main import app
@@ -150,6 +150,10 @@ def _client_for(db: Session, user: User, tenant_id: uuid.UUID) -> Generator[Test
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_tenant_id] = _simple_tenant_id
     app.dependency_overrides[get_current_user] = _user_override
+    # Member-context deps resolve the caller through get_optional_current_user (the
+    # anonymous-demo seam); this authenticated helper must satisfy it too, or those
+    # routes would fall through to the anonymous path.
+    app.dependency_overrides[get_optional_current_user] = _user_override
 
     try:
         with TestClient(app, headers={"X-Tenant-ID": str(tenant_id)}) as client:

@@ -21,7 +21,14 @@ export function useUpdateTenantSettings() {
   const { activeTenantId } = useActiveTenant()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (body: Partial<Pick<TenantSettings, "permission_message" | "advancement_mode">>) =>
+    mutationFn: (
+      body: Partial<
+        Pick<
+          TenantSettings,
+          "permission_message" | "advancement_mode" | "digest_day" | "digest_hour_utc"
+        >
+      >,
+    ) =>
       request<TenantSettings>("/tenant/settings", {
         method: "PATCH",
         body: JSON.stringify(body),

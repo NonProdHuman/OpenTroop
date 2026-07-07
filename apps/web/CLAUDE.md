@@ -25,8 +25,9 @@ Copy `apps/web/.env.local.example` → `apps/web/.env.local` and fill in Clerk k
 
 ## API and data fetching
 
-The web app does **not** use a generated API-client package (a generated client is
-planned for mobile only). Instead it uses two purpose-built layers:
+The web app does **not** use a generated API-client package (the generated
+`@opentroop/api-types` package in `packages/` serves the mobile app; the web app keeps
+its own generated copy for import-path stability). Instead it uses two purpose-built layers:
 
 - **`useApi()`** (`src/lib/api.ts`) — the central HTTP client. Wraps `fetch` with a Clerk
   `Bearer` token and the `X-Tenant-ID` header. Use this in all data hooks.

@@ -9,38 +9,97 @@ from app.core.deletion import purge_member
 from app.core.deps import (
     CurrentMemberDep,
     DbDep,
+    MemberContextDep,
     NotificationServiceDep,
     TenantDep,
     get_or_404,
     require,
 )
 from app.core.invite import build_claim_url, build_invite_email, create_invite_token
+from app.core.member_privacy import redact_medical
 from app.core.notifications import EmailSendError
 from app.core.permissions import admin_member_ids, member_is_admin, resolve_permissions
 from app.core.relationships import family_member_ids
 from app.core.tenant_context import include_deleted
 from app.models.enums import GroupType, MemberType, Permission
 from app.models.group import Group, GroupMember
-from app.models.member import Member
+from app.models.member import Member, MemberRelationship
 from app.models.tenant import Tenant
 from app.schemas.member import (
+    FamilyRead,
     MemberBase,
     MemberInviteRead,
     MemberPurgeRequest,
     MemberRead,
     MemberUpdate,
+    NotificationPreferencesRead,
+    NotificationPreferencesUpdate,
 )
+from app.schemas.relationship import MemberRelationshipRead
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/members", tags=["members"])
 
 
+# --- Self-service notification preferences (any member; own row only) — GH-218.
+# Declared before "/{member_id}" so "me" is never parsed as a member UUID.
+
+
+@router.get("/me/notification-preferences", response_model=NotificationPreferencesRead)
+def get_my_notification_preferences(
+    member: CurrentMemberDep, tenant_id: TenantDep, db: DbDep
+) -> NotificationPreferencesRead:
+    return NotificationPreferencesRead.model_validate(member, from_attributes=True)
+
+
+@router.patch("/me/notification-preferences", response_model=NotificationPreferencesRead)
+def update_my_notification_preferences(
+    body: NotificationPreferencesUpdate,
+    member: CurrentMemberDep,
+    tenant_id: TenantDep,
+    db: DbDep,
+) -> NotificationPreferencesRead:
+    member.announcement_email_mode = body.announcement_email_mode
+    db.commit()
+    db.refresh(member)
+    return NotificationPreferencesRead.model_validate(member, from_attributes=True)
+
+
+@router.get("/me/family", response_model=FamilyRead)
+def get_my_family(member: CurrentMemberDep, tenant_id: TenantDep, db: DbDep) -> FamilyRead:
+    """Return the caller's household plus the relationship edges among it (GH-143).
+
+    Any authenticated member may call this — no extra permission. The household is
+    ``family_member_ids`` (``{self} ∪ children/wards ∪ co-parents``); a scout or an
+    edge-less adult gets ``{self}`` back. The medical bundle is deliberately **not**
+    redacted here: the household is exactly the ``redact_medical`` exemption, so a
+    positionless parent sees their own child's allergies/medical dates.
+
+    Declared before ``/{member_id}`` so "me" is never parsed as a member UUID.
+    """
+    family_ids = family_member_ids(member.id, db)
+    members = db.scalars(select(Member).where(Member.id.in_(family_ids))).all()
+    # Only edges whose *both* endpoints are inside the household (household-bounded).
+    relationships = db.scalars(
+        select(MemberRelationship).where(
+            MemberRelationship.from_member_id.in_(family_ids),
+            MemberRelationship.to_member_id.in_(family_ids),
+        )
+    ).all()
+    return FamilyRead(
+        members=[MemberRead.model_validate(m) for m in members],
+        relationships=[MemberRelationshipRead.model_validate(r) for r in relationships],
+    )
+
+
 @router.get(
     "", response_model=list[MemberRead], dependencies=[Depends(require(Permission.MEMBER_READ))]
 )
-def list_members(tenant_id: TenantDep, db: DbDep) -> Sequence[Member]:
-    return db.scalars(select(Member)).all()
+def list_members(tenant_id: TenantDep, db: DbDep, ctx: MemberContextDep) -> Sequence[MemberRead]:
+    caller, permissions = ctx
+    items = [MemberRead.model_validate(m) for m in db.scalars(select(Member)).all()]
+    return redact_medical(items, caller, permissions, db)
 
 
 @router.post(
@@ -70,8 +129,13 @@ def create_member(body: MemberBase, tenant_id: TenantDep, db: DbDep) -> Member:
     response_model=MemberRead,
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
-def get_member(member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Member:
-    return get_or_404(db, Member, member_id, "Member not found")
+def get_member(
+    member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep, ctx: MemberContextDep
+) -> MemberRead:
+    member = get_or_404(db, Member, member_id, "Member not found")
+    caller, permissions = ctx
+    (item,) = redact_medical([MemberRead.model_validate(member)], caller, permissions, db)
+    return item
 
 
 @router.patch(
@@ -84,7 +148,7 @@ def update_member(
     tenant_id: TenantDep,
     db: DbDep,
     caller: CurrentMemberDep,
-) -> Member:
+) -> MemberRead:
     member = get_or_404(db, Member, member_id, "Member not found")
 
     perms = resolve_permissions(caller.id, db)
@@ -141,7 +205,8 @@ def update_member(
         setattr(member, k, v)
     db.commit()
     db.refresh(member)
-    return member
+    (item,) = redact_medical([MemberRead.model_validate(member)], caller, perms, db)
+    return item
 
 
 @router.delete(

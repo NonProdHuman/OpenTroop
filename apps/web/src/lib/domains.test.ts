@@ -34,3 +34,40 @@ describe("domains protocol()", () => {
     expect(getTenantUrl("troop123", "/")).toBe("https://troop123.opentroop.dev/")
   })
 })
+
+describe("isDemoHost (GH-246)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+    vi.resetModules()
+  })
+
+  it("is false when NEXT_PUBLIC_DEMO_HOST is unset (feature off)", async () => {
+    vi.resetModules()
+    const { isDemoHost } = await import("./domains")
+    expect(isDemoHost()).toBe(false)
+  })
+
+  it("is true only when the current host matches the configured demo host", async () => {
+    // jsdom serves from http://localhost:3000/, so window.location.host is localhost:3000.
+    vi.resetModules()
+    vi.stubEnv("NEXT_PUBLIC_DEMO_HOST", "localhost:3000")
+    const { isDemoHost } = await import("./domains")
+    expect(isDemoHost()).toBe(true)
+  })
+
+  it("is false when a demo host is configured but does not match the current host", async () => {
+    vi.resetModules()
+    vi.stubEnv("NEXT_PUBLIC_DEMO_HOST", "demo.opentroop.dev")
+    const { isDemoHost } = await import("./domains")
+    expect(isDemoHost()).toBe(false)
+  })
+
+  it("is false on the server (no window)", async () => {
+    vi.resetModules()
+    vi.stubEnv("NEXT_PUBLIC_DEMO_HOST", "localhost:3000")
+    vi.stubGlobal("window", undefined)
+    const { isDemoHost } = await import("./domains")
+    expect(isDemoHost()).toBe(false)
+  })
+})

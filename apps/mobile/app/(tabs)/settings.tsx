@@ -8,8 +8,16 @@ import { useSyncContext } from "@/lib/sync-context"
 import { isAppLockEnabled, setAppLockEnabled } from "@/lib/app-lock"
 import { disablePush, enablePush, getStoredPushToken } from "@/lib/push"
 import { useCalendarSubscription } from "@/hooks/use-calendar"
+import { useNotificationPreferences } from "@/hooks/use-notification-preferences"
+import type { AnnouncementEmailMode } from "@/lib/types"
 import * as Clipboard from "expo-clipboard"
 import { useEffect, useState } from "react"
+
+const ANNOUNCEMENT_MODE_LABELS: Record<AnnouncementEmailMode, string> = {
+  every: "every",
+  digest: "weekly digest",
+  none: "off",
+}
 
 function Row({ label, onPress, danger }: { label: string; onPress: () => void; danger?: boolean }) {
   const colors = useColors()
@@ -43,6 +51,7 @@ export default function SettingsScreen() {
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushError, setPushError] = useState<string | null>(null)
   const calendar = useCalendarSubscription()
+  const notificationPrefs = useNotificationPreferences()
   const [copied, setCopied] = useState(false)
   useEffect(() => {
     void isAppLockEnabled().then(setLockEnabled)
@@ -65,13 +74,13 @@ export default function SettingsScreen() {
   }
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
+    <View style={{ flex: 1, padding: 16, backgroundColor: colors.background }}>
       <Text style={{ color: colors.textMuted, marginBottom: 4 }}>Signed in as</Text>
-      <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 16 }}>
+      <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 16, color: colors.textStrong }}>
         {user?.primaryEmailAddress?.emailAddress ?? "…"}
       </Text>
       <Text style={{ color: colors.textMuted, marginBottom: 4 }}>Troop</Text>
-      <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 16 }}>
+      <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 16, color: colors.textStrong }}>
         {activeTenant?.tenant_name}
       </Text>
 
@@ -88,6 +97,7 @@ export default function SettingsScreen() {
             borderWidth: 1,
             borderColor: colors.borderLight,
             borderRadius: 12,
+            backgroundColor: colors.surface,
             gap: 8,
           }}
         >
@@ -140,6 +150,23 @@ export default function SettingsScreen() {
         }}
       />
       <Row
+        label={
+          notificationPrefs.busy
+            ? "Updating…"
+            : notificationPrefs.mode
+              ? `Announcement emails: ${ANNOUNCEMENT_MODE_LABELS[notificationPrefs.mode]}`
+              : "Announcement emails: …"
+        }
+        onPress={() => {
+          void notificationPrefs.cycle()
+        }}
+      />
+      {notificationPrefs.error && (
+        <Text style={{ color: colors.danger, marginBottom: 10, fontSize: 13 }}>
+          {notificationPrefs.error}
+        </Text>
+      )}
+      <Row
         label={lockEnabled ? "App lock: on (Face ID)" : "App lock: off"}
         onPress={() => {
           void setAppLockEnabled(!lockEnabled).then(setLockEnabled)
@@ -163,7 +190,7 @@ export default function SettingsScreen() {
       {pushError && <Text style={{ color: colors.danger, marginTop: 8 }}>{pushError}</Text>}
       <Text style={{ color: colors.textSubtle, marginTop: "auto", textAlign: "center" }}>
         {lastOutcome?.error
-          ? "Offline — showing local data; changes will sync when you're back."
+          ? `Showing local data — last sync failed: ${lastOutcome.error}`
           : "Attendance/RSVP screens on the offline mirror and Face ID app lock arrive in M5 (GH-93)."}
       </Text>
     </View>

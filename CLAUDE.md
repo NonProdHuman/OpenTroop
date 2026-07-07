@@ -106,8 +106,12 @@ pre-commit environment.
   root domain (e.g. `opentroop.app`) serves the landing page, the `admin` subdomain
   serves the platform control plane, and any other subdomain
   (e.g. `troop123.opentroop.app`) serves that tenant's dashboard.
-- **Mobile** (`apps/mobile/`): Expo (React Native), iOS first — Mobile v1 underway
-  (phases in GH-93; offline data-layer spec in GH-153). It consumes
+- **Mobile** (`apps/mobile/`): Expo (React Native), iOS first — Mobile v1 shipped
+  (phase map in GH-93; offline data-layer spec in GH-153): per-tenant SQLite mirror
+  of the 8 `/sync/*` streams with a replayable command outbox (`src/data/`), tabs for
+  roster/events/messages/advancement/settings, event photos, push notifications,
+  Face ID app lock, and calendar subscription. Advancement is an **online** surface
+  by design (ADR 0006). It consumes
   `packages/api-types` (`@opentroop/api-types`), generated from the FastAPI OpenAPI
   spec by the same `pnpm gen:api` run that produces the web app's
   `apps/web/src/types/api.generated.ts` (thin aliases in `apps/web/src/types/api.ts`;
@@ -141,8 +145,14 @@ parses XML with `defusedxml` (422 on entity attacks).
 `Syncable` (`app/models/base.py`), which supplies `sync_seq` — a server-assigned,
 strictly monotonic cursor bumped on every insert/update (Postgres `sync_seq`
 sequence; `MAX+1` fallback on SQLite). Adopting tables must also add a
-`(tenant_id, sync_seq)` index. `Member` is live today via
-`GET /sync/members` (`app/routers/sync.py`), keyset-paged on `(sync_seq, id)`.
+`(tenant_id, sync_seq)` index. Eight streams are live (`app/routers/sync.py`), all
+keyset-paged on `(sync_seq, id)`: members, member_relationships, event_types,
+locations, events, event_participants, inbox_messages, inbox_recipients — each
+scoped to the caller (permission check, event visibility, family scope, or own
+inbox). Page items are the `Sync*Read` schemas (`app/schemas/sync.py`): the
+interactive `*Read` payload **plus the row's own `sync_seq`**, which the offline
+mirror stores as a NOT NULL column — omitting it wedges every client at
+`since_seq=0`.
 After the tombstone reaper hard-deletes purged members (GH-222), every `/sync/*`
 endpoint answers **410** to a cursor behind `Tenant.purged_through_seq` (client must
 full-refetch from `since_seq=0`) and clamps a completed walk's cursor up to the
@@ -326,7 +336,8 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   `TENANT_STORAGE_QUOTA_DEFAULT_BYTES` default — 413 over quota). Gallery reads return
   short-lived presigned GETs (no public objects). Deletes are soft + release quota;
   `uv run reap-photo-uploads` sweeps stale PENDING uploads and deleted photos' objects
-  (status `purged`). `Syncable` — metadata rides pull-sync for offline galleries.
+  (status `purged`). `Syncable` is groundwork only — there is no `/sync/event_photos`
+  stream yet; both gallery clients read online via presigned GETs.
   Permissions: `photo:read`/`photo:upload` seeded on the baseline Members role
   (troop-wide view + contribute by default), `photo:moderate` on event-admins.
 
@@ -351,6 +362,35 @@ synchronously on attendance/override/event-metric/badge/rank-date writes;
 `uv run recompute-advancement` covers pure time-passage thresholds. The `GroupRule`
 `rank` dimension resolves on current rank (highest completed). Scoutbook CSV
 import/export is the remaining #92 phase (needs sample files).
+
+**Messaging (Pillar 5, GH-146).** Group-targeted announcements with a member inbox.
+`Message` (subject/body, `MessageStatus` draft→scheduled→sending→sent, `send_email` /
+`send_push` / `send_to_all` flags, `scheduled_at`) targets `MessageGroup` rows (group +
+`AudienceType`: members / members_and_parents / parents_only). Sending resolves the
+audience **at send time** (`app/core/messaging.py`, reusing `resolve_group_members`
+and the family edges) into `MessageRecipient` rows — simultaneously the member's inbox
+entry (`read_at`), the email outbox queue (`EmailState.PENDING` rows drain with
+exponential backoff, max 5 attempts; terminal `FAILED` is the dead-letter surface;
+CAN-SPAM skips decided at resolve time), and the delivery-stats source. The outbox
+driver (`app/core/outbox.py`, GH-78/79) runs from the in-process lifespan loop
+(`OUTBOX_LOOP_ENABLED`) or `uv run drain-outbox` (cron/self-host), promoting due
+scheduled sends and draining pending emails per tenant with per-tenant pacing. Push
+(GH-82) is a one-shot best-effort alert at send time via `PushToken` rows (Expo tokens,
+registered per member per tenant via `/notifications/push-tokens`); the inbox row is
+the durable record. Routes under `/messages` gate on `communication:send_troop`
+except the caller-scoped `/messages/inbox`. `Message`/`MessageRecipient` are
+`Syncable` — the mobile inbox mirrors offline. See
+[`docs/spec/messaging.md`](docs/spec/messaging.md).
+
+**Compliance ledger (#223).** `ConsentRecord` — one auditable, revocable consent
+event; `scope` (`ConsentScope`: tos/account/media/sms) × `method`
+(`ConsentMethod`), `subject_member_id` (who it's about) vs `consented_by_member_id`
+/ `consented_by_user_id` (who granted). CRUD under `/consents` (member:read /
+member:write); revocation sets `revoked_at`, never hard-deletes.
+
+**Import jobs (GH-240).** `ImportJob` — one async TWH import: gzip payload on the
+row, `ImportJobStatus` lifecycle, live `progress` + final `summary`/`warnings`; at
+most one active job per tenant. Details in [`backend/CLAUDE.md`](backend/CLAUDE.md).
 
 Enums live in `app/models/enums.py` and are shared between ORM models and schemas.
 
@@ -451,5 +491,6 @@ Enums live in `app/models/enums.py` and are shared between ORM models and schema
   `event_notifications.py` (GH-86) sends event-triggered emails (creation,
   cancellation, permission-slip requests) from the events router; recipients resolve
   through the same audience/group primitives as visibility, with parent expansion via
-  `parent_of`/`guardian_of` edges. Sends are synchronous on-request for now — the
-  async queue (GH-78) and scheduled RSVP reminders/digests are tracked separately.
+  `parent_of`/`guardian_of` edges. Event-triggered sends are synchronous on-request;
+  announcement email rides the async outbox queue (see the Messaging section above).
+  Scheduled RSVP reminders/digests are tracked separately (GH-218).

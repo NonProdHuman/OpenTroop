@@ -135,6 +135,17 @@ locals {
   # The job never serves HTTP, so it has no use for the origin secret.
   maintenance_secret_env_names = [for n in local.api_secret_env_names : n if n != "ORIGIN_SHARED_SECRET"]
 
+  # Nightly demo-edit reset job (GH-246, ADR 0012). Same ownership model as the
+  # maintenance job: Terraform owns the shell, GitHub Actions rolls the image.
+  # Reuses the maintenance secret set (DB creds + APP_SECRET; no origin secret).
+  demo_reset_enabled          = var.demo_edit_reset_enabled
+  demo_reset_job_name         = "${local.name_prefix}-demo-reset"
+  demo_reset_sa_id            = "${substr(local.name_prefix, 0, 20)}-dmr"
+  demo_reset_scheduler_sa_id  = "${substr(local.name_prefix, 0, 20)}-dms"
+  demo_reset_secret_env_names = local.maintenance_secret_env_names
+  demo_reset_email_flag       = var.demo_edit_admin_email != null ? " --email ${var.demo_edit_admin_email}" : ""
+  demo_reset_command          = "uv run --no-dev seed-dev-data --reset --slug ${var.demo_edit_slug}${local.demo_reset_email_flag}"
+
   # Async TWH import worker (GH-240). Provisioned only when the SaaS Cloud Tasks
   # backend is selected; self-host/dev use the in-process drain loop and none of
   # the resources below exist.

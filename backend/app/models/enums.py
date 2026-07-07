@@ -335,6 +335,45 @@ class MessageStatus(enum.StrEnum):
     SENT = "sent"
 
 
+class MessageDelivery(enum.StrEnum):
+    """When an announcement's *email* copy is delivered (GH-218).
+
+    IMMEDIATE — today's behavior: the email drains through the outbox as soon as
+                recipients resolve (``EmailState.PENDING``).
+    DIGEST    — recipients still resolve at send time (the inbox entry appears and
+                push fires immediately), but the email copy is *held* for the next
+                tenant newsletter — it lands ``EmailState.HELD_DIGEST`` instead of
+                PENDING and is bundled by the weekly digest assembly.
+
+    A digest-delivery message still walks DRAFT → SENDING → SENT: since resolution
+    writes the inbox rows and merely *holds* the emails, no recipient is left
+    PENDING, so the message finalizes to SENT as soon as it resolves.
+    """
+
+    IMMEDIATE = "immediate"
+    DIGEST = "digest"
+
+
+class AnnouncementEmailMode(enum.StrEnum):
+    """A member's preference for how announcement emails reach them (GH-218).
+
+    EVERY  — as sent: an immediate announcement mails immediately, a digest one is
+             held for the newsletter (the default).
+    DIGEST — downgrade *immediate* announcement email to the next digest for this
+             member; inbox and push are unaffected.
+    NONE   — skip announcement email entirely (``EmailState.SKIPPED_OPT_OUT``).
+             Distinct from the global ``Member.email_opt_out``, which also kills
+             invite / event mail; this only silences announcements.
+
+    Only affects announcements (the messaging layer). Event-triggered emails
+    (invites, cancellations, permission slips) ignore this preference.
+    """
+
+    EVERY = "every"
+    DIGEST = "digest"
+    NONE = "none"
+
+
 class AudienceType(enum.StrEnum):
     """Per-group audience expansion for a message (docs/spec/messaging.md)."""
 
@@ -348,7 +387,10 @@ class EmailState(enum.StrEnum):
 
     PENDING rows are the outbox queue; SKIPPED_* are decided at resolve time
     (CAN-SPAM: opted-out and bounced addresses are never queued). FAILED is
-    terminal after max attempts — the dead-letter surface.
+    terminal after max attempts — the dead-letter surface. HELD_DIGEST rows are
+    deliberately withheld from the normal drain (GH-218) — they wait for the
+    weekly digest assembly, which bundles them into one email and settles them
+    SENT/FAILED via the same retry machinery.
     """
 
     PENDING = "pending"
@@ -357,6 +399,7 @@ class EmailState(enum.StrEnum):
     SKIPPED_OPT_OUT = "skipped_opt_out"
     SKIPPED_BOUNCED = "skipped_bounced"
     SKIPPED_NO_EMAIL = "skipped_no_email"
+    HELD_DIGEST = "held_digest"
 
 
 class PushState(enum.StrEnum):

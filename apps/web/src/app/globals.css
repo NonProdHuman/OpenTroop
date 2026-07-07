@@ -167,3 +167,33 @@
     @apply font-sans;
   }
 }
+
+/* Report "Save as PDF" (#147): a print-optimized view — hide app chrome, show a
+   troop/title/date header, and repeat table column headers on every page. The
+   report page marks its printable region with `.report-print-area` and its
+   header with `.report-print-header` (screen-hidden, print-shown). */
+@media print {
+  [data-slot="sidebar"],
+  [data-slot="sidebar-wrapper"] > [data-sidebar],
+  .report-no-print {
+    display: none !important;
+  }
+  .report-print-header {
+    display: block !important;
+  }
+  .report-print-area {
+    position: static !important;
+    overflow: visible !important;
+  }
+  /* Repeat column headers across page breaks and avoid splitting rows. */
+  .report-print-area thead {
+    display: table-header-group;
+  }
+  .report-print-area tr {
+    break-inside: avoid;
+  }
+  .report-print-area {
+    color: black;
+    background: white;
+  }
+}

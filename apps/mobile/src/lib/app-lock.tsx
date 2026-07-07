@@ -68,8 +68,18 @@ export function AppLockGate({ children }: { children: ReactNode }) {
 
   if (locked) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 16 }}>
-        <Text style={{ fontSize: 22, fontWeight: "700" }}>OpenTroop is locked</Text>
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
+          backgroundColor: colors.background,
+        }}
+      >
+        <Text style={{ fontSize: 22, fontWeight: "700", color: colors.textStrong }}>
+          OpenTroop is locked
+        </Text>
         <Pressable
           onPress={() => void unlock()}
           style={{

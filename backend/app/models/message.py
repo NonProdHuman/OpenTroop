@@ -8,7 +8,13 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Syncable, TrackedBase
-from app.models.enums import AudienceType, EmailState, MessageStatus, PushState
+from app.models.enums import (
+    AudienceType,
+    EmailState,
+    MessageDelivery,
+    MessageStatus,
+    PushState,
+)
 
 
 class Message(Syncable, TrackedBase):
@@ -31,6 +37,14 @@ class Message(Syncable, TrackedBase):
     # Send push alerts for this message (email gating is per-member opt-out).
     send_push: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     send_email: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Email-copy delivery timing (GH-218): IMMEDIATE drains through the outbox now;
+    # DIGEST holds the email for the tenant's next weekly newsletter (inbox + push
+    # still fire at send time). See MessageDelivery for the SENT-lifecycle note.
+    delivery: Mapped[MessageDelivery] = mapped_column(
+        SAEnum(MessageDelivery, values_callable=lambda x: [e.value for e in x]),
+        default=MessageDelivery.IMMEDIATE,
+        nullable=False,
+    )
     # "Entire troop" target (#217): reaches every non-deleted member. When set,
     # group targets are ignored by audience resolution.
     send_to_all: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

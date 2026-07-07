@@ -119,7 +119,9 @@ visibility / audiences (`EventAudience` → Groups, managers bypass); the RSVP +
 electronic-permission workflow, including the event edit page and RSVP admin tab;
 per-member tokenized iCal subscription feeds; month-grid calendar (List/Calendar toggle);
 event-triggered email notifications — creation, cancellation, and permission-slip
-requests, riding the Pillar 5 notification service.
+requests, riding the Pillar 5 notification service; **event photo galleries** (the event
+is the album; Cloudflare R2 object storage with presigned upload/read, per-tenant storage
+quotas, moderation — web + mobile clients; ADR 0011).
 Specs: [`event-edit.md`](docs/spec/event-edit.md),
 [`event-rsvp-permission.md`](docs/spec/event-rsvp-permission.md),
 [`member-event-create.md`](docs/spec/member-event-create.md).
@@ -161,35 +163,35 @@ Deferred: Eagle project workflow, counselor management, purchasing/awarding pipe
 
 ## Pillar 5 — Communications & Reports
 
-**Status: 🔜 Next up (highest-leverage unblock).** · Milestone: *Pillar 5 — Communications & Reports*
+**Status: 🚧 Active — messaging core shipped.** · Milestone: *Pillar 5 — Communications & Reports*
 
-UI-heavy and legally sensitive (minors, health data). The **notification infrastructure**
-is the gating prerequisite — it unblocks invite emails (Pillar 1), event notifications
-(Pillar 3), and all messaging below.
+UI-heavy and legally sensitive (minors, health data). At ~115 recipients per 40-scout
+troop, routine sends are ~1,400 emails/month per troop; at 200 troops that is
+~280,000/month. Infrastructure must handle this off the request path and without
+vendor lock-in.
 
-At ~115 recipients per 40-scout troop, routine sends are ~1,400 emails/month per troop;
-at 200 troops that is ~280,000/month. Infrastructure must handle this off the request
-path and without vendor lock-in.
-
-**Shipped groundwork:** the `NotificationService` abstraction (`EmailBackend` /
-`SMSBackend` protocols, `app/core/notifications.py`) with the `resend` email
-backend (plus an in-memory fake for tests) driving invite-email delivery today;
-event-triggered emails (creation, cancellation, permission-slip requests) resolving
-recipients through the same audience/group primitives as event visibility; `Member`
-notification-preference fields (`email_opt_out`, `email_bounced`, `sms_opt_in`); and
-the tenant-scoped settings surface (currently permission-slip language). Specs already
-drafted: [`messaging.md`](docs/spec/messaging.md),
+**Shipped:** the `NotificationService` abstraction (`EmailBackend` / `SMSBackend` /
+`PushBackend` protocols, `app/core/notifications.py`) with the `resend` email backend
+(plus an in-memory fake for tests) driving invite-email delivery and event-triggered
+emails (creation, cancellation, permission-slip requests); **group-targeted
+announcements with a member inbox** (GH-146: compose → audience preview → send/schedule;
+send-time audience resolution with per-group parent expansion; web + offline mobile
+inbox); the **async email outbox** with per-tenant pacing, exponential-backoff retry,
+and a dead-letter surface (GH-78/79 — recipient rows are the queue; in-process loop or
+`drain-outbox` cron); **push notifications** (GH-82, Expo tokens, one-shot alert at send
+time); `Member` notification-preference fields (`email_opt_out`, `email_bounced`,
+`sms_opt_in`) with CAN-SPAM skips decided at resolve time; the consent ledger
+(`ConsentRecord` — ToS/COPPA/media/SMS scopes, #223 groundwork). Specs:
+[`messaging.md`](docs/spec/messaging.md),
 [`group-subscriptions.md`](docs/spec/group-subscriptions.md).
 
-**Next up (see issues):** further email backends (`smtp` / `ses`); optional SMS
-backends (`twilio` / `telnyx`); async send queue
-with per-tenant rate limiting; retry / dead-letter; bounce & complaint webhooks; a
-`TroopSettings`-style per-tenant notification config; push via FCM. Then the messaging
-features (group-targeted announcements, event-triggered
-notifications, digests, SMS opt-in, preference centre), the report builder (roster,
-advancement, swim-classification, PDF export, medical-form expiry tracking,
-TWH-compatible export), and the **Natural-Language Reports (Text-to-SQL)** layer
-— read-only replica, schema introspection, tenant-guarded `SELECT` generation via Claude.
+**Next up (see issues):** digest batching ("send now" vs "include in next newsletter",
+#218); bounce & complaint webhooks; per-tenant notification config; further email
+backends (`smtp` / `ses`); optional SMS backends (`twilio` / `telnyx`); preference
+centre. Then the report builder (roster, advancement, swim-classification, PDF export,
+medical-form expiry tracking, TWH-compatible export) and the **Natural-Language Reports
+(Text-to-SQL)** layer — read-only replica, schema introspection, tenant-guarded
+`SELECT` generation via Claude.
 
 ---
 
@@ -209,7 +211,7 @@ a central React Query key factory (architecture-review cleanups).
 **Next up (see issues):** Home / dashboard landing (announcements, upcoming events, my
 action items) to replace the redirect-to-Members default; bulk editing (medical-form dates
 and other mass member updates); parent "My Family" permission-scoped views; Resources
-(document & link library); event-linked photo gallery.
+(document & link library).
 
 ---
 
@@ -229,29 +231,28 @@ Filed under the *Future Domains* milestone.
 
 ## Mobile Applications
 
-**Status: 🚧 In Progress — Mobile v1 campaign underway (iOS first).** · Milestone: *Mobile*
+**Status: ✅ v1 shipped (iOS, offline-first) — parity & release work active.** · Milestone: *Mobile*
 
 The mobile app is a single **Expo (React Native)** codebase — chosen for maximum code
 sharing with the TypeScript web stack (OpenAPI-generated types, a pure-TS sync engine)
 while keeping native capabilities first-class via Expo modules (Face ID app lock,
 push notifications, keychain). iOS ships first; Android follows from the same code.
-The framework decision and phase map (M0–M5) live in issue #93; the earlier
-"native Swift/Kotlin" note here predated that decision.
+The framework decision and phase map (M0–M5) live in issue #93.
 
-**Shipped groundwork:** the pull-sync protocol spec
-([`sync-protocol.md`](docs/spec/sync-protocol.md)) with the `Syncable` mixin
-(`sync_seq` cursor) and the first keyset-paged pull endpoint (`GET /sync/members`);
-the offline data-layer design (full local mirror per tenant + replayable-action
-outbox) is drafted in issue #153.
+**Shipped (the #93 campaign):** the pull-sync protocol
+([`sync-protocol.md`](docs/spec/sync-protocol.md), ADR 0002/0005/0006) with eight
+keyset-paged `/sync/*` streams; the offline data layer per the #153 spec — a
+per-tenant SQLite mirror with page-atomic cursors, mark-and-sweep full refetch, and a
+replayable command outbox with a failed-command review screen; v1 screens (roster,
+events with RSVP/attendance, offline message inbox + compose, advancement, member
+detail, event photos); push notifications (#82); Face ID app lock; personal-calendar
+subscription; multi-troop switching with per-identity local-data wipe on sign-out.
+Advancement reads stay **online by design** (ADR 0006). Build & release runbook:
+[`apps/mobile/docs/build-and-release.md`](apps/mobile/docs/build-and-release.md).
 
-**Shipped groundwork (cont.):** the REST-vs-GraphQL review and the offline
-data-layer design (per-tenant SQLite mirror + replayable command queue) are settled
-in the #153 spec.
-
-**Open work (see issues):** the M1–M5 phases in #93 — extend `Syncable` to
-events/participants/relationships, the shared `packages/api-types` pipeline, the Expo
-scaffold, the offline data layer, and the v1 screens; push-notification integration
-(#82) follows v1.
+**Open work (see issues):** first-class advancement parity with web (#260); Android
+build & release (#212); runtime server selection for self-hosters (#214) and generic
+OIDC auth (#215).
 
 ---
 

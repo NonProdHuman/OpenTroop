@@ -3,8 +3,14 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, EmailStr
 
-from app.models.enums import MemberStatus, MemberType, SwimClassification
+from app.models.enums import (
+    AnnouncementEmailMode,
+    MemberStatus,
+    MemberType,
+    SwimClassification,
+)
 from app.schemas.base import TrackedRead
+from app.schemas.relationship import MemberRelationshipRead
 
 
 class MemberBase(BaseModel):
@@ -40,6 +46,7 @@ class MemberBase(BaseModel):
     email_opt_out: bool = False
     email_bounced: bool = False
     sms_opt_in: bool = False
+    announcement_email_mode: AnnouncementEmailMode = AnnouncementEmailMode.EVERY
     notes: str | None = None
     oa_member: bool = False
     oa_active: bool = False
@@ -85,6 +92,7 @@ class MemberUpdate(BaseModel):
     email_opt_out: bool | None = None
     email_bounced: bool | None = None
     sms_opt_in: bool | None = None
+    announcement_email_mode: AnnouncementEmailMode | None = None
     notes: str | None = None
     oa_member: bool | None = None
     oa_active: bool | None = None
@@ -105,6 +113,20 @@ class MemberRead(MemberBase, TrackedRead):
     email: str | None = None
 
 
+class FamilyRead(BaseModel):
+    """The caller's household for the "My Family" page (GH-143).
+
+    ``members`` is ``{self} ∪ children/wards ∪ co-parents`` (``family_member_ids``);
+    ``relationships`` is the subset of ``MemberRelationship`` edges whose *both*
+    endpoints are in that household. The medical bundle is intentionally left
+    intact on these rows — the household is exactly the ``redact_medical``
+    exemption, so a positionless parent sees their child's allergies here.
+    """
+
+    members: list[MemberRead]
+    relationships: list[MemberRelationshipRead]
+
+
 class MemberPurgeRequest(BaseModel):
     """Body for POST /members/{id}/purge — the type-to-confirm phrase (GH-222).
 
@@ -114,6 +136,23 @@ class MemberPurgeRequest(BaseModel):
     """
 
     confirm_name: str
+
+
+class NotificationPreferencesRead(BaseModel):
+    """A member's self-service notification preferences (GH-218).
+
+    ``announcement_email_mode`` is the editable knob; ``email_opt_out`` and
+    ``email_bounced`` are surfaced read-only so the member understands why mail
+    may not be arriving (opted out globally, or their address bounced).
+    """
+
+    announcement_email_mode: AnnouncementEmailMode
+    email_opt_out: bool
+    email_bounced: bool
+
+
+class NotificationPreferencesUpdate(BaseModel):
+    announcement_email_mode: AnnouncementEmailMode
 
 
 class MemberInviteRead(BaseModel):

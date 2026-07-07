@@ -28,3 +28,18 @@ export function getLandingUrl(path: string = ""): string {
 export function getTenantUrl(slug: string, path: string = ""): string {
   return `${protocol()}//${slug}.${APP_DOMAIN}${path}`
 }
+
+// Host that serves the anonymous read-only public demo (GH-246), e.g.
+// "demo.opentroop.dev". Empty (default) = demo mode is off everywhere. This is the
+// frontend mirror of the backend's DEMO_TENANT_SLUG: on this exact host the
+// middleware skips auth.protect() and the app renders for signed-out visitors.
+export const DEMO_HOST = process.env.NEXT_PUBLIC_DEMO_HOST || ""
+
+// True only on the client, and only when the current host is the configured demo
+// host. Server-side it always returns false (no window), so callers must tolerate a
+// first render of `false` — see DemoBanner, which flips on mount to avoid a
+// hydration mismatch.
+export function isDemoHost(): boolean {
+  if (!DEMO_HOST || typeof window === "undefined") return false
+  return window.location.host === DEMO_HOST
+}

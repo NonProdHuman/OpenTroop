@@ -9,7 +9,13 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import SourceTracked, Syncable, TrackedBase
-from app.models.enums import MemberStatus, MemberType, RelationshipType, SwimClassification
+from app.models.enums import (
+    AnnouncementEmailMode,
+    MemberStatus,
+    MemberType,
+    RelationshipType,
+    SwimClassification,
+)
 
 if TYPE_CHECKING:
     from app.models.user import User  # User does not import Member, so no cycle
@@ -75,6 +81,14 @@ class Member(SourceTracked, Syncable, TrackedBase):
     email_opt_out: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     email_bounced: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     sms_opt_in: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Member-facing announcement email preference (GH-218): every / digest / none.
+    # Only affects announcements; event-triggered mail ignores it. Distinct from
+    # ``email_opt_out`` (which silences all mail).
+    announcement_email_mode: Mapped[AnnouncementEmailMode] = mapped_column(
+        SAEnum(AnnouncementEmailMode, values_callable=lambda x: [e.value for e in x]),
+        default=AnnouncementEmailMode.EVERY,
+        nullable=False,
+    )
 
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 

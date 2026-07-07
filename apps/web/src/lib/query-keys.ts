@@ -27,6 +27,7 @@ export const queryKeys = {
   members: (t: TenantId) => [t, "members"] as const,
   member: (t: TenantId, id: string | null) => [t, "members", id] as const,
   relationships: (t: TenantId, memberId: string | null) => [t, "relationships", memberId] as const,
+  family: (t: TenantId) => [t, "family"] as const,
 
   // ── Groups ────────────────────────────────────────────────────────────────
   groups: (t: TenantId) => [t, "groups"] as const,
@@ -64,6 +65,7 @@ export const queryKeys = {
   eventAudiences: (t: TenantId, eventId: string | null) => [t, "event-audiences", eventId] as const,
   eventOrganizers: (t: TenantId, eventId: string | null) => [t, "event-organizers", eventId] as const,
   eventPhotos: (t: TenantId, eventId: string | null) => [t, "event-photos", eventId] as const,
+  eventSlots: (t: TenantId, eventId: string | null) => [t, "event-slots", eventId] as const,
   storageUsage: (t: TenantId) => [t, "storage-usage"] as const,
   locations: (t: TenantId) => [t, "locations"] as const,
 
@@ -83,4 +85,9 @@ export const queryKeys = {
 
   // ── Tenant settings ───────────────────────────────────────────────────────
   tenantSettings: (t: TenantId) => [t, "tenant-settings"] as const,
+
+  // ── Reports (#147) ────────────────────────────────────────────────────────
+  reportCatalog: (t: TenantId) => [t, "report-catalog"] as const,
+  report: (t: TenantId, key: string, params: Record<string, string>) =>
+    [t, "report", key, params] as const,
 }

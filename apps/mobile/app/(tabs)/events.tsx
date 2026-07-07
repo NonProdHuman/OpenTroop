@@ -21,7 +21,7 @@ function EventRow({ event }: { event: Event }) {
           backgroundColor: pressed ? colors.hairline : colors.surface,
         })}
       >
-        <Text style={{ fontSize: 15, fontWeight: "600" }}>{event.name}</Text>
+        <Text style={{ fontSize: 15, fontWeight: "600", color: colors.textStrong }}>{event.name}</Text>
         <Text style={{ color: colors.textMuted, marginTop: 2 }}>
           {formatEventStart(event.scheduled_start, event.all_day)}
           {event.attendance_taken ? "  ·  attendance taken" : ""}
@@ -40,7 +40,13 @@ export default function EventsScreen() {
   return (
     <FlatList
       contentContainerStyle={{ padding: 16 }}
-      refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={() => void sync()} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={isSyncing}
+          onRefresh={() => void sync()}
+          tintColor={colors.textMuted}
+        />
+      }
       data={sections.upcoming}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => <EventRow event={item} />}

@@ -15,6 +15,7 @@ from app.routers import (
     auth,
     calendar,
     consents,
+    event_slots,
     event_types,
     events,
     functional_roles,
@@ -29,8 +30,10 @@ from app.routers import (
     positions,
     push_tokens,
     relationships,
+    reports,
     sync,
     tenant_settings,
+    webhooks,
 )
 
 logger = logging.getLogger("app.startup")
@@ -138,6 +141,7 @@ app.include_router(platform.router)
 app.include_router(locations.router)
 app.include_router(event_types.router)
 app.include_router(events.router)
+app.include_router(event_slots.router)
 app.include_router(photos.router)
 app.include_router(calendar.router)
 app.include_router(imports.router)
@@ -145,6 +149,8 @@ app.include_router(tenant_settings.router)
 app.include_router(sync.router)
 app.include_router(consents.router)
 app.include_router(advancement.router)
+app.include_router(reports.router)
+app.include_router(webhooks.router)
 
 
 @app.get("/health")

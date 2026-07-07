@@ -8,6 +8,7 @@ import {
   Switch,
   Text,
   TextInput,
+  useColorScheme,
   View,
 } from "react-native"
 import { Stack, useRouter } from "expo-router"
@@ -25,6 +26,7 @@ type Target = { group_id: string; audience_type: AudienceType }
 
 export default function ComposeScreen() {
   const colors = useColors()
+  const scheme = useColorScheme()
   const router = useRouter()
   const { data: groups = [], isLoading, error: groupsError } = useGroupsOnline(true)
   const composeAndSend = useComposeAndSend()
@@ -68,6 +70,8 @@ export default function ComposeScreen() {
         send_push: sendPush,
         send_to_all: false,
         group_targets: targets,
+        // Mobile compose sends immediately; the digest/newsletter choice lives on web (GH-218).
+        delivery: "immediate",
         scheduled_at: null,
       })
       router.back()
@@ -90,12 +94,24 @@ export default function ComposeScreen() {
             value={subject}
             onChangeText={setSubject}
             placeholder="Subject"
-            style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, fontSize: 16 }}
+            placeholderTextColor={colors.textSubtle}
+            keyboardAppearance={scheme === "dark" ? "dark" : "light"}
+            style={{
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: 8,
+              padding: 12,
+              fontSize: 16,
+              color: colors.text,
+              backgroundColor: colors.surface,
+            }}
           />
           <TextInput
             value={body}
             onChangeText={setBody}
             placeholder="Write your message…"
+            placeholderTextColor={colors.textSubtle}
+            keyboardAppearance={scheme === "dark" ? "dark" : "light"}
             multiline
             style={{
               borderWidth: 1,
@@ -104,10 +120,12 @@ export default function ComposeScreen() {
               padding: 12,
               minHeight: 120,
               textAlignVertical: "top",
+              color: colors.text,
+              backgroundColor: colors.surface,
             }}
           />
 
-          <Text style={{ fontWeight: "700", marginTop: 4 }}>Send to</Text>
+          <Text style={{ fontWeight: "700", marginTop: 4, color: colors.textStrong }}>Send to</Text>
           {isLoading && <Text style={{ color: colors.textMuted }}>Loading groups…</Text>}
           {groupsError && (
             <Text style={{ color: colors.danger }}>
@@ -140,7 +158,7 @@ export default function ComposeScreen() {
                   >
                     {isSelected && <Text style={{ color: colors.onBrand, fontSize: 12 }}>✓</Text>}
                   </View>
-                  <Text style={{ fontSize: 15 }}>{group.name}</Text>
+                  <Text style={{ fontSize: 15, color: colors.text }}>{group.name}</Text>
                 </Pressable>
                 {target && (
                   <Pressable onPress={() => cycleAudience(group.id)}>
@@ -156,11 +174,11 @@ export default function ComposeScreen() {
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
               <Switch value={sendEmail} onValueChange={setSendEmail} />
-              <Text>Email</Text>
+              <Text style={{ color: colors.text }}>Email</Text>
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
               <Switch value={sendPush} onValueChange={setSendPush} />
-              <Text>Push</Text>
+              <Text style={{ color: colors.text }}>Push</Text>
             </View>
           </View>
 

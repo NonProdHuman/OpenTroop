@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, DateTime, Integer, String, Text, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -58,3 +58,12 @@ class Tenant(PlatformBase):
     # billing lands).
     used_storage_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     storage_quota_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    # Announcement digest cadence (GH-218). The weekly newsletter fires on
+    # ``digest_day`` at ``digest_hour_utc``. ``digest_day`` follows Python's
+    # ``date.weekday()`` convention: 0 = Monday … 6 = Sunday (the default). The
+    # hour is UTC (0–23). ``last_digest_at`` records when assembly last ran so a
+    # due slot is processed exactly once.
+    digest_day: Mapped[int] = mapped_column(Integer, nullable=False, default=6)
+    digest_hour_utc: Mapped[int] = mapped_column(Integer, nullable=False, default=16)
+    last_digest_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

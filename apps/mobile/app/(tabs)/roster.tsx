@@ -13,7 +13,13 @@ export default function RosterScreen() {
   return (
     <FlatList
       contentContainerStyle={{ padding: 16 }}
-      refreshControl={<RefreshControl refreshing={isSyncing} onRefresh={() => void sync()} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={isSyncing}
+          onRefresh={() => void sync()}
+          tintColor={colors.textMuted}
+        />
+      }
       data={members}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
@@ -21,7 +27,7 @@ export default function RosterScreen() {
           <Pressable
             style={{ paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.hairline }}
           >
-            <Text style={{ fontSize: 15 }}>
+            <Text style={{ fontSize: 15, color: colors.textStrong }}>
               {formatMemberName(item)}
               {item.member_type === "adult" ? "  ·  adult" : ""}
               {item.membership_status !== "active" ? `  ·  ${item.membership_status}` : ""}

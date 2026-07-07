@@ -629,6 +629,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{event_id}/slots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Slots
+         * @description Slots for an event, ordered by ``sort_order``, each with its signups + remaining.
+         */
+        get: operations["list_slots_events__event_id__slots_get"];
+        put?: never;
+        /** Create Slot */
+        post: operations["create_slot_events__event_id__slots_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{event_id}/slots/{slot_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Slot
+         * @description Soft-delete a slot and its signups (participants are untouched).
+         */
+        delete: operations["delete_slot_events__event_id__slots__slot_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Slot
+         * @description Edit a slot. Lowering capacity below the current signup count is allowed —
+         *     existing signups stay and ``remaining`` clamps at 0; managers resolve overflow
+         *     socially, the API never evicts.
+         */
+        patch: operations["update_slot_events__event_id__slots__slot_id__patch"];
+        trace?: never;
+    };
+    "/events/{event_id}/slots/{slot_id}/signups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Signup
+         * @description Claim a slot for a member (self, household, or — with manage_attendance — anyone).
+         */
+        post: operations["create_signup_events__event_id__slots__slot_id__signups_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{event_id}/slots/{slot_id}/signups/{member_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Signup
+         * @description Withdraw a member from a slot (soft-delete); 404 if no active signup.
+         */
+        delete: operations["delete_signup_events__event_id__slots__slot_id__signups__member_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/functional-roles": {
         parameters: {
             query?: never;
@@ -1006,6 +1093,52 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/members/me/family": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Family
+         * @description Return the caller's household plus the relationship edges among it (GH-143).
+         *
+         *     Any authenticated member may call this — no extra permission. The household is
+         *     ``family_member_ids`` (``{self} ∪ children/wards ∪ co-parents``); a scout or an
+         *     edge-less adult gets ``{self}`` back. The medical bundle is deliberately **not**
+         *     redacted here: the household is exactly the ``redact_medical`` exemption, so a
+         *     positionless parent sees their own child's allergies/medical dates.
+         *
+         *     Declared before ``/{member_id}`` so "me" is never parsed as a member UUID.
+         */
+        get: operations["get_my_family_members_me_family_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/members/me/notification-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get My Notification Preferences */
+        get: operations["get_my_notification_preferences_members_me_notification_preferences_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update My Notification Preferences */
+        patch: operations["update_my_notification_preferences_members_me_notification_preferences_patch"];
         trace?: never;
     };
     "/members/{member_id}": {
@@ -1815,6 +1948,48 @@ export interface paths {
         patch: operations["update_relationship_relationships__rel_id__patch"];
         trace?: never;
     };
+    "/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Reports
+         * @description The report catalog with a ``runnable`` flag per report for this caller.
+         */
+        get: operations["list_reports_reports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run Report
+         * @description Render report ``key``. ``format=json`` returns rows for the web table;
+         *     ``format=csv`` streams a CSV attachment. Report parameters are read from the
+         *     query string per the report's declared parameter schema.
+         */
+        get: operations["run_report_reports__key__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/storage/usage": {
         parameters: {
             query?: never;
@@ -2013,6 +2188,34 @@ export interface paths {
         patch: operations["update_settings_tenant_settings_patch"];
         trace?: never;
     };
+    "/webhooks/email/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Email Webhook
+         * @description Handle a Resend delivery event (bounce / complaint).
+         *
+         *     Inert unless ``RESEND_WEBHOOK_SECRET`` is configured — otherwise 404, so the
+         *     endpoint is invisible on dev/self-host deployments that don't wire it up.
+         *
+         *     Verifies the Standard Webhooks (svix) signature over the raw body, then flips
+         *     suppression flags on matching Member rows **across all tenants** (a bounce is an
+         *     address-level fact — see ``apply_email_event``). Unknown event types are accepted
+         *     as a 200 no-op; we always answer fast so the provider never enters a retry storm.
+         */
+        post: operations["resend_email_webhook_webhooks_email_resend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2065,6 +2268,23 @@ export interface components {
             /** Patrol Name */
             patrol_name: string | null;
         };
+        /**
+         * AnnouncementEmailMode
+         * @description A member's preference for how announcement emails reach them (GH-218).
+         *
+         *     EVERY  — as sent: an immediate announcement mails immediately, a digest one is
+         *              held for the newsletter (the default).
+         *     DIGEST — downgrade *immediate* announcement email to the next digest for this
+         *              member; inbox and push are unaffected.
+         *     NONE   — skip announcement email entirely (``EmailState.SKIPPED_OPT_OUT``).
+         *              Distinct from the global ``Member.email_opt_out``, which also kills
+         *              invite / event mail; this only silences announcements.
+         *
+         *     Only affects announcements (the messaging layer). Event-triggered emails
+         *     (invites, cancellations, permission slips) ignore this preference.
+         * @enum {string}
+         */
+        AnnouncementEmailMode: "every" | "digest" | "none";
         /**
          * AudiencePreview
          * @description Recipient counts for the compose screen (docs/spec/messaging.md).
@@ -2292,6 +2512,8 @@ export interface components {
         DeliveryStats: {
             /** Email Failed */
             email_failed: number;
+            /** Email Held */
+            email_held: number;
             /** Email Pending */
             email_pending: number;
             /** Email Sent */
@@ -2329,10 +2551,13 @@ export interface components {
          *
          *     PENDING rows are the outbox queue; SKIPPED_* are decided at resolve time
          *     (CAN-SPAM: opted-out and bounced addresses are never queued). FAILED is
-         *     terminal after max attempts — the dead-letter surface.
+         *     terminal after max attempts — the dead-letter surface. HELD_DIGEST rows are
+         *     deliberately withheld from the normal drain (GH-218) — they wait for the
+         *     weekly digest assembly, which bundles them into one email and settles them
+         *     SENT/FAILED via the same retry machinery.
          * @enum {string}
          */
-        EmailState: "pending" | "sent" | "failed" | "skipped_opt_out" | "skipped_bounced" | "skipped_no_email";
+        EmailState: "pending" | "sent" | "failed" | "skipped_opt_out" | "skipped_bounced" | "skipped_no_email" | "held_digest";
         /** EventAudienceCreate */
         EventAudienceCreate: {
             /**
@@ -2938,6 +3163,149 @@ export interface components {
             /** Water Hours */
             water_hours?: string | null;
         };
+        /** EventSlotCreate */
+        EventSlotCreate: {
+            /** @default any */
+            applies_to: components["schemas"]["PositionScope"];
+            /** Capacity */
+            capacity?: number | null;
+            /** Description */
+            description?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Starts At */
+            starts_at?: string | null;
+        };
+        /** EventSlotRead */
+        EventSlotRead: {
+            /** @default any */
+            applies_to: components["schemas"]["PositionScope"];
+            /** Capacity */
+            capacity?: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Name */
+            name: string;
+            /** Remaining */
+            remaining: number | null;
+            /** Signups */
+            signups: components["schemas"]["EventSlotSignupRead"][];
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Starts At */
+            starts_at?: string | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** EventSlotSignupCreate */
+        EventSlotSignupCreate: {
+            /** Comment */
+            comment?: string | null;
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+        };
+        /** EventSlotSignupRead */
+        EventSlotSignupRead: {
+            /** Comment */
+            comment: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+            /** Member Name */
+            member_name: string;
+            /**
+             * Signed Up At
+             * Format: date-time
+             */
+            signed_up_at: string;
+            /** Signed Up By Id */
+            signed_up_by_id: string | null;
+            /**
+             * Slot Id
+             * Format: uuid
+             */
+            slot_id: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** EventSlotUpdate */
+        EventSlotUpdate: {
+            applies_to?: components["schemas"]["PositionScope"] | null;
+            /** Capacity */
+            capacity?: number | null;
+            /** Description */
+            description?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Starts At */
+            starts_at?: string | null;
+        };
         /** EventTypeBase */
         EventTypeBase: {
             /**
@@ -3139,6 +3507,22 @@ export interface components {
             video_conference_url?: string | null;
             /** Water Hours */
             water_hours?: number | string | null;
+        };
+        /**
+         * FamilyRead
+         * @description The caller's household for the "My Family" page (GH-143).
+         *
+         *     ``members`` is ``{self} ∪ children/wards ∪ co-parents`` (``family_member_ids``);
+         *     ``relationships`` is the subset of ``MemberRelationship`` edges whose *both*
+         *     endpoints are in that household. The medical bundle is intentionally left
+         *     intact on these rows — the household is exactly the ``redact_medical``
+         *     exemption, so a positionless parent sees their child's allergies here.
+         */
+        FamilyRead: {
+            /** Members */
+            members: components["schemas"]["MemberRead"][];
+            /** Relationships */
+            relationships: components["schemas"]["MemberRelationshipRead"][];
         };
         /** FunctionalRoleCreate */
         FunctionalRoleCreate: {
@@ -3687,6 +4071,8 @@ export interface components {
             address_line2?: string | null;
             /** Allergies */
             allergies?: string | null;
+            /** @default every */
+            announcement_email_mode: components["schemas"]["AnnouncementEmailMode"];
             /** Bsa Id */
             bsa_id?: string | null;
             /** City */
@@ -3971,6 +4357,8 @@ export interface components {
             address_line2?: string | null;
             /** Allergies */
             allergies?: string | null;
+            /** @default every */
+            announcement_email_mode: components["schemas"]["AnnouncementEmailMode"];
             /** Bsa Id */
             bsa_id?: string | null;
             /** City */
@@ -4169,6 +4557,7 @@ export interface components {
             address_line2?: string | null;
             /** Allergies */
             allergies?: string | null;
+            announcement_email_mode?: components["schemas"]["AnnouncementEmailMode"] | null;
             /** Bsa Id */
             bsa_id?: string | null;
             /** City */
@@ -4294,6 +4683,8 @@ export interface components {
         MessageCreate: {
             /** Body */
             body: string;
+            /** @default immediate */
+            delivery: components["schemas"]["MessageDelivery"];
             /** Group Targets */
             group_targets?: components["schemas"]["MessageGroupTarget"][];
             /** Scheduled At */
@@ -4316,6 +4707,23 @@ export interface components {
             /** Subject */
             subject: string;
         };
+        /**
+         * MessageDelivery
+         * @description When an announcement's *email* copy is delivered (GH-218).
+         *
+         *     IMMEDIATE — today's behavior: the email drains through the outbox as soon as
+         *                 recipients resolve (``EmailState.PENDING``).
+         *     DIGEST    — recipients still resolve at send time (the inbox entry appears and
+         *                 push fires immediately), but the email copy is *held* for the next
+         *                 tenant newsletter — it lands ``EmailState.HELD_DIGEST`` instead of
+         *                 PENDING and is bundled by the weekly digest assembly.
+         *
+         *     A digest-delivery message still walks DRAFT → SENDING → SENT: since resolution
+         *     writes the inbox rows and merely *holds* the emails, no recipient is left
+         *     PENDING, so the message finalizes to SENT as soon as it resolves.
+         * @enum {string}
+         */
+        MessageDelivery: "immediate" | "digest";
         /** MessageDetail */
         MessageDetail: {
             /** Groups */
@@ -4378,6 +4786,7 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            delivery: components["schemas"]["MessageDelivery"];
             /**
              * Id
              * Format: uuid
@@ -4494,6 +4903,25 @@ export interface components {
             value: number | null;
             /** Window */
             window: string;
+        };
+        /**
+         * NotificationPreferencesRead
+         * @description A member's self-service notification preferences (GH-218).
+         *
+         *     ``announcement_email_mode`` is the editable knob; ``email_opt_out`` and
+         *     ``email_bounced`` are surfaced read-only so the member understands why mail
+         *     may not be arriving (opted out globally, or their address bounced).
+         */
+        NotificationPreferencesRead: {
+            announcement_email_mode: components["schemas"]["AnnouncementEmailMode"];
+            /** Email Bounced */
+            email_bounced: boolean;
+            /** Email Opt Out */
+            email_opt_out: boolean;
+        };
+        /** NotificationPreferencesUpdate */
+        NotificationPreferencesUpdate: {
+            announcement_email_mode: components["schemas"]["AnnouncementEmailMode"];
         };
         /**
          * Permission
@@ -4905,6 +5333,8 @@ export interface components {
          * @description Stateless compose preview (#217): resolve an audience without saving a draft.
          */
         RecipientPreviewRequest: {
+            /** @default immediate */
+            delivery: components["schemas"]["MessageDelivery"];
             /** Group Targets */
             group_targets?: components["schemas"]["MessageGroupTarget"][];
             /**
@@ -4939,6 +5369,82 @@ export interface components {
          * @enum {string}
          */
         RelationshipType: "parent_of" | "guardian_of" | "sibling_of" | "other";
+        /**
+         * ReportCatalogEntry
+         * @description A report as advertised by ``GET /reports``.
+         */
+        ReportCatalogEntry: {
+            /** Description */
+            description: string;
+            /** Key */
+            key: string;
+            /** Params */
+            params: components["schemas"]["ReportParamSchema"][];
+            /** Runnable */
+            runnable: boolean;
+            /** Title */
+            title: string;
+        };
+        /**
+         * ReportColumnSchema
+         * @description One column of a rendered report: a stable key plus its display label.
+         */
+        ReportColumnSchema: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
+        /**
+         * ReportData
+         * @description A rendered report's columns and rows for the web table (``format=json``).
+         */
+        ReportData: {
+            /** Columns */
+            columns: components["schemas"]["ReportColumnSchema"][];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Key */
+            key: string;
+            /** Rows */
+            rows: {
+                [key: string]: string | number | boolean | null;
+            }[];
+            /** Title */
+            title: string;
+        };
+        /**
+         * ReportParamOption
+         * @description One selectable value for an ``enum`` parameter.
+         */
+        ReportParamOption: {
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+        };
+        /**
+         * ReportParamSchema
+         * @description A single typed parameter a report accepts, for rendering a form control.
+         */
+        ReportParamSchema: {
+            /** Default */
+            default?: string | number | boolean | null;
+            /** Label */
+            label: string;
+            /** Name */
+            name: string;
+            /** Options */
+            options?: components["schemas"]["ReportParamOption"][] | null;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "enum" | "int" | "group";
+        };
         /** RequirementProgress */
         RequirementProgress: {
             completion: components["schemas"]["CompletionRead"] | null;
@@ -5138,23 +5644,305 @@ export interface components {
          * @enum {string}
          */
         SwimClassification: "nonswimmer" | "beginner" | "swimmer";
+        /** SyncEventParticipantRead */
+        SyncEventParticipantRead: {
+            /** Attended */
+            attended?: boolean | null;
+            /** Backpacking Miles Override */
+            backpacking_miles_override?: string | null;
+            /** Camping Nights Override */
+            camping_nights_override?: number | null;
+            /** Comment */
+            comment?: string | null;
+            /** Community Service Hours Override */
+            community_service_hours_override?: string | null;
+            /** Conservation Hours Override */
+            conservation_hours_override?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Cycling Miles Override */
+            cycling_miles_override?: string | null;
+            /**
+             * Driver
+             * @default false
+             */
+            driver: boolean;
+            /**
+             * Drives From
+             * @default false
+             */
+            drives_from: boolean;
+            /**
+             * Drives To
+             * @default false
+             */
+            drives_to: boolean;
+            /**
+             * Electronic Permission
+             * @default false
+             */
+            electronic_permission: boolean;
+            /** Electronic Permission At */
+            electronic_permission_at?: string | null;
+            /** Electronic Permission By Id */
+            electronic_permission_by_id?: string | null;
+            /** Electronic Permission Signature */
+            electronic_permission_signature?: string | null;
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /**
+             * Guest Count
+             * @default 0
+             */
+            guest_count: number;
+            /** Hiking Miles Override */
+            hiking_miles_override?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+            /** Paddling Miles Override */
+            paddling_miles_override?: string | null;
+            /** Permission Message Snapshot */
+            permission_message_snapshot?: string | null;
+            /**
+             * Permission Slip Submitted
+             * @default false
+             */
+            permission_slip_submitted: boolean;
+            /** @default not_required */
+            permission_status: components["schemas"]["PermissionSlipStatus"];
+            /** @default no_response */
+            rsvp_status: components["schemas"]["RsvpStatus"];
+            /** Seat Count */
+            seat_count?: number | null;
+            /**
+             * Signed Up
+             * @default true
+             */
+            signed_up: boolean;
+            /** Signed Up At */
+            signed_up_at?: string | null;
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Water Hours Override */
+            water_hours_override?: string | null;
+        };
         /** SyncEventParticipantsPage */
         SyncEventParticipantsPage: {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["EventParticipantRead"][];
+            items: components["schemas"]["SyncEventParticipantRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
             next_since_seq: number;
+        };
+        /** SyncEventRead */
+        SyncEventRead: {
+            /** Agenda */
+            agenda?: string | null;
+            /**
+             * All Day
+             * @default false
+             */
+            all_day: boolean;
+            /** Attendance Taken */
+            attendance_taken: boolean;
+            /** Backpacking Miles */
+            backpacking_miles?: string | null;
+            /** Camping Nights */
+            camping_nights?: number | null;
+            /** Cancelled At */
+            cancelled_at?: string | null;
+            /** Community Service Hours */
+            community_service_hours?: string | null;
+            /** Conservation Hours */
+            conservation_hours?: string | null;
+            /** Cost Adult */
+            cost_adult?: string | null;
+            /** Cost Youth */
+            cost_youth?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Cycling Miles */
+            cycling_miles?: string | null;
+            /** Departure Location */
+            departure_location?: string | null;
+            /** Description */
+            description?: string | null;
+            event_type: components["schemas"]["EventTypeRead"];
+            /**
+             * Event Type Id
+             * Format: uuid
+             */
+            event_type_id: string;
+            /** Hiking Miles */
+            hiking_miles?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Linked Event Id */
+            linked_event_id?: string | null;
+            location?: components["schemas"]["LocationRead"] | null;
+            /** Location Id */
+            location_id?: string | null;
+            /** Location Notes */
+            location_notes?: string | null;
+            /** Name */
+            name: string;
+            /** Paddling Miles */
+            paddling_miles?: string | null;
+            /** Return Location */
+            return_location?: string | null;
+            /**
+             * Scheduled End
+             * Format: date-time
+             */
+            scheduled_end: string;
+            /**
+             * Scheduled Start
+             * Format: date-time
+             */
+            scheduled_start: string;
+            /** Signup Deadline */
+            signup_deadline?: string | null;
+            /** Signup Limit Adults */
+            signup_limit_adults?: number | null;
+            /** Signup Limit Scouts */
+            signup_limit_scouts?: number | null;
+            /** Signup Start */
+            signup_start?: string | null;
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Tour Permit Submitted */
+            tour_permit_submitted?: boolean | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Video Conference Url */
+            video_conference_url?: string | null;
+            /** Water Hours */
+            water_hours?: string | null;
+        };
+        /** SyncEventTypeRead */
+        SyncEventTypeRead: {
+            /**
+             * Allow Guests
+             * @default false
+             */
+            allow_guests: boolean;
+            /**
+             * Allow Signups
+             * @default true
+             */
+            allow_signups: boolean;
+            /** Color */
+            color?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /**
+             * Is Online
+             * @default false
+             */
+            is_online: boolean;
+            /** Is System */
+            is_system: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Require Permission Slip
+             * @default false
+             */
+            require_permission_slip: boolean;
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Tracks Camping Nights
+             * @default false
+             */
+            tracks_camping_nights: boolean;
+            /**
+             * Tracks Mileage
+             * @default false
+             */
+            tracks_mileage: boolean;
+            /**
+             * Tracks Service Hours
+             * @default false
+             */
+            tracks_service_hours: boolean;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** SyncEventTypesPage */
         SyncEventTypesPage: {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["EventTypeRead"][];
+            items: components["schemas"]["SyncEventTypeRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
@@ -5165,7 +5953,7 @@ export interface components {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["EventRead"][];
+            items: components["schemas"]["SyncEventRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
@@ -5176,7 +5964,7 @@ export interface components {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["MessageRead"][];
+            items: components["schemas"]["SyncMessageRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
@@ -5187,29 +5975,253 @@ export interface components {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["MessageRecipientRead"][];
+            items: components["schemas"]["SyncMessageRecipientRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
             next_since_seq: number;
+        };
+        /** SyncLocationRead */
+        SyncLocationRead: {
+            /** City */
+            city?: string | null;
+            /**
+             * Country
+             * @default US
+             */
+            country: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Directions */
+            directions?: string | null;
+            /** Distance Miles */
+            distance_miles?: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+            /** Postal Code */
+            postal_code?: string | null;
+            /** State */
+            state?: string | null;
+            /** Street1 */
+            street1?: string | null;
+            /** Street2 */
+            street2?: string | null;
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Website Url */
+            website_url?: string | null;
         };
         /** SyncLocationsPage */
         SyncLocationsPage: {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["LocationRead"][];
+            items: components["schemas"]["SyncLocationRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
             next_since_seq: number;
+        };
+        /** SyncMemberRead */
+        SyncMemberRead: {
+            /** Address Line1 */
+            address_line1?: string | null;
+            /** Address Line2 */
+            address_line2?: string | null;
+            /** Allergies */
+            allergies?: string | null;
+            /** @default every */
+            announcement_email_mode: components["schemas"]["AnnouncementEmailMode"];
+            /** Bsa Id */
+            bsa_id?: string | null;
+            /** City */
+            city?: string | null;
+            /**
+             * Country
+             * @default US
+             */
+            country: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Date Of Birth */
+            date_of_birth?: string | null;
+            /** Dietary Restrictions */
+            dietary_restrictions?: string | null;
+            /** Email */
+            email?: string | null;
+            /**
+             * Email Bounced
+             * @default false
+             */
+            email_bounced: boolean;
+            /**
+             * Email Opt Out
+             * @default false
+             */
+            email_opt_out: boolean;
+            /** Emergency Contact 1 Name */
+            emergency_contact_1_name?: string | null;
+            /** Emergency Contact 1 Phone */
+            emergency_contact_1_phone?: string | null;
+            /** Emergency Contact 2 Name */
+            emergency_contact_2_name?: string | null;
+            /** Emergency Contact 2 Phone */
+            emergency_contact_2_phone?: string | null;
+            /** First Name */
+            first_name: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Last Name */
+            last_name: string;
+            /** Medical Form Ab Date */
+            medical_form_ab_date?: string | null;
+            /** Medical Form C Date */
+            medical_form_c_date?: string | null;
+            member_type: components["schemas"]["MemberType"];
+            /** @default active */
+            membership_status: components["schemas"]["MemberStatus"];
+            /** Middle Name */
+            middle_name?: string | null;
+            /** Name Suffix */
+            name_suffix?: string | null;
+            /** Nickname */
+            nickname?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Oa Active
+             * @default false
+             */
+            oa_active: boolean;
+            /** Oa Brotherhood Date */
+            oa_brotherhood_date?: string | null;
+            /** Oa Call Out Date */
+            oa_call_out_date?: string | null;
+            /** Oa Election Date */
+            oa_election_date?: string | null;
+            /**
+             * Oa Member
+             * @default false
+             */
+            oa_member: boolean;
+            /** Oa Notes */
+            oa_notes?: string | null;
+            /** Oa Ordeal Date */
+            oa_ordeal_date?: string | null;
+            /** Oa Vigil Date */
+            oa_vigil_date?: string | null;
+            /** Oa Vigil Name */
+            oa_vigil_name?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Postal Code */
+            postal_code?: string | null;
+            /**
+             * Sms Opt In
+             * @default false
+             */
+            sms_opt_in: boolean;
+            /** State */
+            state?: string | null;
+            /** @default nonswimmer */
+            swim_classification: components["schemas"]["SwimClassification"];
+            /** Swim Date */
+            swim_date?: string | null;
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Troop Membership End Date */
+            troop_membership_end_date?: string | null;
+            /** Troop Membership Start Date */
+            troop_membership_start_date?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** User Id */
+            user_id?: string | null;
+        };
+        /** SyncMemberRelationshipRead */
+        SyncMemberRelationshipRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * From Member Id
+             * Format: uuid
+             */
+            from_member_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            relationship_type: components["schemas"]["RelationshipType"];
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * To Member Id
+             * Format: uuid
+             */
+            to_member_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** SyncMemberRelationshipsPage */
         SyncMemberRelationshipsPage: {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["MemberRelationshipRead"][];
+            items: components["schemas"]["SyncMemberRelationshipRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
@@ -5223,11 +6235,104 @@ export interface components {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["MemberRead"][];
+            items: components["schemas"]["SyncMemberRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
             next_since_seq: number;
+        };
+        /** SyncMessageRead */
+        SyncMessageRead: {
+            /** Body */
+            body: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            delivery: components["schemas"]["MessageDelivery"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Scheduled At */
+            scheduled_at: string | null;
+            /** Send Email */
+            send_email: boolean;
+            /** Send Push */
+            send_push: boolean;
+            /** Send To All */
+            send_to_all: boolean;
+            /** Sent At */
+            sent_at: string | null;
+            /**
+             * Sent By Id
+             * Format: uuid
+             */
+            sent_by_id: string;
+            status: components["schemas"]["MessageStatus"];
+            /** Subject */
+            subject: string;
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** SyncMessageRecipientRead */
+        SyncMessageRecipientRead: {
+            /** Attempts */
+            attempts: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            email_state: components["schemas"]["EmailState"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Last Error */
+            last_error: string | null;
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+            /**
+             * Message Id
+             * Format: uuid
+             */
+            message_id: string;
+            push_state: components["schemas"]["PushState"];
+            /** Read At */
+            read_at: string | null;
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /**
          * TenantAdminInvite
@@ -5397,12 +6502,20 @@ export interface components {
          */
         TenantSettingsRead: {
             advancement_mode: components["schemas"]["AdvancementMode"];
+            /** Digest Day */
+            digest_day: number;
+            /** Digest Hour Utc */
+            digest_hour_utc: number;
             /** Permission Message */
             permission_message: string;
         };
         /** TenantSettingsUpdate */
         TenantSettingsUpdate: {
             advancement_mode?: components["schemas"]["AdvancementMode"] | null;
+            /** Digest Day */
+            digest_day?: number | null;
+            /** Digest Hour Utc */
+            digest_hour_utc?: number | null;
             /** Permission Message */
             permission_message?: string | null;
         };
@@ -6918,6 +8031,217 @@ export interface operations {
             };
         };
     };
+    list_slots_events__event_id__slots_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSlotRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_slot_events__event_id__slots_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventSlotCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSlotRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_slot_events__event_id__slots__slot_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+                slot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_slot_events__event_id__slots__slot_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+                slot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventSlotUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSlotRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_signup_events__event_id__slots__slot_id__signups_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+                slot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventSlotSignupCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSlotSignupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_signup_events__event_id__slots__slot_id__signups__member_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+                slot_id: string;
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_functional_roles_functional_roles_get: {
         parameters: {
             query?: never;
@@ -7964,6 +9288,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_family_members_me_family_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_notification_preferences_members_me_notification_preferences_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferencesRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_my_notification_preferences_members_me_notification_preferences_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationPreferencesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPreferencesRead"];
                 };
             };
             /** @description Validation Error */
@@ -9829,6 +11250,72 @@ export interface operations {
             };
         };
     };
+    list_reports_reports_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportCatalogEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_report_reports__key__get: {
+        parameters: {
+            query?: {
+                format?: "json" | "csv";
+            };
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportData"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     storage_usage_storage_usage_get: {
         parameters: {
             query?: never;
@@ -10202,6 +11689,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resend_email_webhook_webhooks_email_resend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };

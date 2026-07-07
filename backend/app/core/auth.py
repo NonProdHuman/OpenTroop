@@ -208,3 +208,24 @@ async def get_current_user(
         )
     claims = decode_token(credentials.credentials)
     return get_or_create_user(claims, db)
+
+
+async def get_optional_current_user(
+    db: Annotated[Session, Depends(get_db)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_http_bearer)],
+) -> User | None:
+    """Like :func:`get_current_user`, but return ``None`` when *no* Bearer token is
+    presented instead of raising 401.
+
+    This is the single seam the anonymous public-demo carve-out (GH-246, ADR 0012)
+    hangs off: the member-context dependencies in ``app.core.deps`` turn a ``None``
+    here into a fixed, read-only Demo Viewer member — but only on the configured
+    demo tenant, and only for safe methods (see ``deps._resolve_current_member``).
+    Every other path treats ``None`` as unauthenticated and raises exactly as
+    before, so behavior is provably inert while ``DEMO_TENANT_SLUG`` is unset. A
+    malformed or expired token still raises 401 via :func:`decode_token` —
+    "anonymous" means the *absence* of a credential, never a bad one.
+    """
+    if credentials is None:
+        return None
+    return get_or_create_user(decode_token(credentials.credentials), db)

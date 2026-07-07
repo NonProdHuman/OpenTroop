@@ -26,7 +26,10 @@ function InboxRow({ item }: { item: InboxItem }) {
       style={{ paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderColor: colors.hairline }}
     >
       <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
-        <Text style={{ flex: 1, fontSize: 15, fontWeight: unread ? "700" : "500" }} numberOfLines={1}>
+        <Text
+          style={{ flex: 1, fontSize: 15, fontWeight: unread ? "700" : "500", color: colors.textStrong }}
+          numberOfLines={1}
+        >
           {unread ? "• " : ""}
           {item.subject}
         </Text>
