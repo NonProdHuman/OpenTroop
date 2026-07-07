@@ -95,9 +95,13 @@ def downgrade() -> None:
     op.drop_table("my_table")
 ```
 
-Also add the new table name to the explicit list in
-`alembic/versions/1a2b3c4d5e6f_force_rls_enforcement.py` so it is covered by the
-policy-completeness introspection test forever.
+Do **not** add the new table to the frozen list in
+`alembic/versions/1a2b3c4d5e6f_force_rls_enforcement.py` — that migration runs
+*before* your table exists on a fresh database, so appending to it breaks
+`alembic upgrade head`. Your `enable_rls_for` call is sufficient: the
+policy-completeness test (`tests/rls/test_rls.py`) auto-detects every
+`TrackedBase` table from the live model registry, so coverage is automatic
+(`event_photos`, `event_slots` set the precedent).
 
 ### Linting and types
 

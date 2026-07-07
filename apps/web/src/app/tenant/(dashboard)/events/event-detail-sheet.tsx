@@ -16,6 +16,7 @@ import { formatDate, formatDateTime, formatMoney } from "@/lib/format"
 import { usePermissions } from "@/hooks/use-session"
 import type { Event } from "@/types/api"
 import { EventRsvpPanel } from "./event-rsvp-panel"
+import { EventSlotsPanel } from "./event-slots-panel"
 import { EventTypeBadge } from "./event-type-badge"
 
 interface EventDetailSheetProps {
@@ -183,6 +184,8 @@ export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheet
               <EventRsvpPanel event={event} />
             </>
           )}
+
+          <EventSlotsPanel event={event} />
 
           <Separator />
 

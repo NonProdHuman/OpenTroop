@@ -64,6 +64,7 @@ export const queryKeys = {
   eventAudiences: (t: TenantId, eventId: string | null) => [t, "event-audiences", eventId] as const,
   eventOrganizers: (t: TenantId, eventId: string | null) => [t, "event-organizers", eventId] as const,
   eventPhotos: (t: TenantId, eventId: string | null) => [t, "event-photos", eventId] as const,
+  eventSlots: (t: TenantId, eventId: string | null) => [t, "event-slots", eventId] as const,
   storageUsage: (t: TenantId) => [t, "storage-usage"] as const,
   locations: (t: TenantId) => [t, "locations"] as const,
 

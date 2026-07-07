@@ -44,6 +44,7 @@ import {
   type FormState,
 } from "../../event-form"
 import { EventRsvpAdmin } from "./event-rsvp-admin"
+import { SlotsEditor } from "./slots-editor"
 import type { Event } from "@/types/api"
 
 export default function EventEditPage() {
@@ -120,6 +121,7 @@ function EventEditForm({ id, event }: { id: string; event: Event }) {
           <TabsList>
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="rsvp">RSVP</TabsTrigger>
+            <TabsTrigger value="slots">Slots</TabsTrigger>
           </TabsList>
 
           <TabsContent value="details" className="space-y-6">
@@ -149,6 +151,10 @@ function EventEditForm({ id, event }: { id: string; event: Event }) {
 
           <TabsContent value="rsvp" className="space-y-4">
             <EventRsvpAdmin event={event} />
+          </TabsContent>
+
+          <TabsContent value="slots" className="space-y-4">
+            <SlotsEditor eventId={id} />
           </TabsContent>
         </Tabs>
       </div>
