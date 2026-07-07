@@ -132,8 +132,13 @@ storage_secret_access_key = "..."  # Cloudflare dashboard; the provider can't mi
 
 Terraform then creates the `<prefix>-media` R2 bucket (private — the backend
 mints short-lived presigned URLs for every access), derives the endpoint from
-`cloudflare_account_id`, wires `STORAGE_*` env onto the API service, and stores
-the key pair in Secret Manager.
+`cloudflare_account_id`, wires `STORAGE_*` env onto the API service, stores
+the key pair in Secret Manager, and (by default, `manage_r2_cors = true`)
+applies the bucket's **browser-upload CORS policy** with origins derived from
+`app_domain` — so no per-environment CORS copy-paste in the dashboard. Both
+`manage_r2_bucket` and `manage_r2_cors` need the provider token to carry
+**Workers R2 Storage: Edit**; a low-privilege / bring-your-own-bucket setup can
+set `manage_r2_cors = false` and configure CORS by hand (see `docs/r2-setup.md`).
 
 A **weekly maintenance Cloud Run Job** (`<prefix>-maintenance`, on by default via
 `maintenance_job_enabled`) runs `reap-photo-uploads && reap-tombstones` —

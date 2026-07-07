@@ -18,6 +18,37 @@ resource "cloudflare_r2_bucket" "media" {
   name       = local.storage_bucket_name
 }
 
+# CORS policy for the media bucket (manage_r2_cors, on by default).
+#
+# The web app PUTs photo bytes straight to the bucket and renders gallery images
+# from presigned GETs — both are cross-origin browser requests, so the bucket
+# needs a CORS policy or uploads fail with a preflight error ("Failed to fetch").
+# Deriving origins from local.cors_origins (app_domain-based, the same list wired
+# into the backend/worker CORS) means every environment gets its own correct
+# origins automatically — no per-environment dashboard copy-paste to drift.
+#
+# Requires the provider's cloudflare_api_token to carry "Workers R2 Storage:
+# Edit" (the same permission manage_r2_bucket needs). A bring-your-own-bucket
+# setup with a low-privilege token can set manage_r2_cors=false and configure
+# CORS by hand — see docs/r2-setup.md.
+resource "cloudflare_r2_bucket_cors" "media" {
+  count = var.cloudflare_enabled && var.storage_backend == "r2" && var.manage_r2_cors ? 1 : 0
+
+  account_id  = var.cloudflare_account_id
+  bucket_name = local.storage_bucket_name
+
+  rules = [{
+    allowed = {
+      origins = local.cors_origins
+      methods = ["GET", "PUT"]
+      headers = ["content-type"]
+    }
+    max_age_seconds = 3600
+  }]
+
+  depends_on = [cloudflare_r2_bucket.media]
+}
+
 check "storage_configured" {
   assert {
     condition = !local.storage_enabled || (
