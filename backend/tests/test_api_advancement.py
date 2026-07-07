@@ -697,7 +697,8 @@ def test_awarded_rank_locks_completion_writes(client: TestClient, db_session: Se
         f"/advancement/completions/{completion_id}", json={"date_completed": "2026-05-02"}
     )
     assert blocked_edit.status_code == 409
-    assert client.delete(f"/advancement/completions/{completion_id}").status_code == 409
+    blocked_delete = client.delete(f"/advancement/completions/{completion_id}")
+    assert blocked_delete.status_code == 409
 
     # Escape hatch: clearing the awarded date unlocks corrections.
     unlocked = client.patch(
@@ -705,12 +706,10 @@ def test_awarded_rank_locks_completion_writes(client: TestClient, db_session: Se
         json={"awarded_date": None},
     )
     assert unlocked.status_code == 200
-    assert (
-        client.patch(
-            f"/advancement/completions/{completion_id}", json={"date_completed": "2026-05-02"}
-        ).status_code
-        == 200
+    edit_after_unlock = client.patch(
+        f"/advancement/completions/{completion_id}", json={"date_completed": "2026-05-02"}
     )
+    assert edit_after_unlock.status_code == 200
 
 
 def test_self_report_blocked_once_earned(claim_client: TestClient, db_session: Session) -> None:
