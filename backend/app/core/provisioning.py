@@ -99,6 +99,9 @@ DEFAULT_FUNCTIONAL_ROLES: list[dict[str, object]] = [
             P.EVENT_WRITE,
             P.EVENT_DELETE,
             P.EVENT_MANAGE_ATTENDANCE,
+            # Event leads need the medical bundle (allergies, dietary, med-form
+            # dates, emergency contacts) for the people at their events (GH-122).
+            P.MEMBER_READ_MEDICAL,
             P.REPORT_READ,
             P.PHOTO_READ,
             P.PHOTO_UPLOAD,

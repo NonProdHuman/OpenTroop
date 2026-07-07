@@ -23,6 +23,7 @@ from sqlalchemy import ColumnElement, and_, or_, select
 from app.core.deps import DbDep, MemberContextDep, TenantDep, require
 from app.core.event_visibility import visibility_clause
 from app.core.groups import member_group_ids
+from app.core.member_privacy import redact_medical
 from app.core.relationships import family_member_ids
 from app.core.tenant_context import include_deleted
 from app.models.enums import Permission
@@ -174,6 +175,8 @@ def sync_members(
         for item in items:
             item.notes = None
             item.oa_notes = None
+    actor, permissions = ctx
+    redact_medical(items, actor, permissions, db)
     return SyncMembersPage(
         items=items,
         next_since_seq=next_seq,
