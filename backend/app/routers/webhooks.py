@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from app.core.config import settings
 from app.core.deps import AdminDbDep
 from app.core.email_webhooks import (
+    EVENT_COMPLAINED,
     WebhookVerificationError,
     apply_email_event,
     verify_webhook_signature,
@@ -74,5 +75,8 @@ async def resend_email_webhook(request: Request, db: AdminDbDep) -> dict[str, ob
 
     updated = apply_email_event(db, event_type, payload)
     if updated:
-        logger.info("Resend %s updated %d member row(s)", event_type, updated)
+        # `updated` is only nonzero for the two handled event types, so log a
+        # derived literal, never the request-supplied string (py/log-injection).
+        action = "complaint" if event_type == EVENT_COMPLAINED else "bounce"
+        logger.info("Resend %s updated %d member row(s)", action, updated)
     return {"status": "ok", "event": event_type, "updated": updated}

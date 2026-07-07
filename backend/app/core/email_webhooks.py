@@ -138,8 +138,9 @@ def apply_email_event(db: Session, event_type: str, payload: dict[str, object]) 
             .where(func.lower(Member.email) == address, Member.is_deleted.is_(False))
             .values(**values)
         )
-        # An UPDATE always yields a CursorResult carrying rowcount.
-        updated += cast("CursorResult[Any]", result).rowcount or 0
+        # An UPDATE always yields a CursorResult carrying rowcount. Direct
+        # (unquoted) cast so CodeQL sees the imports as used — see d206033.
+        updated += cast(CursorResult[Any], result).rowcount or 0
     db.commit()
     return updated
 
