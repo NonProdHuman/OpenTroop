@@ -16,7 +16,7 @@ Authorization model (see the spec in GH-92):
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -26,6 +26,7 @@ from app.core.advancement import (
     apply_auto_credits,
     compute_member_metrics,
     derive_completion_map,
+    derive_earned_date,
     evaluate_requirement_metrics,
     get_or_create_progress,
     get_progress,
@@ -112,6 +113,27 @@ def _recompute(member_id: uuid.UUID, db: DbDep) -> None:
     """Post-write auto-credit pass (GH-92). ModeDep already excluded ``disabled``."""
     if apply_auto_credits(member_id, db):
         db.commit()
+
+
+def _require_not_awarded(progress: MemberRankProgress | None) -> None:
+    """Awarded ranks are locked history (#256 D1): every completion write 409s.
+
+    The escape hatch is explicit — an ``advancement:approve`` holder clears the
+    awarded date (rank-progress PATCH), corrects, and re-awards.
+    """
+    if progress is not None and progress.awarded_date is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Rank already awarded — clear the awarded date to make corrections",
+        )
+
+
+def _derive_and_recompute(progress: MemberRankProgress, db: DbDep) -> None:
+    """Re-derive the earned (BoR) date after a completion write (#256 D3)."""
+    if derive_earned_date(progress, db):
+        db.commit()
+        # The earned date anchors the next rank's since_rank windows.
+        _recompute(progress.member_id, db)
 
 
 def _may_view(actor: Member, perms: frozenset[Permission], target_id: uuid.UUID, db: DbDep) -> bool:
@@ -377,6 +399,16 @@ def create_completion(
             detail="Requirement belongs to a different version than this member's election",
         )
 
+    _require_not_awarded(progress)
+    if not is_recorder and progress.completed_date is not None:
+        # The rank is earned (BoR passed) — scouts can no longer self-report
+        # into it; recorders/approvers may still correct until it is awarded.
+        raise HTTPException(
+            status_code=409,
+            detail="Rank already earned — ask an advancement chair to make corrections",
+        )
+    date_completed = body.date_completed or date.today()
+
     existing = db.scalar(
         select(MemberRequirementCompletion).where(
             MemberRequirementCompletion.member_id == member_id,
@@ -387,7 +419,7 @@ def create_completion(
         if existing.status != CompletionStatus.REJECTED:
             raise HTTPException(status_code=409, detail="Completion already recorded")
         # Re-report after rejection: reuse the row so history/audit stays intact.
-        existing.date_completed = body.date_completed
+        existing.date_completed = date_completed
         existing.note = body.note
         existing.reported_by_id = actor.id
         if is_recorder:
@@ -399,13 +431,14 @@ def create_completion(
             existing.approved_by_id = None
             existing.approved_at = None
         db.commit()
+        _derive_and_recompute(progress, db)
         db.refresh(existing)
         return CompletionRead.model_validate(existing)
 
     completion = MemberRequirementCompletion(
         member_id=member_id,
         requirement_id=requirement.id,
-        date_completed=body.date_completed,
+        date_completed=date_completed,
         note=body.note,
         reported_by_id=actor.id,
         recorded_via=RecordedVia.MANUAL,
@@ -415,6 +448,7 @@ def create_completion(
     )
     db.add(completion)
     db.commit()
+    _derive_and_recompute(progress, db)
     db.refresh(completion)
     return CompletionRead.model_validate(completion)
 
@@ -429,6 +463,10 @@ def update_completion(
 ) -> CompletionRead:
     actor, perms = ctx
     completion = get_or_404(db, MemberRequirementCompletion, completion_id, "Completion not found")
+    requirement = db.get(Requirement, completion.requirement_id)
+    assert requirement is not None  # noqa: S101 — FK-guaranteed
+    progress = get_progress(completion.member_id, requirement.requirement_set.rank_id, db)
+    _require_not_awarded(progress)
     fields = body.model_dump(exclude_unset=True)
 
     if "status" in fields and fields["status"] is not None:
@@ -454,6 +492,8 @@ def update_completion(
             completion.note = fields["note"]
 
     db.commit()
+    if progress is not None:
+        _derive_and_recompute(progress, db)
     db.refresh(completion)
     return CompletionRead.model_validate(completion)
 
@@ -466,8 +506,15 @@ def revoke_completion(
     if Permission.ADVANCEMENT_APPROVE not in perms:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     completion = get_or_404(db, MemberRequirementCompletion, completion_id, "Completion not found")
+    requirement = db.get(Requirement, completion.requirement_id)
+    assert requirement is not None  # noqa: S101 — FK-guaranteed
+    _require_not_awarded(
+        get_progress(completion.member_id, requirement.requirement_set.rank_id, db)
+    )
     # Revocation is the tombstone: the auto-credit engine treats this row —
-    # deleted included — as "do not re-create".
+    # deleted included — as "do not re-create". The earned date is deliberately
+    # NOT re-derived or cleared here — un-earning is an explicit chair action
+    # on the rank-progress PATCH (#256 D3).
     completion.is_deleted = True
     db.commit()
 
