@@ -612,3 +612,144 @@ def test_picker_tenant_isolation(
     _scout(db_session)
     assert len(_picker(client)) == 1
     assert _picker(other_client) == []
+
+
+# ---------------------------------------------------------------------------
+# #256: derived earned date, awarded-rank lockout, dated completions
+# ---------------------------------------------------------------------------
+
+
+def _post_completion(client: TestClient, member_id: uuid.UUID, req_id: uuid.UUID, on: str):
+    return client.post(
+        f"/members/{member_id}/advancement/completions",
+        json={"requirement_id": str(req_id), "date_completed": on},
+    )
+
+
+def test_earned_date_derived_from_latest_completion(
+    client: TestClient, db_session: Session
+) -> None:
+    """Approving the final leaf (in real data: the BoR) derives the earned date."""
+    cat = _Catalog(db_session)
+    scout = _scout(db_session)
+
+    assert _post_completion(client, scout.id, cat.req_1a.id, "2026-05-01").status_code == 201
+    progress = db_session.query(MemberRankProgress).filter_by(member_id=scout.id).one()
+    assert progress.completed_date is None  # not yet complete
+
+    assert _post_completion(client, scout.id, cat.req_7b.id, "2026-06-01").status_code == 201
+    db_session.expire_all()
+    row = db_session.query(MemberRankProgress).filter_by(member_id=scout.id).one()
+    assert row.completed_date == date(2026, 6, 1)  # max of the approved leaf dates
+
+
+def test_earned_date_rederives_when_a_date_is_edited(
+    client: TestClient, db_session: Session
+) -> None:
+    cat = _Catalog(db_session)
+    scout = _scout(db_session)
+    _post_completion(client, scout.id, cat.req_1a.id, "2026-05-01")
+    r = _post_completion(client, scout.id, cat.req_7b.id, "2026-06-01")
+    completion_id = r.json()["id"]
+
+    edited = client.patch(
+        f"/advancement/completions/{completion_id}", json={"date_completed": "2026-06-15"}
+    )
+    assert edited.status_code == 200
+    db_session.expire_all()
+    row = db_session.query(MemberRankProgress).filter_by(member_id=scout.id).one()
+    assert row.completed_date == date(2026, 6, 15)
+
+
+def test_earned_date_never_auto_cleared(client: TestClient, db_session: Session) -> None:
+    """Imported/manual earned dates survive completion writes on incomplete ranks."""
+    cat = _Catalog(db_session)
+    scout = _scout(db_session)
+    # Chair records the earned date directly (the import path does the same).
+    set_date = client.patch(
+        f"/members/{scout.id}/advancement/ranks/{cat.rank.id}",
+        json={"completed_date": "2025-12-01"},
+    )
+    assert set_date.status_code == 200
+    # Election defaulted to the 2026 set; a 2026-set completion leaves it incomplete.
+    r = _post_completion(client, scout.id, cat.req_2a_v2026.id, "2026-01-15")
+    assert r.status_code == 201
+    db_session.expire_all()
+    row = db_session.query(MemberRankProgress).filter_by(member_id=scout.id).one()
+    assert row.completed_date == date(2025, 12, 1)  # untouched
+
+
+def test_awarded_rank_locks_completion_writes(client: TestClient, db_session: Session) -> None:
+    cat = _Catalog(db_session)
+    scout = _scout(db_session)
+    completion_id = _post_completion(client, scout.id, cat.req_1a.id, "2026-05-01").json()["id"]
+
+    awarded = client.patch(
+        f"/members/{scout.id}/advancement/ranks/{cat.rank.id}",
+        json={"awarded_date": "2026-06-20"},
+    )
+    assert awarded.status_code == 200
+
+    blocked_create = _post_completion(client, scout.id, cat.req_7b.id, "2026-06-01")
+    assert blocked_create.status_code == 409
+    assert "awarded" in blocked_create.json()["detail"].lower()
+    blocked_edit = client.patch(
+        f"/advancement/completions/{completion_id}", json={"date_completed": "2026-05-02"}
+    )
+    assert blocked_edit.status_code == 409
+    assert client.delete(f"/advancement/completions/{completion_id}").status_code == 409
+
+    # Escape hatch: clearing the awarded date unlocks corrections.
+    unlocked = client.patch(
+        f"/members/{scout.id}/advancement/ranks/{cat.rank.id}",
+        json={"awarded_date": None},
+    )
+    assert unlocked.status_code == 200
+    assert (
+        client.patch(
+            f"/advancement/completions/{completion_id}", json={"date_completed": "2026-05-02"}
+        ).status_code
+        == 200
+    )
+
+
+def test_self_report_blocked_once_earned(claim_client: TestClient, db_session: Session) -> None:
+    """Scouts cannot report into an earned rank; the chair escape hatch remains."""
+    cat = _Catalog(db_session)
+    _set_mode(db_session, AdvancementMode.SCOUT_REPORTED)
+    scout = _scout(db_session, user_id=NEW_USER_ID)
+    progress = MemberRankProgress(
+        tenant_id=TENANT_A,
+        member_id=scout.id,
+        rank_id=cat.rank.id,
+        requirement_set_id=cat.set_2025.id,
+        completed_date=date(2026, 6, 1),
+    )
+    db_session.add(progress)
+    db_session.commit()
+
+    r = claim_client.post(
+        f"/members/{scout.id}/advancement/completions",
+        json={"requirement_id": str(cat.req_1a.id), "date_completed": "2026-05-01"},
+        headers={"X-Tenant-ID": str(TENANT_A)},
+    )
+    assert r.status_code == 409
+    assert "earned" in r.json()["detail"].lower()
+
+
+def test_completion_date_defaults_to_today_and_rejects_future(
+    client: TestClient, db_session: Session
+) -> None:
+    cat = _Catalog(db_session)
+    scout = _scout(db_session)
+
+    r = client.post(
+        f"/members/{scout.id}/advancement/completions",
+        json={"requirement_id": str(cat.req_1a.id)},
+    )
+    assert r.status_code == 201
+    assert r.json()["date_completed"] == date.today().isoformat()
+
+    future = (date.today().replace(year=date.today().year + 1)).isoformat()
+    r = _post_completion(client, scout.id, cat.req_7b.id, future)
+    assert r.status_code == 422

@@ -39,20 +39,28 @@ function RequirementRow({
   canRecord,
   canApprove,
   canSelfReport,
+  locked,
+  earned,
 }: {
   memberId: string
   entry: RequirementProgress
   canRecord: boolean
   canApprove: boolean
   canSelfReport: boolean
+  /** Rank awarded — completion history is read-only (#256 D1). */
+  locked: boolean
+  /** Rank earned (BoR passed) — self-report closes; chairs may still correct. */
+  earned: boolean
 }) {
   const createCompletion = useCreateCompletion(memberId)
   const updateCompletion = useUpdateCompletion()
   const revokeCompletion = useRevokeCompletion()
+  const [markDate, setMarkDate] = useState(today())
   const req = entry.requirement
   const isContainer = req.letter === "" && entry.completion === null && entry.metrics_progress.length === 0 && !canRecord
   const indent = req.letter !== ""
   const completion = entry.completion
+  const mayRecordHere = !locked && (canRecord || (canSelfReport && !earned))
 
   return (
     <div className={`flex flex-col gap-1 py-2 ${indent ? "pl-6" : ""}`}>
@@ -76,7 +84,7 @@ function RequirementRow({
               {completion.recorded_via === "auto" ? " · auto" : ""}
             </Badge>
           )}
-          {completion && completion.status === "reported" && canApprove && (
+          {completion && completion.status === "reported" && canApprove && !locked && (
             <>
               <Button
                 size="sm"
@@ -98,7 +106,7 @@ function RequirementRow({
               </Button>
             </>
           )}
-          {completion && canApprove && completion.status !== "reported" && (
+          {completion && canApprove && !locked && completion.status !== "reported" && (
             <Button
               size="sm"
               variant="ghost"
@@ -107,25 +115,51 @@ function RequirementRow({
               Revoke
             </Button>
           )}
-          {!completion && !isContainer && (canRecord || canSelfReport) && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={createCompletion.isPending}
-              onClick={() =>
-                createCompletion.mutate({ requirement_id: req.id, date_completed: today() })
-              }
-            >
-              {canRecord ? "Mark complete" : "Report"}
-            </Button>
+          {!completion && !isContainer && mayRecordHere && (
+            <>
+              <Input
+                type="date"
+                aria-label={`Completion date for ${req.label}`}
+                className="h-8 w-36"
+                max={today()}
+                value={markDate}
+                onChange={(e) => setMarkDate(e.target.value)}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={createCompletion.isPending || !markDate}
+                onClick={() =>
+                  createCompletion.mutate({ requirement_id: req.id, date_completed: markDate })
+                }
+              >
+                {canRecord ? "Mark complete" : "Report"}
+              </Button>
+            </>
           )}
         </div>
       </div>
       {completion && (
-        <p className="text-muted-foreground pl-10 text-xs">
-          {completion.date_completed}
-          {completion.note ? ` — ${completion.note}` : ""}
-        </p>
+        <div className="text-muted-foreground flex items-center gap-2 pl-10 text-xs">
+          {canRecord && !locked ? (
+            <Input
+              type="date"
+              aria-label={`Edit completion date for ${req.label}`}
+              className="h-7 w-36"
+              max={today()}
+              defaultValue={completion.date_completed}
+              onBlur={(e) => {
+                const value = e.target.value
+                if (value && value !== completion.date_completed) {
+                  updateCompletion.mutate({ id: completion.id, data: { date_completed: value } })
+                }
+              }}
+            />
+          ) : (
+            <span>{completion.date_completed}</span>
+          )}
+          {completion.note ? <span>— {completion.note}</span> : null}
+        </div>
       )}
       {entry.metrics_progress.length > 0 && (
         <div className="flex flex-col gap-1 pl-10">
@@ -154,6 +188,7 @@ function RankCard({
   const updateRank = useUpdateRankProgress(memberId)
   const summary = rankSummary(view)
   const earned = view.progress?.completed_date != null
+  const awarded = view.progress?.awarded_date != null
 
   return (
     <Card>
@@ -164,7 +199,12 @@ function RankCard({
             <span className="text-muted-foreground text-xs font-normal">
               v{view.requirement_set.version}
             </span>
-            {earned && <Badge>Earned {view.progress?.completed_date}</Badge>}
+            {earned && <Badge data-testid="earned-badge">Earned {view.progress?.completed_date}</Badge>}
+            {awarded && (
+              <Badge variant="secondary" data-testid="awarded-badge">
+                Awarded {view.progress?.awarded_date}
+              </Badge>
+            )}
             {!earned && view.is_complete && <Badge variant="secondary">Ready for board of review</Badge>}
           </CardTitle>
           <div className="text-muted-foreground text-xs">
@@ -173,23 +213,9 @@ function RankCard({
         </div>
         {canApprove && (
           <div className="flex flex-wrap items-end gap-3 pt-1">
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs" htmlFor={`bor-${view.rank.id}`}>
-                Board of review
-              </Label>
-              <Input
-                id={`bor-${view.rank.id}`}
-                type="date"
-                className="h-8 w-40"
-                defaultValue={view.progress?.completed_date ?? ""}
-                onBlur={(e) => {
-                  const value = e.target.value || null
-                  if (value !== (view.progress?.completed_date ?? null)) {
-                    updateRank.mutate({ rankId: view.rank.id, data: { completed_date: value } })
-                  }
-                }}
-              />
-            </div>
+            {/* The earned (board of review) date is derived from the requirement
+                completions — the BoR is itself a requirement (#256 D3) — so there
+                is deliberately no manual input for it here. */}
             <div className="flex flex-col gap-1">
               <Label className="text-xs" htmlFor={`coh-${view.rank.id}`}>
                 Awarded (Court of Honor)
@@ -219,6 +245,8 @@ function RankCard({
             canRecord={canRecord}
             canApprove={canApprove}
             canSelfReport={canSelfReport}
+            locked={awarded}
+            earned={earned}
           />
         ))}
       </CardContent>

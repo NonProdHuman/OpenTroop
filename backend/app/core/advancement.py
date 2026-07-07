@@ -34,7 +34,7 @@ from app.models.advancement import (
     Requirement,
     RequirementSet,
 )
-from app.models.enums import MetricKind
+from app.models.enums import CompletionStatus, MetricKind
 
 
 def active_requirement_sets(rank_id: uuid.UUID, session: Session) -> list[RequirementSet]:
@@ -234,6 +234,30 @@ def rank_is_complete(
     """All top-level requirements complete ⇒ ready for board of review (computed, never stored)."""
     top_level = [r for r in requirements if r.parent_id is None]
     return bool(top_level) and all(completion_map.get(r.id, False) for r in top_level)
+
+
+def derive_earned_date(progress: MemberRankProgress, session: Session) -> bool:
+    """Derive the rank's earned (board-of-review) date from its completions (#256 D3).
+
+    The BoR is an ordinary sign-off leaf in the catalog (``…-bor`` stable keys),
+    so "earned" falls out of the workflow: once every top-level requirement is
+    complete, ``completed_date`` = the **latest** approved leaf date — in
+    practice the BoR date. Sets/updates only, never auto-clears: imported and
+    pre-derivation ranks legitimately carry an earned date without full leaf
+    rows, and un-earning stays an explicit chair action. Returns whether the
+    date changed (callers re-run auto-credit on change — the earned date is the
+    next rank's tenure anchor).
+    """
+    requirements = set_requirements(progress.requirement_set_id, session)
+    leaf_ids = leaf_requirement_ids(progress.requirement_set_id, session)
+    completions = member_completions(progress.member_id, session, requirement_ids=leaf_ids)
+    if not rank_is_complete(requirements, derive_completion_map(requirements, completions)):
+        return False
+    earned = max(c.date_completed for c in completions if c.status == CompletionStatus.APPROVED)
+    if progress.completed_date == earned:
+        return False
+    progress.completed_date = earned
+    return True
 
 
 def ordered_ranks(session: Session) -> list[Rank]:

@@ -2122,11 +2122,8 @@ export interface components {
         };
         /** CompletionCreate */
         CompletionCreate: {
-            /**
-             * Date Completed
-             * Format: date
-             */
-            date_completed: string;
+            /** Date Completed */
+            date_completed?: string | null;
             /** Note */
             note?: string | null;
             /**
