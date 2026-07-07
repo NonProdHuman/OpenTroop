@@ -1,6 +1,6 @@
 import { useColors } from "@/lib/theme"
 import { useState } from "react"
-import { Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native"
+import { Pressable, ScrollView, Switch, Text, TextInput, useColorScheme, View } from "react-native"
 import { Link, Stack, useLocalSearchParams } from "expo-router"
 import {
   useCachedPermissions,
@@ -29,6 +29,7 @@ function RsvpRow({
   eventId: string
 }) {
   const colors = useColors()
+  const scheme = useColorScheme()
   const { enqueue } = useSyncContext()
   const [expanded, setExpanded] = useState(false)
   const current = participant?.rsvp_status ?? "no_response"
@@ -46,7 +47,9 @@ function RsvpRow({
   return (
     <View style={{ paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.hairline }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-        <Text style={{ fontWeight: "600", marginBottom: 6 }}>{formatMemberName(member)}</Text>
+        <Text style={{ fontWeight: "600", marginBottom: 6, color: colors.textStrong }}>
+          {formatMemberName(member)}
+        </Text>
         <Pressable onPress={() => setExpanded((e) => !e)}>
           <Text style={{ color: colors.textMuted, fontSize: 12 }}>{expanded ? "Less" : "Details"}</Text>
         </Pressable>
@@ -89,7 +92,7 @@ function RsvpRow({
               >
                 <Text style={{ fontSize: 20, color: colors.accent }}>−</Text>
               </Pressable>
-              <Text style={{ minWidth: 20, textAlign: "center" }}>
+              <Text style={{ minWidth: 20, textAlign: "center", color: colors.text }}>
                 {participant?.guest_count ?? 0}
               </Text>
               <Pressable onPress={() => patch({ guest_count: (participant?.guest_count ?? 0) + 1 })}>
@@ -101,7 +104,16 @@ function RsvpRow({
             defaultValue={participant?.comment ?? ""}
             onEndEditing={(e) => patch({ comment: e.nativeEvent.text })}
             placeholder="Note for the organizer…"
-            style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 8 }}
+            placeholderTextColor={colors.textSubtle}
+            keyboardAppearance={scheme === "dark" ? "dark" : "light"}
+            style={{
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: 8,
+              padding: 8,
+              color: colors.text,
+              backgroundColor: colors.surface,
+            }}
           />
         </View>
       )}
@@ -143,14 +155,16 @@ export default function EventDetailScreen() {
       <Stack.Screen options={{ headerShown: true, title: event.name }} />
       <ScrollView contentContainerStyle={{ padding: 16, gap: 20 }}>
         <View>
-          <Text style={{ fontSize: 20, fontWeight: "700" }}>{event.name}</Text>
+          <Text style={{ fontSize: 20, fontWeight: "700", color: colors.textStrong }}>{event.name}</Text>
           <Text style={{ color: colors.textMuted, marginTop: 4 }}>
             {formatEventStart(event.scheduled_start, event.all_day)}
           </Text>
           {event.location_notes ? (
             <Text style={{ color: colors.textMuted, marginTop: 2 }}>{event.location_notes}</Text>
           ) : null}
-          {event.description ? <Text style={{ marginTop: 8 }}>{event.description}</Text> : null}
+          {event.description ? (
+            <Text style={{ marginTop: 8, color: colors.text }}>{event.description}</Text>
+          ) : null}
           {has("photo:read") && (
             <Link href={`/event/photos/${event.id}`} asChild>
               <Pressable style={{ marginTop: 10, alignSelf: "flex-start" }}>
@@ -162,7 +176,9 @@ export default function EventDetailScreen() {
 
         {family.length > 0 && (
           <View>
-            <Text style={{ fontSize: 16, fontWeight: "700", marginBottom: 4 }}>RSVP</Text>
+            <Text style={{ fontSize: 16, fontWeight: "700", marginBottom: 4, color: colors.textStrong }}>
+              RSVP
+            </Text>
             {family.map((member) => (
               <RsvpRow
                 key={member.id}
@@ -184,7 +200,7 @@ export default function EventDetailScreen() {
                 marginBottom: 4,
               }}
             >
-              <Text style={{ fontSize: 16, fontWeight: "700" }}>
+              <Text style={{ fontSize: 16, fontWeight: "700", color: colors.textStrong }}>
                 Attendance ({going.length} going)
               </Text>
               {!event.attendance_taken && (
@@ -222,7 +238,7 @@ export default function EventDetailScreen() {
                       borderColor: colors.hairline,
                     }}
                   >
-                    <Text>{memberName(participant.member_id)}</Text>
+                    <Text style={{ color: colors.text }}>{memberName(participant.member_id)}</Text>
                     <Switch
                       value={participant.attended === true}
                       onValueChange={(attended) =>

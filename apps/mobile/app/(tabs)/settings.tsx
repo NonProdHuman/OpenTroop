@@ -65,13 +65,13 @@ export default function SettingsScreen() {
   }
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
+    <View style={{ flex: 1, padding: 16, backgroundColor: colors.background }}>
       <Text style={{ color: colors.textMuted, marginBottom: 4 }}>Signed in as</Text>
-      <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 16 }}>
+      <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 16, color: colors.textStrong }}>
         {user?.primaryEmailAddress?.emailAddress ?? "…"}
       </Text>
       <Text style={{ color: colors.textMuted, marginBottom: 4 }}>Troop</Text>
-      <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 16 }}>
+      <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 16, color: colors.textStrong }}>
         {activeTenant?.tenant_name}
       </Text>
 
@@ -88,6 +88,7 @@ export default function SettingsScreen() {
             borderWidth: 1,
             borderColor: colors.borderLight,
             borderRadius: 12,
+            backgroundColor: colors.surface,
             gap: 8,
           }}
         >

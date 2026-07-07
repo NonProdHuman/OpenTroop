@@ -19,7 +19,9 @@ export default function SelectTroopScreen() {
 
   return (
     <View style={{ flex: 1, padding: 24, paddingTop: 80 }}>
-      <Text style={{ fontSize: 22, fontWeight: "700", marginBottom: 16 }}>Choose your troop</Text>
+      <Text style={{ fontSize: 22, fontWeight: "700", marginBottom: 16, color: colors.textStrong }}>
+        Choose your troop
+      </Text>
       {error && (
         <Text style={{ color: colors.danger, marginBottom: 12 }}>
           Couldn&apos;t load your troops. Pull to retry or check your connection.
@@ -53,7 +55,9 @@ export default function SelectTroopScreen() {
               backgroundColor: pressed ? colors.hairline : colors.surface,
             })}
           >
-            <Text style={{ fontSize: 16, fontWeight: "600" }}>{item.tenant_name}</Text>
+            <Text style={{ fontSize: 16, fontWeight: "600", color: colors.textStrong }}>
+              {item.tenant_name}
+            </Text>
             <Text style={{ color: colors.textMuted, marginTop: 2 }}>
               {item.tenant_slug}
               {item.is_admin ? " · admin" : ""}
