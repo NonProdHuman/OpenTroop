@@ -34,6 +34,10 @@ uv run reap-tombstones            # physically delete purged-member tombstones p
 
 # Event photos (GH-145, ADR 0011)
 uv run reap-photo-uploads         # sweep abandoned/deleted photo uploads + release quota (cron)
+
+# Messaging & imports (background drains — cron/self-host belts for the in-process loops)
+uv run drain-outbox               # promote due scheduled sends + drain pending emails (GH-78)
+uv run drain-import-jobs          # run queued TWH import jobs (GH-240, inprocess backend)
 ```
 
 ## Scripts
