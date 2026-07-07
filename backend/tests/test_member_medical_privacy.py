@@ -194,7 +194,7 @@ def test_group_members_redacts_medical_without_read_medical(
 def test_seeded_event_admins_carry_read_medical(client: TestClient, db_session: Session) -> None:
     """Event leads need the medical bundle for the people at their events —
     the seeded event-admins role must grant it or the gating breaks camp
-    workflows (the b1c2d3e4f5a6 migration backfills existing tenants)."""
+    workflows (the 574389ed3d16 migration backfills existing tenants)."""
     from app.core.provisioning import seed_default_rbac
     from app.models.rbac import FunctionalRole as FR
 
