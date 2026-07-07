@@ -89,7 +89,7 @@ def process_import_job(job_id: uuid.UUID) -> bool:
 
     with SessionLocal() as db, tenant_scope(tenant_id):
         claimed = cast(
-            "CursorResult[Any]",
+            CursorResult[Any],
             db.execute(
                 update(ImportJob)
                 .where(ImportJob.id == job_id, ImportJob.status == ImportJobStatus.QUEUED)
