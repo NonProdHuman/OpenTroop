@@ -109,9 +109,10 @@ def apply_email_event(db: Session, event_type: str, payload: dict[str, object]) 
     A hard bounce or a spam complaint is a fact about an **email address**, not about
     one troop's roster — the same person may sit in several tenants under the same
     address, and every one of those sends will fail (bounce) or draw a complaint. So
-    this write is deliberately **cross-tenant**: it runs on the BYPASSRLS admin session
-    inside ``unscoped()`` (wired by the router via ``AdminDbDep``), the sanctioned
-    cross-tenant path used by the outbox and the platform control plane.
+    this write is deliberately **cross-tenant**: the router passes the BYPASSRLS admin
+    session (``AdminDbDep``) — the sanctioned cross-tenant path used by the platform
+    control plane. No ``unscoped()`` wrapper is needed: the ORM scoping listener only
+    filters SELECTs, and a webhook request resolves no tenant context to filter by.
 
     - ``email.bounced``   → ``email_bounced = True``.
     - ``email.complained`` → ``email_bounced = True`` **and** ``email_opt_out = True``;
