@@ -65,6 +65,26 @@ export default function ImportPage() {
   const summary = job?.summary ?? null
   const warnings = job?.warnings ?? []
 
+  // Resume the latest job on mount. The import runs server-side, so leaving the
+  // page mid-import (or a stuck queued job) must not leave the operator blind —
+  // returning here shows the live tracker (or the last outcome) instead of a
+  // bare upload form.
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const jobs = await request<ImportJob[]>("/import/jobs")
+        if (!cancelled && jobs.length > 0 && !job) setJob(jobs[0])
+      } catch {
+        // no jobs / transient — the upload form is the correct fallback
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only resume
+  }, [])
+
   // Poll the job while it is queued/running so the panel shows live progress and,
   // when it finishes, the full summary + warnings (which a gateway timeout used to
   // eat). The import runs in the background — closing this page does not cancel it.

@@ -114,7 +114,11 @@ resource "google_cloud_run_v2_service" "api" {
           cpu    = var.api_cpu
           memory = var.api_memory
         }
-        cpu_idle = true
+        # Request-based billing (cpu_idle = true) throttles CPU between requests,
+        # which starves the in-process import drain loop — queued TWH imports
+        # never run (GH-240). With the inprocess backend, keep CPU allocated for
+        # the instance's lifetime; cloudtasks deployments keep the cheaper mode.
+        cpu_idle = var.import_queue_backend != "inprocess"
       }
 
       env {
@@ -194,6 +198,13 @@ resource "google_cloud_run_v2_service" "api" {
       env {
         name  = "IMPORT_QUEUE_BACKEND"
         value = var.import_queue_backend
+      }
+      # The inprocess backend only works if something drains the queue — that is
+      # this lifespan loop. Without it POST /import/twh 202s and the job sits
+      # queued forever. cloudtasks is push-driven; the loop stays off there.
+      env {
+        name  = "IMPORT_LOOP_ENABLED"
+        value = var.import_queue_backend == "inprocess" ? "true" : "false"
       }
       env {
         name  = "CLOUDTASKS_QUEUE_PATH"
