@@ -151,6 +151,21 @@ resource "google_cloud_run_v2_service" "api" {
         value = var.api_rate_limit_enabled ? "true" : "false"
       }
 
+      # Anonymous read-only public demo (GH-246, ADR 0012). Empty = off.
+      env {
+        name  = "DEMO_TENANT_SLUG"
+        value = var.demo_tenant_slug != null ? var.demo_tenant_slug : ""
+      }
+
+      # Messaging outbox loop: scheduled sends, email retries, weekly digests
+      # (GH-78/GH-218). The inprocess import backend already keeps CPU always
+      # allocated (cpu_idle = false above), so the loop actually runs between
+      # requests when enabled.
+      env {
+        name  = "OUTBOX_LOOP_ENABLED"
+        value = var.outbox_loop_enabled ? "true" : "false"
+      }
+
       env {
         name  = "CF_ACCESS_TEAM_DOMAIN"
         value = var.cf_access_enabled ? coalesce(var.cf_access_team_domain, "") : ""

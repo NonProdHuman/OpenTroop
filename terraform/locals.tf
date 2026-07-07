@@ -74,6 +74,7 @@ locals {
     DATABASE_URL_MIGRATE      = local.database_url_migrate
     ORIGIN_SHARED_SECRET      = local.origin_shared_secret
     RESEND_API_KEY            = var.resend_api_key
+    RESEND_WEBHOOK_SECRET     = var.resend_webhook_secret
     STORAGE_ACCESS_KEY_ID     = var.storage_access_key_id
     STORAGE_SECRET_ACCESS_KEY = var.storage_secret_access_key
   }
@@ -89,6 +90,7 @@ locals {
     var.database_url_migrate != null || var.manage_neon || var.database_url != null ? ["DATABASE_URL_MIGRATE"] : [],
     var.cloudflare_enabled ? ["ORIGIN_SHARED_SECRET"] : [],
     var.resend_api_key != null ? ["RESEND_API_KEY"] : [],
+    var.resend_webhook_secret != null ? ["RESEND_WEBHOOK_SECRET"] : [],
     var.storage_access_key_id != null ? ["STORAGE_ACCESS_KEY_ID"] : [],
     var.storage_secret_access_key != null ? ["STORAGE_SECRET_ACCESS_KEY"] : [],
   )))
@@ -103,6 +105,7 @@ locals {
     var.database_url_migrate != null || var.manage_neon || var.database_url != null ? "DATABASE_URL_MIGRATE" : "",
     var.cloudflare_enabled ? "ORIGIN_SHARED_SECRET" : "",
     var.resend_api_key != null ? "RESEND_API_KEY" : "",
+    var.resend_webhook_secret != null ? "RESEND_WEBHOOK_SECRET" : "",
     var.storage_access_key_id != null ? "STORAGE_ACCESS_KEY_ID" : "",
     var.storage_secret_access_key != null ? "STORAGE_SECRET_ACCESS_KEY" : "",
   ]))
