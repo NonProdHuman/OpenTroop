@@ -2013,6 +2013,34 @@ export interface paths {
         patch: operations["update_settings_tenant_settings_patch"];
         trace?: never;
     };
+    "/webhooks/email/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Email Webhook
+         * @description Handle a Resend delivery event (bounce / complaint).
+         *
+         *     Inert unless ``RESEND_WEBHOOK_SECRET`` is configured — otherwise 404, so the
+         *     endpoint is invisible on dev/self-host deployments that don't wire it up.
+         *
+         *     Verifies the Standard Webhooks (svix) signature over the raw body, then flips
+         *     suppression flags on matching Member rows **across all tenants** (a bounce is an
+         *     address-level fact — see ``apply_email_event``). Unknown event types are accepted
+         *     as a 200 no-op; we always answer fast so the provider never enters a retry storm.
+         */
+        post: operations["resend_email_webhook_webhooks_email_resend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -10202,6 +10230,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resend_email_webhook_webhooks_email_resend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };

@@ -164,6 +164,12 @@ class RateLimitMiddleware:
             )
         elif path.startswith("/auth/"):
             bucket, key, limit = "auth", _client_ip(scope), settings.rate_limit_auth_per_minute
+        elif path.startswith("/webhooks/"):
+            bucket, key, limit = (
+                "webhook",
+                _client_ip(scope),
+                settings.rate_limit_webhook_per_minute,
+            )
         else:
             bucket, key, limit = "tenant", _tenant_key(scope), settings.rate_limit_per_minute
 

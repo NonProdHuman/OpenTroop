@@ -113,6 +113,12 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     email_from_address: str = ""
 
+    # Resend bounce/complaint webhook (GH-80). Signing secret from the Resend
+    # dashboard (Standard Webhooks / svix scheme, `whsec_...`). Empty (default)
+    # makes POST /webhooks/email/resend answer 404 — the feature is inert until a
+    # secret is configured, matching the edge-security "off unless set" pattern.
+    resend_webhook_secret: str = ""
+
     # --- Object storage for event photos (GH-145) ---
     #
     # Vendor-agnostic: app code talks to app/core/storage.py's StorageService,
@@ -164,6 +170,9 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 600  # per resolved tenant key (or per IP when none)
     rate_limit_calendar_per_minute: int = 60  # per client IP on /calendar/* (token guessing)
     rate_limit_auth_per_minute: int = 30  # per client IP on /auth/* (invite-token spray)
+    # per client IP on /webhooks/* — unauthenticated + signature-gated; generous
+    # because a legitimate provider bounce burst is real, and a 429 is safely retried.
+    rate_limit_webhook_per_minute: int = 120
 
     # How long an anonymized member tombstone must remain in the sync stream before
     # the reaper (`uv run reap-tombstones`) may physically delete it (GH-222).
