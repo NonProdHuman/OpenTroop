@@ -93,7 +93,7 @@ const tenantNavItems: NavItem[] = [
       { title: "Approval Queue", url: "/advancement/queue", requires: "advancement:approve" },
     ],
   },
-  { title: "Reports", icon: BarChart3, disabledMessage: "Coming soon" },
+  { title: "Reports", icon: BarChart3, url: "/reports", requires: "report:read" },
   {
     title: "Admin",
     icon: Settings2,

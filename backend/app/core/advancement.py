@@ -266,6 +266,33 @@ def ordered_ranks(session: Session) -> list[Rank]:
     )
 
 
+def rank_leaf_progress(
+    member_id: uuid.UUID, rank_id: uuid.UUID, session: Session
+) -> tuple[int, int]:
+    """Return ``(completed_leaves, total_leaves)`` for a member's rank (#147).
+
+    Uses the member's elected set (or the latest set when they have no progress
+    row yet) and the **same** leaf/approval rule the member progress view applies
+    (:func:`derive_completion_map`), so a report's "next-rank % complete" is
+    always consistent with ``GET /members/{id}/advancement``. Returns ``(0, 0)``
+    when the rank's catalog isn't seeded — callers treat that as 0%.
+    """
+    progress = get_progress(member_id, rank_id, session)
+    req_set = (
+        progress.requirement_set
+        if progress is not None
+        else latest_requirement_set(rank_id, session)
+    )
+    if req_set is None:
+        return (0, 0)
+    requirements = set_requirements(req_set.id, session)
+    leaf_ids = leaf_requirement_ids(req_set.id, session)
+    completions = member_completions(member_id, session, requirement_ids=leaf_ids)
+    complete_map = derive_completion_map(requirements, completions)
+    completed = sum(1 for leaf_id in leaf_ids if complete_map.get(leaf_id, False))
+    return (completed, len(leaf_ids))
+
+
 # ---------------------------------------------------------------------------
 # Phase 3 — metric computation + auto-credit engine (GH-92)
 # ---------------------------------------------------------------------------

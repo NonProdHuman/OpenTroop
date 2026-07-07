@@ -142,3 +142,12 @@ export type InboxPage = Schemas["InboxPage"]
 export type InboxEntry = Schemas["InboxEntry"]
 export type AudienceType = Schemas["AudienceType"]
 export type ElectionResult = Schemas["ElectionResult"]
+
+// ── Reports (#147) ────────────────────────────────────────────────────────────
+export type ReportCatalogEntry = Schemas["ReportCatalogEntry"]
+export type ReportParamSchema = Schemas["ReportParamSchema"]
+export type ReportParamOption = Schemas["ReportParamOption"]
+export type ReportColumn = Schemas["ReportColumnSchema"]
+export type ReportData = Schemas["ReportData"]
+/** One report cell value (derived from the generated row shape). */
+export type ReportValue = ReportData["rows"][number][string]
