@@ -166,9 +166,13 @@ def test_anonymous_write_methods_are_403(
 
     # Every mutating verb is refused by the structural gate (before the handler runs,
     # so before any 404 for the random id) — never a 401 or a permission 403 leak.
-    assert c.post("/members", json=body).status_code == 403
-    assert c.patch(victim, json={"first_name": "X"}).status_code == 403
-    assert c.delete(victim).status_code == 403
+    # Calls hoisted out of the asserts (CodeQL py/side-effect-in-assert).
+    post_status = c.post("/members", json=body).status_code
+    patch_status = c.patch(victim, json={"first_name": "X"}).status_code
+    delete_status = c.delete(victim).status_code
+    assert post_status == 403
+    assert patch_status == 403
+    assert delete_status == 403
 
 
 def test_structural_gate_beats_a_mis_seeded_write_role(
