@@ -1095,6 +1095,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/members/me/family": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get My Family
+         * @description Return the caller's household plus the relationship edges among it (GH-143).
+         *
+         *     Any authenticated member may call this — no extra permission. The household is
+         *     ``family_member_ids`` (``{self} ∪ children/wards ∪ co-parents``); a scout or an
+         *     edge-less adult gets ``{self}`` back. The medical bundle is deliberately **not**
+         *     redacted here: the household is exactly the ``redact_medical`` exemption, so a
+         *     positionless parent sees their own child's allergies/medical dates.
+         *
+         *     Declared before ``/{member_id}`` so "me" is never parsed as a member UUID.
+         */
+        get: operations["get_my_family_members_me_family_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/members/me/notification-preferences": {
         parameters: {
             query?: never;
@@ -3479,6 +3507,22 @@ export interface components {
             video_conference_url?: string | null;
             /** Water Hours */
             water_hours?: number | string | null;
+        };
+        /**
+         * FamilyRead
+         * @description The caller's household for the "My Family" page (GH-143).
+         *
+         *     ``members`` is ``{self} ∪ children/wards ∪ co-parents`` (``family_member_ids``);
+         *     ``relationships`` is the subset of ``MemberRelationship`` edges whose *both*
+         *     endpoints are in that household. The medical bundle is intentionally left
+         *     intact on these rows — the household is exactly the ``redact_medical``
+         *     exemption, so a positionless parent sees their child's allergies here.
+         */
+        FamilyRead: {
+            /** Members */
+            members: components["schemas"]["MemberRead"][];
+            /** Relationships */
+            relationships: components["schemas"]["MemberRelationshipRead"][];
         };
         /** FunctionalRoleCreate */
         FunctionalRoleCreate: {
@@ -9244,6 +9288,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_my_family_members_me_family_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FamilyRead"];
                 };
             };
             /** @description Validation Error */

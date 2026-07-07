@@ -27,6 +27,7 @@ export const queryKeys = {
   members: (t: TenantId) => [t, "members"] as const,
   member: (t: TenantId, id: string | null) => [t, "members", id] as const,
   relationships: (t: TenantId, memberId: string | null) => [t, "relationships", memberId] as const,
+  family: (t: TenantId) => [t, "family"] as const,
 
   // ── Groups ────────────────────────────────────────────────────────────────
   groups: (t: TenantId) => [t, "groups"] as const,
