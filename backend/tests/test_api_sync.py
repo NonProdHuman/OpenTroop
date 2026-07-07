@@ -464,3 +464,21 @@ def test_family_scoped_members_redact_leader_notes(
     admin_page = _pull_entity(client, "members")
     admin_child = next(m for m in admin_page["items"] if m["id"] == str(child.id))
     assert admin_child["notes"] == "Leader-only: behavioral plan"
+
+
+def test_sync_items_carry_sync_seq(client: TestClient) -> None:
+    """Every synced row exposes its own ``sync_seq`` — the offline mirror stores
+    it as a NOT NULL column per row, so an item without it aborts the client's
+    pull transaction and wedges sync at ``since_seq=0`` (the 2026-07-07
+    opentroop.dev mobile loop)."""
+    _create_member(client, "Seqful")
+    _event_type(client, "Seq Campout")
+
+    for entity in ("members", "event_types"):
+        page = _pull_entity(client, entity)
+        assert page["items"], entity
+        for item in page["items"]:
+            assert isinstance(item.get("sync_seq"), int), f"{entity} item lacks sync_seq"
+            assert item["sync_seq"] > 0
+        # The envelope cursor is exactly the last item's (sync_seq, id).
+        assert page["items"][-1]["sync_seq"] == page["next_since_seq"]

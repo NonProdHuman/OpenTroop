@@ -163,7 +163,7 @@ export default function SettingsScreen() {
       {pushError && <Text style={{ color: colors.danger, marginTop: 8 }}>{pushError}</Text>}
       <Text style={{ color: colors.textSubtle, marginTop: "auto", textAlign: "center" }}>
         {lastOutcome?.error
-          ? "Offline — showing local data; changes will sync when you're back."
+          ? `Showing local data — last sync failed: ${lastOutcome.error}`
           : "Attendance/RSVP screens on the offline mirror and Face ID app lock arrive in M5 (GH-93)."}
       </Text>
     </View>

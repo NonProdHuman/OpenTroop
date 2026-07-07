@@ -32,21 +32,23 @@ from app.models.location import Location
 from app.models.member import Member, MemberRelationship
 from app.models.message import Message, MessageRecipient
 from app.models.tenant import Tenant
-from app.schemas.event import EventParticipantRead, EventRead
-from app.schemas.event_type import EventTypeRead
-from app.schemas.location import LocationRead
-from app.schemas.member import MemberRead
-from app.schemas.message import MessageRead, MessageRecipientRead
-from app.schemas.relationship import MemberRelationshipRead
 from app.schemas.sync import (
+    SyncEventParticipantRead,
     SyncEventParticipantsPage,
+    SyncEventRead,
     SyncEventsPage,
+    SyncEventTypeRead,
     SyncEventTypesPage,
     SyncInboxMessagesPage,
     SyncInboxRecipientsPage,
+    SyncLocationRead,
     SyncLocationsPage,
+    SyncMemberRead,
+    SyncMemberRelationshipRead,
     SyncMemberRelationshipsPage,
     SyncMembersPage,
+    SyncMessageRead,
+    SyncMessageRecipientRead,
 )
 
 router = APIRouter(prefix="/sync", tags=["sync"])
@@ -164,7 +166,7 @@ def sync_members(
     page, next_seq, next_id, has_more = _pull_page(
         Member, db, tenant_id, since_seq, since_id, limit, extra_clause=extra
     )
-    items = [MemberRead.model_validate(m) for m in page]
+    items = [SyncMemberRead.model_validate(m) for m in page]
     if family is not None:
         # Family scope carries the household's own data (contact, medical —
         # fields the family already edits interactively). Leader-facing notes
@@ -204,7 +206,7 @@ def sync_member_relationships(
         MemberRelationship, db, tenant_id, since_seq, since_id, limit, extra_clause=extra
     )
     return SyncMemberRelationshipsPage(
-        items=[MemberRelationshipRead.model_validate(r) for r in page],
+        items=[SyncMemberRelationshipRead.model_validate(r) for r in page],
         next_since_seq=next_seq,
         next_since_id=next_id,
         has_more=has_more,
@@ -227,7 +229,7 @@ def sync_event_types(
         EventType, db, tenant_id, since_seq, since_id, limit
     )
     return SyncEventTypesPage(
-        items=[EventTypeRead.model_validate(t) for t in page],
+        items=[SyncEventTypeRead.model_validate(t) for t in page],
         next_since_seq=next_seq,
         next_since_id=next_id,
         has_more=has_more,
@@ -250,7 +252,7 @@ def sync_locations(
         Location, db, tenant_id, since_seq, since_id, limit
     )
     return SyncLocationsPage(
-        items=[LocationRead.model_validate(loc) for loc in page],
+        items=[SyncLocationRead.model_validate(loc) for loc in page],
         next_since_seq=next_seq,
         next_since_id=next_id,
         has_more=has_more,
@@ -278,7 +280,7 @@ def sync_events(
         extra_clause=_event_visibility_for(ctx, db),
     )
     return SyncEventsPage(
-        items=[EventRead.model_validate(e) for e in page],
+        items=[SyncEventRead.model_validate(e) for e in page],
         next_since_seq=next_seq,
         next_since_id=next_id,
         has_more=has_more,
@@ -308,7 +310,7 @@ def sync_event_participants(
         EventParticipant, db, tenant_id, since_seq, since_id, limit, extra_clause=extra
     )
     return SyncEventParticipantsPage(
-        items=[EventParticipantRead.model_validate(p) for p in page],
+        items=[SyncEventParticipantRead.model_validate(p) for p in page],
         next_since_seq=next_seq,
         next_since_id=next_id,
         has_more=has_more,
@@ -331,7 +333,7 @@ def sync_inbox_messages(
         Message, db, tenant_id, since_seq, since_id, limit, extra_clause=Message.id.in_(mine)
     )
     return SyncInboxMessagesPage(
-        items=[MessageRead.model_validate(m) for m in page],
+        items=[SyncMessageRead.model_validate(m) for m in page],
         next_since_seq=next_seq,
         next_since_id=next_id,
         has_more=has_more,
@@ -359,7 +361,7 @@ def sync_inbox_recipients(
         extra_clause=MessageRecipient.member_id == actor.id,
     )
     return SyncInboxRecipientsPage(
-        items=[MessageRecipientRead.model_validate(r) for r in page],
+        items=[SyncMessageRecipientRead.model_validate(r) for r in page],
         next_since_seq=next_seq,
         next_since_id=next_id,
         has_more=has_more,

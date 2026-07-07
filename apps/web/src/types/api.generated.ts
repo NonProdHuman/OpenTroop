@@ -5138,23 +5138,305 @@ export interface components {
          * @enum {string}
          */
         SwimClassification: "nonswimmer" | "beginner" | "swimmer";
+        /** SyncEventParticipantRead */
+        SyncEventParticipantRead: {
+            /** Attended */
+            attended?: boolean | null;
+            /** Backpacking Miles Override */
+            backpacking_miles_override?: string | null;
+            /** Camping Nights Override */
+            camping_nights_override?: number | null;
+            /** Comment */
+            comment?: string | null;
+            /** Community Service Hours Override */
+            community_service_hours_override?: string | null;
+            /** Conservation Hours Override */
+            conservation_hours_override?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Cycling Miles Override */
+            cycling_miles_override?: string | null;
+            /**
+             * Driver
+             * @default false
+             */
+            driver: boolean;
+            /**
+             * Drives From
+             * @default false
+             */
+            drives_from: boolean;
+            /**
+             * Drives To
+             * @default false
+             */
+            drives_to: boolean;
+            /**
+             * Electronic Permission
+             * @default false
+             */
+            electronic_permission: boolean;
+            /** Electronic Permission At */
+            electronic_permission_at?: string | null;
+            /** Electronic Permission By Id */
+            electronic_permission_by_id?: string | null;
+            /** Electronic Permission Signature */
+            electronic_permission_signature?: string | null;
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /**
+             * Guest Count
+             * @default 0
+             */
+            guest_count: number;
+            /** Hiking Miles Override */
+            hiking_miles_override?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+            /** Paddling Miles Override */
+            paddling_miles_override?: string | null;
+            /** Permission Message Snapshot */
+            permission_message_snapshot?: string | null;
+            /**
+             * Permission Slip Submitted
+             * @default false
+             */
+            permission_slip_submitted: boolean;
+            /** @default not_required */
+            permission_status: components["schemas"]["PermissionSlipStatus"];
+            /** @default no_response */
+            rsvp_status: components["schemas"]["RsvpStatus"];
+            /** Seat Count */
+            seat_count?: number | null;
+            /**
+             * Signed Up
+             * @default true
+             */
+            signed_up: boolean;
+            /** Signed Up At */
+            signed_up_at?: string | null;
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Water Hours Override */
+            water_hours_override?: string | null;
+        };
         /** SyncEventParticipantsPage */
         SyncEventParticipantsPage: {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["EventParticipantRead"][];
+            items: components["schemas"]["SyncEventParticipantRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
             next_since_seq: number;
+        };
+        /** SyncEventRead */
+        SyncEventRead: {
+            /** Agenda */
+            agenda?: string | null;
+            /**
+             * All Day
+             * @default false
+             */
+            all_day: boolean;
+            /** Attendance Taken */
+            attendance_taken: boolean;
+            /** Backpacking Miles */
+            backpacking_miles?: string | null;
+            /** Camping Nights */
+            camping_nights?: number | null;
+            /** Cancelled At */
+            cancelled_at?: string | null;
+            /** Community Service Hours */
+            community_service_hours?: string | null;
+            /** Conservation Hours */
+            conservation_hours?: string | null;
+            /** Cost Adult */
+            cost_adult?: string | null;
+            /** Cost Youth */
+            cost_youth?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Cycling Miles */
+            cycling_miles?: string | null;
+            /** Departure Location */
+            departure_location?: string | null;
+            /** Description */
+            description?: string | null;
+            event_type: components["schemas"]["EventTypeRead"];
+            /**
+             * Event Type Id
+             * Format: uuid
+             */
+            event_type_id: string;
+            /** Hiking Miles */
+            hiking_miles?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Linked Event Id */
+            linked_event_id?: string | null;
+            location?: components["schemas"]["LocationRead"] | null;
+            /** Location Id */
+            location_id?: string | null;
+            /** Location Notes */
+            location_notes?: string | null;
+            /** Name */
+            name: string;
+            /** Paddling Miles */
+            paddling_miles?: string | null;
+            /** Return Location */
+            return_location?: string | null;
+            /**
+             * Scheduled End
+             * Format: date-time
+             */
+            scheduled_end: string;
+            /**
+             * Scheduled Start
+             * Format: date-time
+             */
+            scheduled_start: string;
+            /** Signup Deadline */
+            signup_deadline?: string | null;
+            /** Signup Limit Adults */
+            signup_limit_adults?: number | null;
+            /** Signup Limit Scouts */
+            signup_limit_scouts?: number | null;
+            /** Signup Start */
+            signup_start?: string | null;
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Tour Permit Submitted */
+            tour_permit_submitted?: boolean | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Video Conference Url */
+            video_conference_url?: string | null;
+            /** Water Hours */
+            water_hours?: string | null;
+        };
+        /** SyncEventTypeRead */
+        SyncEventTypeRead: {
+            /**
+             * Allow Guests
+             * @default false
+             */
+            allow_guests: boolean;
+            /**
+             * Allow Signups
+             * @default true
+             */
+            allow_signups: boolean;
+            /** Color */
+            color?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /**
+             * Is Online
+             * @default false
+             */
+            is_online: boolean;
+            /** Is System */
+            is_system: boolean;
+            /** Name */
+            name: string;
+            /**
+             * Require Permission Slip
+             * @default false
+             */
+            require_permission_slip: boolean;
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Tracks Camping Nights
+             * @default false
+             */
+            tracks_camping_nights: boolean;
+            /**
+             * Tracks Mileage
+             * @default false
+             */
+            tracks_mileage: boolean;
+            /**
+             * Tracks Service Hours
+             * @default false
+             */
+            tracks_service_hours: boolean;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** SyncEventTypesPage */
         SyncEventTypesPage: {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["EventTypeRead"][];
+            items: components["schemas"]["SyncEventTypeRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
@@ -5165,7 +5447,7 @@ export interface components {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["EventRead"][];
+            items: components["schemas"]["SyncEventRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
@@ -5176,7 +5458,7 @@ export interface components {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["MessageRead"][];
+            items: components["schemas"]["SyncMessageRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
@@ -5187,29 +5469,251 @@ export interface components {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["MessageRecipientRead"][];
+            items: components["schemas"]["SyncMessageRecipientRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
             next_since_seq: number;
+        };
+        /** SyncLocationRead */
+        SyncLocationRead: {
+            /** City */
+            city?: string | null;
+            /**
+             * Country
+             * @default US
+             */
+            country: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Directions */
+            directions?: string | null;
+            /** Distance Miles */
+            distance_miles?: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Name */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+            /** Postal Code */
+            postal_code?: string | null;
+            /** State */
+            state?: string | null;
+            /** Street1 */
+            street1?: string | null;
+            /** Street2 */
+            street2?: string | null;
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Website Url */
+            website_url?: string | null;
         };
         /** SyncLocationsPage */
         SyncLocationsPage: {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["LocationRead"][];
+            items: components["schemas"]["SyncLocationRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
             next_since_seq: number;
+        };
+        /** SyncMemberRead */
+        SyncMemberRead: {
+            /** Address Line1 */
+            address_line1?: string | null;
+            /** Address Line2 */
+            address_line2?: string | null;
+            /** Allergies */
+            allergies?: string | null;
+            /** Bsa Id */
+            bsa_id?: string | null;
+            /** City */
+            city?: string | null;
+            /**
+             * Country
+             * @default US
+             */
+            country: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Date Of Birth */
+            date_of_birth?: string | null;
+            /** Dietary Restrictions */
+            dietary_restrictions?: string | null;
+            /** Email */
+            email?: string | null;
+            /**
+             * Email Bounced
+             * @default false
+             */
+            email_bounced: boolean;
+            /**
+             * Email Opt Out
+             * @default false
+             */
+            email_opt_out: boolean;
+            /** Emergency Contact 1 Name */
+            emergency_contact_1_name?: string | null;
+            /** Emergency Contact 1 Phone */
+            emergency_contact_1_phone?: string | null;
+            /** Emergency Contact 2 Name */
+            emergency_contact_2_name?: string | null;
+            /** Emergency Contact 2 Phone */
+            emergency_contact_2_phone?: string | null;
+            /** First Name */
+            first_name: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Last Name */
+            last_name: string;
+            /** Medical Form Ab Date */
+            medical_form_ab_date?: string | null;
+            /** Medical Form C Date */
+            medical_form_c_date?: string | null;
+            member_type: components["schemas"]["MemberType"];
+            /** @default active */
+            membership_status: components["schemas"]["MemberStatus"];
+            /** Middle Name */
+            middle_name?: string | null;
+            /** Name Suffix */
+            name_suffix?: string | null;
+            /** Nickname */
+            nickname?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Oa Active
+             * @default false
+             */
+            oa_active: boolean;
+            /** Oa Brotherhood Date */
+            oa_brotherhood_date?: string | null;
+            /** Oa Call Out Date */
+            oa_call_out_date?: string | null;
+            /** Oa Election Date */
+            oa_election_date?: string | null;
+            /**
+             * Oa Member
+             * @default false
+             */
+            oa_member: boolean;
+            /** Oa Notes */
+            oa_notes?: string | null;
+            /** Oa Ordeal Date */
+            oa_ordeal_date?: string | null;
+            /** Oa Vigil Date */
+            oa_vigil_date?: string | null;
+            /** Oa Vigil Name */
+            oa_vigil_name?: string | null;
+            /** Phone */
+            phone?: string | null;
+            /** Postal Code */
+            postal_code?: string | null;
+            /**
+             * Sms Opt In
+             * @default false
+             */
+            sms_opt_in: boolean;
+            /** State */
+            state?: string | null;
+            /** @default nonswimmer */
+            swim_classification: components["schemas"]["SwimClassification"];
+            /** Swim Date */
+            swim_date?: string | null;
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Troop Membership End Date */
+            troop_membership_end_date?: string | null;
+            /** Troop Membership Start Date */
+            troop_membership_start_date?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** User Id */
+            user_id?: string | null;
+        };
+        /** SyncMemberRelationshipRead */
+        SyncMemberRelationshipRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * From Member Id
+             * Format: uuid
+             */
+            from_member_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            relationship_type: components["schemas"]["RelationshipType"];
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * To Member Id
+             * Format: uuid
+             */
+            to_member_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /** SyncMemberRelationshipsPage */
         SyncMemberRelationshipsPage: {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["MemberRelationshipRead"][];
+            items: components["schemas"]["SyncMemberRelationshipRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
@@ -5223,11 +5727,103 @@ export interface components {
             /** Has More */
             has_more: boolean;
             /** Items */
-            items: components["schemas"]["MemberRead"][];
+            items: components["schemas"]["SyncMemberRead"][];
             /** Next Since Id */
             next_since_id: string | null;
             /** Next Since Seq */
             next_since_seq: number;
+        };
+        /** SyncMessageRead */
+        SyncMessageRead: {
+            /** Body */
+            body: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Scheduled At */
+            scheduled_at: string | null;
+            /** Send Email */
+            send_email: boolean;
+            /** Send Push */
+            send_push: boolean;
+            /** Send To All */
+            send_to_all: boolean;
+            /** Sent At */
+            sent_at: string | null;
+            /**
+             * Sent By Id
+             * Format: uuid
+             */
+            sent_by_id: string;
+            status: components["schemas"]["MessageStatus"];
+            /** Subject */
+            subject: string;
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** SyncMessageRecipientRead */
+        SyncMessageRecipientRead: {
+            /** Attempts */
+            attempts: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            email_state: components["schemas"]["EmailState"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Last Error */
+            last_error: string | null;
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+            /**
+             * Message Id
+             * Format: uuid
+             */
+            message_id: string;
+            push_state: components["schemas"]["PushState"];
+            /** Read At */
+            read_at: string | null;
+            /** Sync Seq */
+            sync_seq: number;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /**
          * TenantAdminInvite

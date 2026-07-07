@@ -24,35 +24,72 @@ class _SyncPageBase(BaseModel):
     has_more: bool
 
 
+# Sync stream items are the interactive *Read payloads plus the row's own
+# ``sync_seq``: the offline mirror stores it as a NOT NULL column with every
+# row (GH-153 §C1), so it is part of the pull contract, not an internal.
+
+
+class SyncMemberRead(MemberRead):
+    sync_seq: int
+
+
+class SyncMemberRelationshipRead(MemberRelationshipRead):
+    sync_seq: int
+
+
+class SyncEventTypeRead(EventTypeRead):
+    sync_seq: int
+
+
+class SyncLocationRead(LocationRead):
+    sync_seq: int
+
+
+class SyncEventRead(EventRead):
+    sync_seq: int
+
+
+class SyncEventParticipantRead(EventParticipantRead):
+    sync_seq: int
+
+
+class SyncMessageRead(MessageRead):
+    sync_seq: int
+
+
+class SyncMessageRecipientRead(MessageRecipientRead):
+    sync_seq: int
+
+
 class SyncMembersPage(_SyncPageBase):
     """One page of the members change stream, tombstones included."""
 
-    items: list[MemberRead]
+    items: list[SyncMemberRead]
 
 
 class SyncMemberRelationshipsPage(_SyncPageBase):
-    items: list[MemberRelationshipRead]
+    items: list[SyncMemberRelationshipRead]
 
 
 class SyncEventTypesPage(_SyncPageBase):
-    items: list[EventTypeRead]
+    items: list[SyncEventTypeRead]
 
 
 class SyncLocationsPage(_SyncPageBase):
-    items: list[LocationRead]
+    items: list[SyncLocationRead]
 
 
 class SyncEventsPage(_SyncPageBase):
-    items: list[EventRead]
+    items: list[SyncEventRead]
 
 
 class SyncEventParticipantsPage(_SyncPageBase):
-    items: list[EventParticipantRead]
+    items: list[SyncEventParticipantRead]
 
 
 class SyncInboxMessagesPage(_SyncPageBase):
-    items: list[MessageRead]
+    items: list[SyncMessageRead]
 
 
 class SyncInboxRecipientsPage(_SyncPageBase):
-    items: list[MessageRecipientRead]
+    items: list[SyncMessageRecipientRead]
