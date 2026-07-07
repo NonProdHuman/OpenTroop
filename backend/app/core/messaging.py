@@ -383,6 +383,16 @@ def assemble_digests(db: Session, service: NotificationService, tenant_id: uuid.
                 row.email_state = EmailState.FAILED
                 row.last_error = "Recipient no longer available"
             continue
+        if member.email_bounced or member.email_opt_out:
+            # The flags may have flipped since resolve time (bounce webhook,
+            # opt-out) — a held copy must not outlive them (CAN-SPAM).
+            skip = (
+                EmailState.SKIPPED_BOUNCED if member.email_bounced else EmailState.SKIPPED_OPT_OUT
+            )
+            for row in member_rows:
+                row.email_state = skip
+                row.last_error = None
+            continue
         messages = [
             m for m in (db.get(Message, r.message_id) for r in member_rows) if m is not None
         ]

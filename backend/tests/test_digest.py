@@ -263,6 +263,30 @@ def test_one_email_per_member(session_factory: sessionmaker[Session]) -> None:
     assert {m.to for m in email.sent} == {"a@x.test", "b@x.test"}
 
 
+def test_assembly_honors_flags_set_after_hold(session_factory: sessionmaker[Session]) -> None:
+    """An opt-out or bounce recorded *after* a copy was held must still win —
+    a digest can lag the hold by a week, and CAN-SPAM doesn't care when the
+    message was composed."""
+    email = FakeEmailBackend()
+    with session_factory() as db, tenant_scope(TENANT_A):
+        _seed_tenant(db, last_digest_at=None)  # due
+        opted_out = _seed_member(db, "out@x.test")
+        bounced = _seed_member(db, "bounce@x.test")
+        _seed_held_message(db, opted_out, "Campout", "Details")
+        _seed_held_message(db, bounced, "Campout", "Details")
+        opted_out.email_opt_out = True
+        bounced.email_bounced = True
+        db.commit()
+
+        emailed = assemble_digests(db, _service(email), TENANT_A)
+
+    assert emailed == 0
+    assert email.sent == []
+    with session_factory() as db, unscoped():
+        states = set(db.scalars(select(MessageRecipient.email_state)).all())
+        assert states == {EmailState.SKIPPED_OPT_OUT, EmailState.SKIPPED_BOUNCED}
+
+
 def test_not_yet_due_tenant_untouched(session_factory: sessionmaker[Session]) -> None:
     email = FakeEmailBackend()
     recent = datetime.now(UTC)
