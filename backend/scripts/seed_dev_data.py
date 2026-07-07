@@ -165,6 +165,7 @@ def seed_demo_tenant(  # noqa: C901 — linear seed routine; splitting hurts rea
     """
     from sqlalchemy import select
 
+    from app.core.config import settings
     from app.core.provisioning import get_or_create_member_position, provision_tenant
     from app.models.enums import (
         GroupType,
@@ -266,6 +267,36 @@ def seed_demo_tenant(  # noqa: C901 — linear seed routine; splitting hurts rea
         assign(adults[full_name], "parent-guardian")
     for full_name, slug_ in SCOUT_POSITIONS.items():
         assign(scouts[full_name], slug_)
+
+    # -- Anonymous public-demo principal (GH-246, ADR 0012) ----------------------
+    # A read-only "Demo Viewer" the backend maps token-less requests to on the demo
+    # tenant (app/core/deps.py resolves it by settings.demo_viewer_email). It holds
+    # ONLY the read-only "viewer" position — no baseline Member role, so it never
+    # even carries photo:upload — belt-and-suspenders behind the structural
+    # read-only gate. Seeded unconditionally so the demo tenant is anonymous-ready.
+    demo_viewer = Member(
+        tenant_id=tid,
+        first_name="Demo",
+        last_name="Viewer",
+        member_type=MemberType.ADULT,
+        email=settings.demo_viewer_email,
+    )
+    session.add(demo_viewer)
+    session.flush()
+    viewer_position = session.scalar(
+        select(Position).where(
+            Position.tenant_id == tid,
+            Position.slug == "viewer",
+            Position.is_deleted.is_(False),
+        )
+    )
+    if viewer_position is None:
+        raise RuntimeError("Seeded 'viewer' position not found")
+    session.add(
+        MemberPositionAssignment(
+            tenant_id=tid, member_id=demo_viewer.id, position_id=viewer_position.id
+        )
+    )
 
     # Parents ↔ children: surname match against the first 8 scouts.
     all_scouts = list(scouts.values())
@@ -632,7 +663,7 @@ def main() -> None:
         session.commit()
 
         scout_count = sum(len(names) for names in PATROLS.values())
-        adult_count = len(ADULT_LEADERS) + len(PARENTS) + 1  # + founder
+        adult_count = len(ADULT_LEADERS) + len(PARENTS) + 2  # + founder + demo viewer
         print()
         print(f"Seeded tenant {tenant.name!r}")
         print(f"  Tenant ID : {tenant.id}")

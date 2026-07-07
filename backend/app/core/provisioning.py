@@ -125,6 +125,11 @@ DEFAULT_FUNCTIONAL_ROLES: list[dict[str, object]] = [
         "perms": [P.ADVANCEMENT_READ, P.ADVANCEMENT_RECORD],
     },
     {"slug": "advancement-viewers", "name": "Advancement Viewers", "perms": [P.ADVANCEMENT_READ]},
+    # Read-only gallery visibility without the contribute grant. photo:read and
+    # photo:upload normally travel together on the baseline Members role; this bundle
+    # exists so a pure viewer (e.g. the public-demo principal, GH-246) can see photos
+    # but never upload or moderate. Deliberately excludes PHOTO_UPLOAD/PHOTO_MODERATE.
+    {"slug": "photo-viewers", "name": "Photo Viewers", "perms": [P.PHOTO_READ]},
     {
         "slug": "finance-admins",
         "name": "Finance Admins",
@@ -284,6 +289,17 @@ DEFAULT_POSITIONS: list[dict[str, object]] = [
         "scope": PositionScope.ANY,
         "is_default": True,
         "roles": ["members"],
+    },
+    # Read-only across every domain, and the assignable identity behind the public
+    # read-only demo's anonymous principal (GH-246, ADR 0012). Maps ONLY to viewer
+    # bundles — it grants no write/create/delete/role/finance-write permission and
+    # deliberately never maps to administrators. The structural read-only gate in
+    # app/core/deps.py is the real guarantee; this is belt-and-suspenders.
+    {
+        "slug": "viewer",
+        "name": "Viewer",
+        "scope": PositionScope.ANY,
+        "roles": ["member-viewers", "event-viewers", "advancement-viewers", "photo-viewers"],
     },
 ]
 

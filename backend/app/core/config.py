@@ -187,5 +187,20 @@ class Settings(BaseSettings):
     cf_access_team_domain: str = ""  # e.g. "myteam" for myteam.cloudflareaccess.com
     cf_access_aud: str = ""
 
+    # --- Public demo environment (GH-246, ADR 0012) ---
+
+    # Slug of the single tenant that serves the anonymous read-only public demo.
+    # Empty (default) disables the whole anonymous-principal carve-out entirely —
+    # prod and self-host are unaffected until this names a real tenant. When set, a
+    # request that resolves to *this* tenant and carries no Authorization header
+    # resolves a fixed, seeded, read-only "Demo Viewer" member instead of 401, and
+    # every non-GET/HEAD/OPTIONS method is refused 403 structurally, independent of
+    # RBAC. The carve-out keys on both this slug and the resolved tenant id, so it
+    # can never apply to any other tenant. See app/core/deps.py and ADR 0012.
+    demo_tenant_slug: str = ""
+    # Email of the seeded, unclaimed Demo Viewer member the anonymous principal maps
+    # to inside the demo tenant. Only consulted when demo_tenant_slug is set.
+    demo_viewer_email: str = "demo-viewer@opentroop.invalid"
+
 
 settings = Settings()  # type: ignore[call-arg]

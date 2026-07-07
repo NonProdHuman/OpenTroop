@@ -141,6 +141,23 @@ def _tenant_key(scope: Scope) -> str:
     return f"ip:{_client_ip(scope)}"
 
 
+def _is_demo_request(scope: Scope) -> bool:
+    """True when this request resolves (by subdomain) to the public-demo tenant.
+
+    Cheap, DB-free, and inert unless ``DEMO_TENANT_SLUG`` is set — it only decides
+    which rate-limit bucket the request lands in, so a mismatch never changes
+    correctness, just fairness. Mirrors the host handling in :func:`_tenant_key`.
+    """
+    demo_slug = settings.demo_tenant_slug.strip()
+    if not demo_slug:
+        return False
+    host: str | None = None
+    if settings.trust_forwarded_host:
+        host = _header(scope, b"x-forwarded-host")
+    host = host or _header(scope, b"host") or ""
+    return _extract_subdomain(host, settings.app_domain) == demo_slug
+
+
 class RateLimitMiddleware:
     """App-layer request limits per tenant and per IP (GH-116)."""
 
@@ -169,6 +186,16 @@ class RateLimitMiddleware:
                 "webhook",
                 _client_ip(scope),
                 settings.rate_limit_webhook_per_minute,
+            )
+        elif _is_demo_request(scope):
+            # The public read-only demo (GH-246) shares one anonymous principal, so a
+            # single tenant bucket would let one noisy visitor 429 the demo for
+            # everyone. Bill it per client IP instead, like the other unauthenticated
+            # hot paths (/calendar/*). Inert unless DEMO_TENANT_SLUG is set.
+            bucket, key, limit = (
+                "demo",
+                _client_ip(scope),
+                settings.rate_limit_calendar_per_minute,
             )
         else:
             bucket, key, limit = "tenant", _tenant_key(scope), settings.rate_limit_per_minute

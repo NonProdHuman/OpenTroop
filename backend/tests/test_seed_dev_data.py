@@ -52,7 +52,7 @@ def test_seed_demo_tenant_populates_troop(db_session: Session) -> None:
         .where(Member.tenant_id == tid, Member.member_type == MemberType.ADULT),
     )
     assert scouts == sum(len(names) for names in PATROLS.values()) == 20
-    assert adults == 16  # 7 leaders + 8 parents + founder
+    assert adults == 17  # 7 leaders + 8 parents + founder + read-only Demo Viewer (GH-246)
 
     patrols = _count(
         db_session,
@@ -84,7 +84,9 @@ def test_seed_demo_tenant_populates_troop(db_session: Session) -> None:
     assert relationships == 8
 
     # Every member holds the baseline Member position (invariant from
-    # docs/spec/baseline-member-access.md).
+    # docs/spec/baseline-member-access.md) — except the read-only Demo Viewer
+    # (GH-246), which holds only the viewer position by design (no baseline role,
+    # so it never carries photo:upload).
     member_pos = db_session.scalar(
         select(Position).where(Position.tenant_id == tid, Position.slug == "member")
     )
@@ -98,7 +100,7 @@ def test_seed_demo_tenant_populates_troop(db_session: Session) -> None:
             MemberPositionAssignment.position_id == member_pos.id,
         ),
     )
-    assert baseline_assignments == scouts + adults
+    assert baseline_assignments == scouts + adults - 1  # all but the Demo Viewer
 
 
 def test_plc_group_resolves_leadership(db_session: Session) -> None:
@@ -138,7 +140,7 @@ def test_manifest_counts_match_seeded_data(db_session: Session) -> None:
     counts = manifest["counts"]
     assert isinstance(counts, dict)
     assert counts["scouts"] == 20
-    assert counts["adults"] == 16
+    assert counts["adults"] == 17  # includes the read-only Demo Viewer (GH-246)
     assert counts["events"] == 11
     assert counts["locations"] == 3
     assert counts["groups"] == 6  # 4 patrols + PLC + Fundraiser Crew
