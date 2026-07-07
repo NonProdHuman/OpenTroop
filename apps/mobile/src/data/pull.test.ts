@@ -94,6 +94,31 @@ describe("pullRound", () => {
     expect(listRows<{ id: string }>(db, "events").map((e) => e.id)).toEqual(["e2"])
   })
 
+  it("fails the round instead of spinning when the cursor does not advance", async () => {
+    // A buggy server answering has_more=true while echoing the request cursor
+    // (the 2026-07-07 opentroop.dev loop) must throw, not re-request forever.
+    const stuck = page([row("m1", 1)], 0, null, true)
+    const { http, requests } = fakeSyncServer({ event_types: [stuck, stuck, stuck] })
+    await expect(pullRound(db, http)).rejects.toThrow("not advancing its cursor")
+    expect(requests.filter((r) => r.includes("/sync/event_types"))).toHaveLength(1)
+  })
+
+  it("fails the round on a malformed page body", async () => {
+    const { http } = fakeSyncServer({ event_types: [{ detail: "not a page" }] })
+    await expect(pullRound(db, http)).rejects.toThrow("malformed page")
+    expect(getCursor(db, "event_types")).toEqual({ last_seq: 0, last_id: null })
+  })
+
+  it("fails the round when a row lacks sync_seq, leaving the cursor resumable", async () => {
+    // Server items without sync_seq can't be mirrored (NOT NULL column); the
+    // page transaction must roll back so the retry starts at the same cursor.
+    const bare = { id: "m1", updated_at: "2026-07-04T12:00:00Z", is_deleted: false }
+    const { http } = fakeSyncServer({ members: [page([bare], 1, "m1", false)] })
+    await expect(pullRound(db, http)).rejects.toThrow()
+    expect(listRows(db, "members")).toHaveLength(0)
+    expect(getCursor(db, "members")).toEqual({ last_seq: 0, last_id: null })
+  })
+
   it("pulls entities in dependency order", async () => {
     const { http, requests } = fakeSyncServer({})
     await pullRound(db, http)

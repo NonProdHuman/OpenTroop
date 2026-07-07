@@ -67,10 +67,19 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     [activeTenant],
   )
 
+  // `getToken`'s identity is not stable across renders (clerk-expo rebuilds
+  // it), and every sync ends in state updates. Read it through a ref so `http`
+  // — and everything memoized on it, including the mount-sync effect — changes
+  // only with the active tenant, not on every render.
+  const getTokenRef = useRef(getToken)
+  useEffect(() => {
+    getTokenRef.current = getToken
+  }, [getToken])
+
   const http = useMemo<HttpClient | null>(() => {
     if (!activeTenant) return null
     return async (path, init) => {
-      const token = await getToken()
+      const token = await getTokenRef.current()
       const headers: Record<string, string> = { "Content-Type": "application/json" }
       if (token) headers.Authorization = `Bearer ${token}`
       if (usesTenantHeader()) headers["X-Tenant-ID"] = activeTenant.tenant_id
@@ -87,7 +96,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       }
       return { status: response.status, body }
     }
-  }, [activeTenant, getToken])
+  }, [activeTenant])
 
   const sync = useCallback(
     async (opts: { full?: boolean } = {}) => {

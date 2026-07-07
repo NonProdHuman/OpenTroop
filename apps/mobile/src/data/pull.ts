@@ -40,10 +40,18 @@ async function pullEntity(
     if (cursor.last_id) params.set("since_id", cursor.last_id)
     const response = await http(`/sync/${entity}?${params}`, { method: "GET" })
     if (response.status >= 400) throw new PullError(entity, response.status)
-    const page = response.body as SyncPage
+    const page = response.body as SyncPage | null
+    if (!page || !Array.isArray(page.items) || typeof page.next_since_seq !== "number") {
+      throw new Error(`Sync pull for ${entity} returned a malformed page`)
+    }
+    const prev = cursor
     cursor = { last_seq: page.next_since_seq, last_id: page.next_since_id }
     applyPullPage(db, entity, page.items, cursor, epoch)
     if (!page.has_more) return
+    if (cursor.last_seq === prev.last_seq && cursor.last_id === prev.last_id) {
+      // A server bug must fail the round, not spin the request loop forever.
+      throw new Error(`Sync pull for ${entity} is not advancing its cursor`)
+    }
   }
 }
 
