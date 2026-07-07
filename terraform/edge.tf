@@ -128,10 +128,12 @@ resource "cloudflare_zero_trust_access_application" "platform" {
   domain           = "admin.${var.app_domain}"
   session_duration = "24h"
 
-  self_hosted_domains = [
-    "admin.${var.app_domain}",
-    "api.${var.app_domain}/platform",
-    "${var.app_domain}/api/platform",
+  # `self_hosted_domains` is deprecated in provider v5 — `destinations` is the
+  # successor with identical public-URI semantics (same underlying API field).
+  destinations = [
+    { type = "public", uri = "admin.${var.app_domain}" },
+    { type = "public", uri = "api.${var.app_domain}/platform" },
+    { type = "public", uri = "${var.app_domain}/api/platform" },
   ]
 
   policies = [
