@@ -7,6 +7,7 @@ import {
   ScrollView,
   Text,
   TextInput,
+  useColorScheme,
   View,
 } from "react-native"
 import {
@@ -81,6 +82,7 @@ function RecordSheet({
   isRecorder: boolean
 }) {
   const colors = useColors()
+  const scheme = useColorScheme()
   const [date, setDate] = useState(today())
   const valid = /^\d{4}-\d{2}-\d{2}$/.test(date)
   return (
@@ -98,7 +100,7 @@ function RecordSheet({
           onPress={() => undefined}
           style={{ backgroundColor: colors.surface, borderRadius: 16, padding: 20, gap: 12 }}
         >
-          <Text style={{ fontWeight: "700", fontSize: 16 }}>
+          <Text style={{ fontWeight: "700", fontSize: 16, color: colors.textStrong }}>
             {isRecorder ? "Mark complete" : "Report completion"} — {entry.requirement.label}
           </Text>
           <Text style={{ color: colors.text }} numberOfLines={4}>
@@ -109,8 +111,17 @@ function RecordSheet({
             value={date}
             onChangeText={setDate}
             placeholder="YYYY-MM-DD"
+            placeholderTextColor={colors.textSubtle}
             autoCapitalize="none"
-            style={{ borderWidth: 1, borderColor: valid ? colors.border : colors.dangerInput, borderRadius: 8, padding: 10 }}
+            keyboardAppearance={scheme === "dark" ? "dark" : "light"}
+            style={{
+              borderWidth: 1,
+              borderColor: valid ? colors.border : colors.dangerInput,
+              borderRadius: 8,
+              padding: 10,
+              color: colors.text,
+              backgroundColor: colors.background,
+            }}
           />
           <Pressable
             disabled={!valid}
@@ -161,7 +172,7 @@ function RankSection({
         onPress={() => setOpen((o) => !o)}
         style={{ padding: 14, flexDirection: "row", justifyContent: "space-between" }}
       >
-        <Text style={{ fontWeight: "700" }}>
+        <Text style={{ fontWeight: "700", color: colors.textStrong }}>
           {view.rank.name}
           {earned ? `  ·  earned ${view.progress?.completed_date}` : ""}
         </Text>
@@ -257,7 +268,13 @@ export default function AdvancementScreen() {
   return (
     <ScrollView
       contentContainerStyle={{ padding: 16 }}
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefetching}
+          onRefresh={() => refetch()}
+          tintColor={colors.textMuted}
+        />
+      }
     >
       {scouts && scouts.length > 0 ? (
         <ScoutChips scouts={scouts} selectedId={scoutId} onSelect={setSelected} />
@@ -281,7 +298,7 @@ export default function AdvancementScreen() {
 
       {advancement && (
         <View style={{ marginTop: 8 }}>
-          <Text style={{ fontWeight: "700", marginBottom: 6 }}>Merit badges</Text>
+          <Text style={{ fontWeight: "700", marginBottom: 6, color: colors.textStrong }}>Merit badges</Text>
           {badges.length === 0 && (
             <Text style={{ color: colors.textMuted }}>No merit badge records yet.</Text>
           )}

@@ -254,7 +254,7 @@ export default function EventPhotosScreen() {
         </View>
 
         {photosQuery.isLoading ? (
-          <ActivityIndicator style={{ marginTop: 32 }} />
+          <ActivityIndicator style={{ marginTop: 32 }} color={colors.textMuted} />
         ) : photosQuery.isError ? (
           <Text style={{ color: colors.textMuted, textAlign: "center", marginTop: 32 }}>
             Photos need a connection — try again online.

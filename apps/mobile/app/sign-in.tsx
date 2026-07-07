@@ -7,6 +7,7 @@ import {
   Pressable,
   Text,
   TextInput,
+  useColorScheme,
   View,
 } from "react-native"
 import { useRouter } from "expo-router"
@@ -26,6 +27,7 @@ WebBrowser.maybeCompleteAuthSession()
  */
 export default function SignInScreen() {
   const colors = useColors()
+  const scheme = useColorScheme()
   const router = useRouter()
   const { signIn, setActive, isLoaded } = useSignIn()
   const { startSSOFlow } = useSSO()
@@ -91,9 +93,17 @@ export default function SignInScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={{ flex: 1, justifyContent: "center", padding: 24, gap: 12 }}
+      style={{
+        flex: 1,
+        justifyContent: "center",
+        padding: 24,
+        gap: 12,
+        backgroundColor: colors.background,
+      }}
     >
-      <Text style={{ fontSize: 28, fontWeight: "700", marginBottom: 8 }}>OpenTroop</Text>
+      <Text style={{ fontSize: 28, fontWeight: "700", marginBottom: 8, color: colors.textStrong }}>
+        OpenTroop
+      </Text>
 
       {SSO_PROVIDERS.map(({ strategy, label }) => (
         <Pressable
@@ -122,20 +132,38 @@ export default function SignInScreen() {
 
       <TextInput
         placeholder="Email"
+        placeholderTextColor={colors.textSubtle}
         autoCapitalize="none"
         autoComplete="email"
         keyboardType="email-address"
+        keyboardAppearance={scheme === "dark" ? "dark" : "light"}
         value={email}
         onChangeText={setEmail}
-        style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12 }}
+        style={{
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: 8,
+          padding: 12,
+          color: colors.text,
+          backgroundColor: colors.surface,
+        }}
       />
       <TextInput
         placeholder="Password"
+        placeholderTextColor={colors.textSubtle}
         secureTextEntry
         autoComplete="current-password"
+        keyboardAppearance={scheme === "dark" ? "dark" : "light"}
         value={password}
         onChangeText={setPassword}
-        style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12 }}
+        style={{
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: 8,
+          padding: 12,
+          color: colors.text,
+          backgroundColor: colors.surface,
+        }}
       />
       {error && <Text style={{ color: colors.danger }}>{error}</Text>}
       <Pressable

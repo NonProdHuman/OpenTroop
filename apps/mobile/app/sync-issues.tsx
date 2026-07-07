@@ -42,7 +42,7 @@ export default function SyncIssuesScreen() {
               backgroundColor: colors.dangerBg,
             }}
           >
-            <Text style={{ fontWeight: "600" }}>{KIND_LABELS[item.kind]}</Text>
+            <Text style={{ fontWeight: "600", color: colors.textStrong }}>{KIND_LABELS[item.kind]}</Text>
             <Text style={{ color: colors.dangerStrong, marginTop: 4 }}>
               {item.last_error ?? "The server rejected this change."}
             </Text>
