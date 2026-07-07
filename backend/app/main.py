@@ -31,6 +31,7 @@ from app.routers import (
     relationships,
     sync,
     tenant_settings,
+    webhooks,
 )
 
 logger = logging.getLogger("app.startup")
@@ -145,6 +146,7 @@ app.include_router(tenant_settings.router)
 app.include_router(sync.router)
 app.include_router(consents.router)
 app.include_router(advancement.router)
+app.include_router(webhooks.router)
 
 
 @app.get("/health")
