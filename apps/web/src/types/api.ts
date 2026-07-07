@@ -69,6 +69,10 @@ export type PhotoInitiateResponse = Schemas["PhotoInitiateResponse"]
 export type PhotoDownload = Schemas["PhotoDownload"]
 export type StorageUsage = Schemas["StorageUsageRead"]
 export type EventOrganizer = Schemas["EventOrganizerRead"]
+export type EventSlot = Schemas["EventSlotRead"]
+export type EventSlotSignup = Schemas["EventSlotSignupRead"]
+export type EventSlotCreate = Schemas["EventSlotCreate"]
+export type EventSlotUpdate = Schemas["EventSlotUpdate"]
 
 // ── Tenant settings ───────────────────────────────────────────────────────────
 

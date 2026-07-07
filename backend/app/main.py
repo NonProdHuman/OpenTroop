@@ -15,6 +15,7 @@ from app.routers import (
     auth,
     calendar,
     consents,
+    event_slots,
     event_types,
     events,
     functional_roles,
@@ -140,6 +141,7 @@ app.include_router(platform.router)
 app.include_router(locations.router)
 app.include_router(event_types.router)
 app.include_router(events.router)
+app.include_router(event_slots.router)
 app.include_router(photos.router)
 app.include_router(calendar.router)
 app.include_router(imports.router)

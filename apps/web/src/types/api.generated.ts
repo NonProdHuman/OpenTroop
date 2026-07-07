@@ -629,6 +629,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{event_id}/slots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Slots
+         * @description Slots for an event, ordered by ``sort_order``, each with its signups + remaining.
+         */
+        get: operations["list_slots_events__event_id__slots_get"];
+        put?: never;
+        /** Create Slot */
+        post: operations["create_slot_events__event_id__slots_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{event_id}/slots/{slot_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Slot
+         * @description Soft-delete a slot and its signups (participants are untouched).
+         */
+        delete: operations["delete_slot_events__event_id__slots__slot_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Slot
+         * @description Edit a slot. Lowering capacity below the current signup count is allowed —
+         *     existing signups stay and ``remaining`` clamps at 0; managers resolve overflow
+         *     socially, the API never evicts.
+         */
+        patch: operations["update_slot_events__event_id__slots__slot_id__patch"];
+        trace?: never;
+    };
+    "/events/{event_id}/slots/{slot_id}/signups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Signup
+         * @description Claim a slot for a member (self, household, or — with manage_attendance — anyone).
+         */
+        post: operations["create_signup_events__event_id__slots__slot_id__signups_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{event_id}/slots/{slot_id}/signups/{member_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Signup
+         * @description Withdraw a member from a slot (soft-delete); 404 if no active signup.
+         */
+        delete: operations["delete_signup_events__event_id__slots__slot_id__signups__member_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/functional-roles": {
         parameters: {
             query?: never;
@@ -3047,6 +3134,149 @@ export interface components {
             video_conference_url?: string | null;
             /** Water Hours */
             water_hours?: string | null;
+        };
+        /** EventSlotCreate */
+        EventSlotCreate: {
+            /** @default any */
+            applies_to: components["schemas"]["PositionScope"];
+            /** Capacity */
+            capacity?: number | null;
+            /** Description */
+            description?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Starts At */
+            starts_at?: string | null;
+        };
+        /** EventSlotRead */
+        EventSlotRead: {
+            /** @default any */
+            applies_to: components["schemas"]["PositionScope"];
+            /** Capacity */
+            capacity?: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Name */
+            name: string;
+            /** Remaining */
+            remaining: number | null;
+            /** Signups */
+            signups: components["schemas"]["EventSlotSignupRead"][];
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order: number;
+            /** Starts At */
+            starts_at?: string | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** EventSlotSignupCreate */
+        EventSlotSignupCreate: {
+            /** Comment */
+            comment?: string | null;
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+        };
+        /** EventSlotSignupRead */
+        EventSlotSignupRead: {
+            /** Comment */
+            comment: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /**
+             * Member Id
+             * Format: uuid
+             */
+            member_id: string;
+            /** Member Name */
+            member_name: string;
+            /**
+             * Signed Up At
+             * Format: date-time
+             */
+            signed_up_at: string;
+            /** Signed Up By Id */
+            signed_up_by_id: string | null;
+            /**
+             * Slot Id
+             * Format: uuid
+             */
+            slot_id: string;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** EventSlotUpdate */
+        EventSlotUpdate: {
+            applies_to?: components["schemas"]["PositionScope"] | null;
+            /** Capacity */
+            capacity?: number | null;
+            /** Description */
+            description?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Name */
+            name?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
+            /** Starts At */
+            starts_at?: string | null;
         };
         /** EventTypeBase */
         EventTypeBase: {
@@ -7745,6 +7975,217 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PhotoInitiateResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_slots_events__event_id__slots_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSlotRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_slot_events__event_id__slots_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventSlotCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSlotRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_slot_events__event_id__slots__slot_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+                slot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_slot_events__event_id__slots__slot_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+                slot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventSlotUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSlotRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_signup_events__event_id__slots__slot_id__signups_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+                slot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventSlotSignupCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventSlotSignupRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_signup_events__event_id__slots__slot_id__signups__member_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+                slot_id: string;
+                member_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

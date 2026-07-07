@@ -17,9 +17,12 @@ vi.mock("@/hooks/use-session", () => ({
   usePermissions: vi.fn(),
 }))
 
-// The RSVP panel has its own hooks and tests — stub it here.
+// The RSVP + slots panels have their own hooks and tests — stub them here.
 vi.mock("./event-rsvp-panel", () => ({
   EventRsvpPanel: () => <div data-testid="rsvp-panel" />,
+}))
+vi.mock("./event-slots-panel", () => ({
+  EventSlotsPanel: () => <div data-testid="slots-panel" />,
 }))
 
 const makeEventType = (overrides: Partial<EventType> = {}): EventType => ({
