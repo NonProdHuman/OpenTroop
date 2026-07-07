@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import type { AudienceType, RecipientPreviewRequest } from "@/types/api"
+import type { AudienceType, MessageDelivery, RecipientPreviewRequest } from "@/types/api"
 
 type Target = { group_id: string; audience_type: AudienceType }
 
@@ -48,6 +48,7 @@ export default function ComposeMessagePage() {
   const [sendEmail, setSendEmail] = useState(true)
   const [sendPush, setSendPush] = useState(true)
   const [sendToAll, setSendToAll] = useState(false)
+  const [delivery, setDelivery] = useState<MessageDelivery>("immediate")
   const [targets, setTargets] = useState<Target[]>([])
   const [panelOpen, setPanelOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -77,8 +78,9 @@ export default function ComposeMessagePage() {
       group_targets: sendToAll ? [] : targets,
       send_email: sendEmail,
       send_push: sendPush,
+      delivery,
     }
-  }, [hasAudience, sendToAll, targets, sendEmail, sendPush])
+  }, [hasAudience, sendToAll, targets, sendEmail, sendPush, delivery])
 
   const { data: preview, isFetching: previewLoading } = useRecipientPreviewFor(previewBody)
 
@@ -95,6 +97,7 @@ export default function ComposeMessagePage() {
         send_push: sendPush,
         send_to_all: sendToAll,
         group_targets: sendToAll ? [] : targets,
+        delivery,
         scheduled_at: null,
       })
       await sendMessage.mutateAsync(created.message.id)
@@ -223,6 +226,29 @@ export default function ComposeMessagePage() {
           </label>
         </div>
 
+        {/* Email delivery timing (GH-218). Inbox + push always fire immediately;
+            this only controls when the email copy goes out. */}
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="delivery">Email delivery</Label>
+          <Select
+            value={delivery}
+            onValueChange={(v) => setDelivery((v ?? "immediate") as MessageDelivery)}
+          >
+            <SelectTrigger id="delivery" className="w-72">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="immediate">Send now</SelectItem>
+              <SelectItem value="digest">Include in next newsletter</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-muted-foreground text-sm">
+            {delivery === "digest"
+              ? "The inbox post and push alert go out now; the email is held for the troop's next weekly newsletter."
+              : "The email goes out right away, alongside the inbox post and push alert."}
+          </p>
+        </div>
+
         {/* Always-on, live recipient list (collapsible). */}
         <Card>
           <button
@@ -300,7 +326,7 @@ export default function ComposeMessagePage() {
 
         <div className="flex items-center gap-2">
           <Button disabled={!canSend || busy} onClick={send}>
-            {busy ? "Sending…" : "Send now"}
+            {busy ? "Sending…" : delivery === "digest" ? "Post announcement" : "Send now"}
           </Button>
         </div>
       </div>

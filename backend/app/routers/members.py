@@ -31,11 +31,37 @@ from app.schemas.member import (
     MemberPurgeRequest,
     MemberRead,
     MemberUpdate,
+    NotificationPreferencesRead,
+    NotificationPreferencesUpdate,
 )
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/members", tags=["members"])
+
+
+# --- Self-service notification preferences (any member; own row only) — GH-218.
+# Declared before "/{member_id}" so "me" is never parsed as a member UUID.
+
+
+@router.get("/me/notification-preferences", response_model=NotificationPreferencesRead)
+def get_my_notification_preferences(
+    member: CurrentMemberDep, tenant_id: TenantDep, db: DbDep
+) -> NotificationPreferencesRead:
+    return NotificationPreferencesRead.model_validate(member, from_attributes=True)
+
+
+@router.patch("/me/notification-preferences", response_model=NotificationPreferencesRead)
+def update_my_notification_preferences(
+    body: NotificationPreferencesUpdate,
+    member: CurrentMemberDep,
+    tenant_id: TenantDep,
+    db: DbDep,
+) -> NotificationPreferencesRead:
+    member.announcement_email_mode = body.announcement_email_mode
+    db.commit()
+    db.refresh(member)
+    return NotificationPreferencesRead.model_validate(member, from_attributes=True)
 
 
 @router.get(

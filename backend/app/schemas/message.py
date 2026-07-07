@@ -6,7 +6,13 @@ import uuid
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.models.enums import AudienceType, EmailState, MessageStatus, PushState
+from app.models.enums import (
+    AudienceType,
+    EmailState,
+    MessageDelivery,
+    MessageStatus,
+    PushState,
+)
 from app.schemas.base import TrackedRead
 from app.schemas.types import UtcDateTime
 
@@ -23,6 +29,8 @@ class MessageCreate(BaseModel):
     send_to_all: bool = False
     send_email: bool = True
     send_push: bool = True
+    # "Send now" (immediate) vs "Include in next newsletter" (digest) — GH-218.
+    delivery: MessageDelivery = MessageDelivery.IMMEDIATE
     scheduled_at: UtcDateTime | None = None
 
     @model_validator(mode="after")
@@ -39,6 +47,7 @@ class MessageRead(TrackedRead):
     send_email: bool
     send_push: bool
     send_to_all: bool
+    delivery: MessageDelivery
     scheduled_at: UtcDateTime | None
     sent_at: UtcDateTime | None
     sent_by_id: uuid.UUID
@@ -82,6 +91,7 @@ class RecipientPreviewRequest(BaseModel):
     send_to_all: bool = False
     send_email: bool = True
     send_push: bool = True
+    delivery: MessageDelivery = MessageDelivery.IMMEDIATE
 
 
 class RecipientPreview(BaseModel):
@@ -107,6 +117,8 @@ class DeliveryStats(BaseModel):
     email_pending: int
     email_failed: int
     email_skipped: int
+    # Email copies withheld for the next digest/newsletter (GH-218).
+    email_held: int
     push_sent: int
     read: int
 

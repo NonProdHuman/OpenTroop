@@ -33,6 +33,9 @@ export type PlatformRole = Schemas["PlatformRole"]
 
 export type Member = Schemas["MemberRead"]
 export type MemberRelationship = Schemas["MemberRelationshipRead"]
+export type AnnouncementEmailMode = Schemas["AnnouncementEmailMode"]
+export type NotificationPreferences = Schemas["NotificationPreferencesRead"]
+export type NotificationPreferencesUpdate = Schemas["NotificationPreferencesUpdate"]
 
 // ── RBAC ──────────────────────────────────────────────────────────────────────
 
@@ -138,6 +141,7 @@ export type RecipientPreviewEntry = Schemas["RecipientPreviewEntry"]
 export type RecipientPreview = Schemas["RecipientPreview"]
 export type RecipientPreviewRequest = Schemas["RecipientPreviewRequest"]
 export type MessageGroupTarget = Schemas["MessageGroupTarget"]
+export type MessageDelivery = Schemas["MessageDelivery"]
 export type InboxPage = Schemas["InboxPage"]
 export type InboxEntry = Schemas["InboxEntry"]
 export type AudienceType = Schemas["AudienceType"]

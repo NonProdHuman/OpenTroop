@@ -28,10 +28,18 @@ from app.core.notifications import (
     PushMessage,
 )
 from app.core.relationships import _parents_of  # single home of the family-edge rules
-from app.models.enums import AudienceType, EmailState, MessageStatus, PushState
+from app.models.enums import (
+    AnnouncementEmailMode,
+    AudienceType,
+    EmailState,
+    MessageDelivery,
+    MessageStatus,
+    PushState,
+)
 from app.models.member import Member
 from app.models.message import Message, MessageGroup, MessageRecipient
 from app.models.push import PushToken
+from app.models.tenant import Tenant
 
 logger = logging.getLogger(__name__)
 
@@ -79,8 +87,19 @@ def resolve_message_audience(message: Message, db: Session) -> set[uuid.UUID]:
     return resolve_group_targets(((t.group_id, t.audience_type) for t in targets), db)
 
 
-def initial_email_state(member: Member, *, send_email: bool) -> EmailState:
-    """Decided at resolve time; skipped states are never queued (CAN-SPAM)."""
+def initial_email_state(
+    member: Member,
+    *,
+    send_email: bool,
+    delivery: MessageDelivery = MessageDelivery.IMMEDIATE,
+) -> EmailState:
+    """Decided at resolve time; skipped states are never queued (CAN-SPAM).
+
+    The global CAN-SPAM skips (no address / bounced / opted out) win first. Then
+    the member's announcement preference (GH-218): ``none`` skips, ``digest``
+    downgrades an *immediate* send to HELD_DIGEST. A ``digest``-delivery message is
+    held for everyone whose email survived the CAN-SPAM gate.
+    """
     if not send_email:
         return EmailState.SKIPPED_NO_EMAIL
     if member.email is None or not member.email.strip():
@@ -89,6 +108,13 @@ def initial_email_state(member: Member, *, send_email: bool) -> EmailState:
         return EmailState.SKIPPED_BOUNCED
     if member.email_opt_out:
         return EmailState.SKIPPED_OPT_OUT
+    if member.announcement_email_mode == AnnouncementEmailMode.NONE:
+        return EmailState.SKIPPED_OPT_OUT
+    if (
+        delivery == MessageDelivery.DIGEST
+        or member.announcement_email_mode == AnnouncementEmailMode.DIGEST
+    ):
+        return EmailState.HELD_DIGEST
     return EmailState.PENDING
 
 
@@ -120,7 +146,9 @@ def send_message(
             MessageRecipient(
                 message_id=message.id,
                 member_id=member.id,
-                email_state=initial_email_state(member, send_email=message.send_email),
+                email_state=initial_email_state(
+                    member, send_email=message.send_email, delivery=message.delivery
+                ),
                 push_state=PushState.NO_DEVICES,
             )
         )
@@ -255,3 +283,145 @@ def drain_email_outbox(db: Session, service: NotificationService, limit: int | N
             _finalize_if_drained(message, db)
     db.commit()
     return len(rows)
+
+
+# --- Digest assembly (GH-218) ------------------------------------------------
+
+
+def _current_digest_slot(day: int, hour: int, now: datetime) -> datetime:
+    """The most recent weekly (day, hour) slot at or before ``now``.
+
+    ``day`` follows ``date.weekday()`` — 0 = Monday … 6 = Sunday. The returned
+    slot is on the minute boundary; a due tenant is one whose ``last_digest_at``
+    is None or falls before this slot.
+    """
+    slot_today = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+    days_since = (now.weekday() - day) % 7
+    slot = slot_today - timedelta(days=days_since)
+    if slot > now:  # today is the slot day but the hour hasn't arrived yet
+        slot -= timedelta(days=7)
+    return slot
+
+
+def digest_due_slot(tenant: Tenant, now: datetime) -> datetime | None:
+    """The slot to assemble for, or ``None`` if the tenant isn't due yet.
+
+    Due when the weekly slot has arrived and no digest has run for it — i.e.
+    ``last_digest_at`` is None or predates the current slot.
+    """
+    slot = _current_digest_slot(tenant.digest_day, tenant.digest_hour_utc, now)
+    last = tenant.last_digest_at
+    if last is not None and last.tzinfo is None:
+        last = last.replace(tzinfo=UTC)  # SQLite loses tz-awareness
+    if last is not None and last >= slot:
+        return None
+    return slot
+
+
+def build_digest_email(
+    tenant_name: str, member: Member, messages: list[Message], now: datetime
+) -> EmailMessage:
+    """One bundled newsletter email: a section per held message, in sent order."""
+    assert member.email is not None  # gated by HELD_DIGEST resolution  # noqa: S101
+    date_label = now.strftime("%B %d, %Y")
+    subject = f"Troop {tenant_name} newsletter — {date_label}"
+
+    html_sections = []
+    text_sections = []
+    for message in messages:
+        body_html = html.escape(message.body).replace("\n", "<br>")
+        html_sections.append(f"<h2>{html.escape(message.subject)}</h2><p>{body_html}</p>")
+        text_sections.append(f"{message.subject}\n\n{message.body}")
+
+    html_body = (
+        f"<p>Hi {html.escape(member.first_name)},</p>"
+        f"<p>Here's what's new from Troop {html.escape(tenant_name)}:</p>"
+        + "<hr>".join(html_sections)
+    )
+    text_body = f"Hi {member.first_name},\n\nHere's what's new from Troop {tenant_name}:\n\n" + (
+        "\n\n---\n\n".join(text_sections)
+    )
+    return EmailMessage(to=member.email, subject=subject, html_body=html_body, text_body=text_body)
+
+
+def assemble_digests(db: Session, service: NotificationService, tenant_id: uuid.UUID) -> int:
+    """Bundle each member's HELD_DIGEST emails into one newsletter, if due.
+
+    Runs inside one tenant's scope (see ``app/core/outbox.py``). No-op unless the
+    tenant's weekly slot has arrived; returns the number of members emailed.
+    Ready held rows settle SENT on success, or bump ``attempts`` / ``next_attempt_at``
+    (FAILED after the standard max) reusing the outbox retry machinery.
+    """
+    tenant = db.get(Tenant, tenant_id)
+    if tenant is None:
+        return 0  # self-host/test bootstrap without a Tenant row: no cadence to run
+    now = _now()
+    slot = digest_due_slot(tenant, now)
+    if slot is None:
+        return 0
+
+    rows = db.scalars(
+        select(MessageRecipient)
+        .join(Message, Message.id == MessageRecipient.message_id)
+        .where(
+            MessageRecipient.email_state == EmailState.HELD_DIGEST,
+            (MessageRecipient.next_attempt_at.is_(None))
+            | (MessageRecipient.next_attempt_at <= now),
+        )
+        .order_by(MessageRecipient.member_id, Message.sent_at, Message.created_at)
+    ).all()
+
+    by_member: dict[uuid.UUID, list[MessageRecipient]] = {}
+    for row in rows:
+        by_member.setdefault(row.member_id, []).append(row)
+
+    emailed = 0
+    for member_id, member_rows in by_member.items():
+        member = db.get(Member, member_id)
+        if member is None or member.email is None:
+            for row in member_rows:
+                row.email_state = EmailState.FAILED
+                row.last_error = "Recipient no longer available"
+            continue
+        if member.email_bounced or member.email_opt_out:
+            # The flags may have flipped since resolve time (bounce webhook,
+            # opt-out) — a held copy must not outlive them (CAN-SPAM).
+            skip = (
+                EmailState.SKIPPED_BOUNCED if member.email_bounced else EmailState.SKIPPED_OPT_OUT
+            )
+            for row in member_rows:
+                row.email_state = skip
+                row.last_error = None
+            continue
+        messages = [
+            m for m in (db.get(Message, r.message_id) for r in member_rows) if m is not None
+        ]
+        try:
+            service.send_email(build_digest_email(tenant.name, member, messages, now))
+        except EmailSendError as exc:
+            for row in member_rows:
+                row.attempts += 1
+                if row.attempts >= MAX_EMAIL_ATTEMPTS:
+                    row.email_state = EmailState.FAILED
+                    row.last_error = str(exc)[:500]
+                else:
+                    backoff = _BACKOFF_BASE_SECONDS * (2 ** (row.attempts - 1))
+                    row.next_attempt_at = now + timedelta(seconds=backoff)
+                    row.last_error = str(exc)[:500]
+        else:
+            for row in member_rows:
+                row.email_state = EmailState.SENT
+                row.last_error = None
+            emailed += 1
+
+    db.flush()
+    # Mark the slot processed only once nothing is left waiting on a retry — a row
+    # still HELD_DIGEST (backing off after a transient failure) keeps the tenant
+    # "due" so the next passes can retry it, rather than stalling a whole week.
+    retry_pending = db.scalar(
+        select(MessageRecipient.id).where(MessageRecipient.email_state == EmailState.HELD_DIGEST)
+    )
+    if retry_pending is None:
+        tenant.last_digest_at = now
+    db.commit()
+    return emailed

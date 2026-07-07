@@ -8,8 +8,16 @@ import { useSyncContext } from "@/lib/sync-context"
 import { isAppLockEnabled, setAppLockEnabled } from "@/lib/app-lock"
 import { disablePush, enablePush, getStoredPushToken } from "@/lib/push"
 import { useCalendarSubscription } from "@/hooks/use-calendar"
+import { useNotificationPreferences } from "@/hooks/use-notification-preferences"
+import type { AnnouncementEmailMode } from "@/lib/types"
 import * as Clipboard from "expo-clipboard"
 import { useEffect, useState } from "react"
+
+const ANNOUNCEMENT_MODE_LABELS: Record<AnnouncementEmailMode, string> = {
+  every: "every",
+  digest: "weekly digest",
+  none: "off",
+}
 
 function Row({ label, onPress, danger }: { label: string; onPress: () => void; danger?: boolean }) {
   const colors = useColors()
@@ -43,6 +51,7 @@ export default function SettingsScreen() {
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushError, setPushError] = useState<string | null>(null)
   const calendar = useCalendarSubscription()
+  const notificationPrefs = useNotificationPreferences()
   const [copied, setCopied] = useState(false)
   useEffect(() => {
     void isAppLockEnabled().then(setLockEnabled)
@@ -140,6 +149,23 @@ export default function SettingsScreen() {
           void togglePush()
         }}
       />
+      <Row
+        label={
+          notificationPrefs.busy
+            ? "Updating…"
+            : notificationPrefs.mode
+              ? `Announcement emails: ${ANNOUNCEMENT_MODE_LABELS[notificationPrefs.mode]}`
+              : "Announcement emails: …"
+        }
+        onPress={() => {
+          void notificationPrefs.cycle()
+        }}
+      />
+      {notificationPrefs.error && (
+        <Text style={{ color: colors.danger, marginBottom: 10, fontSize: 13 }}>
+          {notificationPrefs.error}
+        </Text>
+      )}
       <Row
         label={lockEnabled ? "App lock: on (Face ID)" : "App lock: off"}
         onPress={() => {
