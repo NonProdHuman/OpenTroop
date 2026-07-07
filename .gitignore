@@ -36,5 +36,8 @@ apps/mobile/.env.local
 # OS
 .DS_Store
 
+# Claude
+.claude/worktrees/
+
 #Scalr Terraform CLI
 terraform/backend.tf
