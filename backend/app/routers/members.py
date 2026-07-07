@@ -9,12 +9,14 @@ from app.core.deletion import purge_member
 from app.core.deps import (
     CurrentMemberDep,
     DbDep,
+    MemberContextDep,
     NotificationServiceDep,
     TenantDep,
     get_or_404,
     require,
 )
 from app.core.invite import build_claim_url, build_invite_email, create_invite_token
+from app.core.member_privacy import redact_medical
 from app.core.notifications import EmailSendError
 from app.core.permissions import admin_member_ids, member_is_admin, resolve_permissions
 from app.core.relationships import family_member_ids
@@ -39,8 +41,10 @@ router = APIRouter(prefix="/members", tags=["members"])
 @router.get(
     "", response_model=list[MemberRead], dependencies=[Depends(require(Permission.MEMBER_READ))]
 )
-def list_members(tenant_id: TenantDep, db: DbDep) -> Sequence[Member]:
-    return db.scalars(select(Member)).all()
+def list_members(tenant_id: TenantDep, db: DbDep, ctx: MemberContextDep) -> Sequence[MemberRead]:
+    caller, permissions = ctx
+    items = [MemberRead.model_validate(m) for m in db.scalars(select(Member)).all()]
+    return redact_medical(items, caller, permissions, db)
 
 
 @router.post(
@@ -70,8 +74,13 @@ def create_member(body: MemberBase, tenant_id: TenantDep, db: DbDep) -> Member:
     response_model=MemberRead,
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
-def get_member(member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Member:
-    return get_or_404(db, Member, member_id, "Member not found")
+def get_member(
+    member_id: uuid.UUID, tenant_id: TenantDep, db: DbDep, ctx: MemberContextDep
+) -> MemberRead:
+    member = get_or_404(db, Member, member_id, "Member not found")
+    caller, permissions = ctx
+    (item,) = redact_medical([MemberRead.model_validate(member)], caller, permissions, db)
+    return item
 
 
 @router.patch(
@@ -84,7 +93,7 @@ def update_member(
     tenant_id: TenantDep,
     db: DbDep,
     caller: CurrentMemberDep,
-) -> Member:
+) -> MemberRead:
     member = get_or_404(db, Member, member_id, "Member not found")
 
     perms = resolve_permissions(caller.id, db)
@@ -141,7 +150,8 @@ def update_member(
         setattr(member, k, v)
     db.commit()
     db.refresh(member)
-    return member
+    (item,) = redact_medical([MemberRead.model_validate(member)], caller, perms, db)
+    return item
 
 
 @router.delete(

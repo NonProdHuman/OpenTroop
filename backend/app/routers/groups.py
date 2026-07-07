@@ -4,8 +4,16 @@ from collections.abc import Sequence
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 
-from app.core.deps import DbDep, TenantDep, get_or_404, require, require_tenant_fk
+from app.core.deps import (
+    DbDep,
+    MemberContextDep,
+    TenantDep,
+    get_or_404,
+    require,
+    require_tenant_fk,
+)
 from app.core.groups import resolve_group_members, validate_group_rule
+from app.core.member_privacy import redact_medical
 from app.core.tenant_context import include_deleted
 from app.models.enums import (
     GroupType,
@@ -126,13 +134,20 @@ def delete_group(group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> None:
     response_model=list[MemberRead],
     dependencies=[Depends(require(Permission.MEMBER_READ))],
 )
-def list_group_members(group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep) -> Sequence[Member]:
+def list_group_members(
+    group_id: uuid.UUID, tenant_id: TenantDep, db: DbDep, ctx: MemberContextDep
+) -> Sequence[MemberRead]:
     """Return the group's resolved membership (manual inclusions + rule-derived)."""
     get_or_404(db, Group, group_id, "Group not found")
     member_ids = resolve_group_members(group_id, db)
     if not member_ids:
         return []
-    return db.scalars(select(Member).where(Member.id.in_(member_ids))).all()
+    caller, permissions = ctx
+    items = [
+        MemberRead.model_validate(m)
+        for m in db.scalars(select(Member).where(Member.id.in_(member_ids)))
+    ]
+    return redact_medical(items, caller, permissions, db)
 
 
 @router.get(
