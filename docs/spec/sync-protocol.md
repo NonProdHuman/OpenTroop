@@ -52,9 +52,10 @@ later, the pull endpoint gains a *stability horizon* (exclude rows younger than 
 seconds) — noted here so the fix is designed, not rediscovered.
 
 **Adoption pattern:** a `Syncable` mixin (`app/models/base.py`) supplies the column; each
-adopting table adds a `(tenant_id, sync_seq)` index and a backfill migration. `Member`
-adopts now (the skeleton); remaining entities adopt when their pull endpoints are built,
-in dependency order (members → relationships/groups → events → participants).
+adopting table adds a `(tenant_id, sync_seq)` index and a backfill migration. Eight
+streams are live today, pulled by clients in dependency order: event_types, locations,
+members, member_relationships, events, event_participants, inbox_messages,
+inbox_recipients.
 
 On SQLite (tests and quick local dev) there is no sequence; `sync_seq` falls back to
 `MAX(sync_seq)+1` per statement. Duplicate values under concurrency would be possible
@@ -68,7 +69,7 @@ gated by that entity's read permission, returning:
 
 ```jsonc
 {
-  "items": [ /* full entity Read schema, including is_deleted */ ],
+  "items": [ /* Sync*Read = full entity Read schema + the row's own sync_seq, including is_deleted */ ],
   "next_since_seq": 41,     // cursor of the last row returned (echo back verbatim)
   "next_since_id": "0198…", // id tiebreak of the last row returned
   "has_more": true
@@ -177,6 +178,10 @@ the client's local SQLite mirror is partitioned by tenant (one database file per
 see #153 for the client-side design).
 
 ## Skeleton shipped with this spec
+
+*(Historical — the implementation has since grown to eight pull streams, the push
+endpoint, and the full mobile client; see `app/routers/sync.py` and
+`apps/mobile/src/data/`.)*
 
 - `Syncable` mixin (`app/models/base.py`), adopted by `Member`; Postgres `sync_seq`
   sequence + `(tenant_id, sync_seq)` index + backfill migration.

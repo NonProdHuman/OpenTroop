@@ -2,7 +2,7 @@
 
 A modern, mobile-first, open-source troop management platform.
 
-OpenTroop is designed to support the complex operational needs of scouting units. Our early focus is providing robust **Event Management** and **Communication** tools, with Advancement and Reporting planned for future phases. Built **offline-first**, it ensures that leaders can continue working seamlessly at camps or in the wilderness without cellular service. Every data record is designed for background synchronization (using client-generatable UUIDv7 keys, per-row timestamps, and soft-delete tombstones) and is securely partitioned by `tenant_id` to support robust multi-tenant SaaS deployments as well as self-hosted troops.
+OpenTroop is designed to support the complex operational needs of scouting units: roster and family relationships, **Event Management** with RSVP and permission slips, **Communications** (group-targeted announcements with email and push delivery), **Advancement tracking**, and event photo sharing — on web and a native mobile app. Built **offline-first**, it ensures that leaders can continue working seamlessly at camps or in the wilderness without cellular service. Every data record is designed for background synchronization (using client-generatable UUIDv7 keys, per-row timestamps, and soft-delete tombstones) and is securely partitioned by `tenant_id` to support robust multi-tenant SaaS deployments as well as self-hosted troops.
 
 ## Features & Roadmap
 
@@ -10,10 +10,10 @@ OpenTroop is being built in phases to ensure a strong foundation before moving t
 
 - ✅ **Roster & Relationships:** Full membership modeling, family relationships, Groups/Patrols, and a robust Role-Based Access Control (RBAC) system.
 - ✅ **Multi-Tenant Isolation:** Deep isolation via PostgreSQL Row-Level Security, allowing safe scaling from one troop to hundreds on a shared platform.
-- 🚧 **Events & Calendar:** (In Progress) Event types, RSVP, capacity limits, attendance, permission slips, and personalized iCal feeds.
-- 🚧 **Communications:** (In Progress) A vendor-agnostic notification service already delivers invite emails and event-triggered notifications (creation, cancellation, permission slips); async send queue, SMS, and targeted group announcements are next.
+- 🚧 **Events & Calendar:** (In Progress) Event types, RSVP, capacity limits, attendance, permission slips, personalized iCal feeds, and event photo galleries (Cloudflare R2, presigned uploads, per-tenant quotas).
+- 🚧 **Communications:** (In Progress — messaging core shipped) Group-targeted announcements with a member inbox, an async email outbox (per-tenant pacing, retry, dead-letter), push notifications, and event-triggered emails over a vendor-agnostic notification service. Digests, SMS, and bounce webhooks are next.
 - 🚧 **Advancement:** (In Progress — core shipped) Versioned rank-requirement catalog, merit badges, report→approve workflow, and automatic credit from event attendance, with live progress meters and an approval queue. Scoutbook CSV sync is the remaining piece.
-- 🚧 **Mobile App:** (In Progress) Expo (React Native) app — iOS first — a full offline local mirror with a replayable outbox for at-camp attendance and RSVP. See [#93](../../issues/93) for the plan and [#153](../../issues/153) for the offline data-layer spec.
+- ✅ **Mobile App:** (v1 shipped — iOS) Expo (React Native) app with a full offline local mirror and replayable outbox for at-camp attendance and RSVP, offline inbox, photos, push, and Face ID lock. Android and web-parity advancement are next. See [#93](../../issues/93) for the campaign and [#153](../../issues/153) for the offline data-layer spec.
 
 For more details on the phases, see our [ROADMAP.md](ROADMAP.md).
 
@@ -91,7 +91,7 @@ graph TD
     BYPASS -- "opentroop_admin<br/>(BYPASSRLS)" --> RLS
     RLS --> PG
 
-    MOBILE -- "background sync<br/>(planned)" <--> SQLITE
+    MOBILE -- "background sync<br/><small>per-tenant mirror + command outbox</small>" <--> SQLITE
 
     classDef client fill:#4f8cf7,stroke:#2563eb,color:#fff
     classDef oidc fill:#f59e0b,stroke:#d97706,color:#fff
