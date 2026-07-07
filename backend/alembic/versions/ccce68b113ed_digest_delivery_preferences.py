@@ -13,7 +13,7 @@ Adds:
 All are column/enum additions on existing tables — no new tables, so no RLS wiring.
 
 Revision ID: ccce68b113ed
-Revises: a9b8c7d6e5f4
+Revises: 574389ed3d16
 Create Date: 2026-07-07
 """
 
@@ -24,7 +24,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "ccce68b113ed"
-down_revision: Union[str, None] = "a9b8c7d6e5f4"
+down_revision: Union[str, None] = "574389ed3d16"
 branch_labels: Union[str, None] = None
 depends_on: Union[str, None] = None
 
