@@ -23,9 +23,10 @@ from app.core.relationships import family_member_ids
 from app.core.tenant_context import include_deleted
 from app.models.enums import GroupType, MemberType, Permission
 from app.models.group import Group, GroupMember
-from app.models.member import Member
+from app.models.member import Member, MemberRelationship
 from app.models.tenant import Tenant
 from app.schemas.member import (
+    FamilyRead,
     MemberBase,
     MemberInviteRead,
     MemberPurgeRequest,
@@ -34,6 +35,7 @@ from app.schemas.member import (
     NotificationPreferencesRead,
     NotificationPreferencesUpdate,
 )
+from app.schemas.relationship import MemberRelationshipRead
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +64,33 @@ def update_my_notification_preferences(
     db.commit()
     db.refresh(member)
     return NotificationPreferencesRead.model_validate(member, from_attributes=True)
+
+
+@router.get("/me/family", response_model=FamilyRead)
+def get_my_family(member: CurrentMemberDep, tenant_id: TenantDep, db: DbDep) -> FamilyRead:
+    """Return the caller's household plus the relationship edges among it (GH-143).
+
+    Any authenticated member may call this — no extra permission. The household is
+    ``family_member_ids`` (``{self} ∪ children/wards ∪ co-parents``); a scout or an
+    edge-less adult gets ``{self}`` back. The medical bundle is deliberately **not**
+    redacted here: the household is exactly the ``redact_medical`` exemption, so a
+    positionless parent sees their own child's allergies/medical dates.
+
+    Declared before ``/{member_id}`` so "me" is never parsed as a member UUID.
+    """
+    family_ids = family_member_ids(member.id, db)
+    members = db.scalars(select(Member).where(Member.id.in_(family_ids))).all()
+    # Only edges whose *both* endpoints are inside the household (household-bounded).
+    relationships = db.scalars(
+        select(MemberRelationship).where(
+            MemberRelationship.from_member_id.in_(family_ids),
+            MemberRelationship.to_member_id.in_(family_ids),
+        )
+    ).all()
+    return FamilyRead(
+        members=[MemberRead.model_validate(m) for m in members],
+        relationships=[MemberRelationshipRead.model_validate(r) for r in relationships],
+    )
 
 
 @router.get(

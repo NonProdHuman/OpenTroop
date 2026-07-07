@@ -179,6 +179,8 @@ describe("AppSidebar", () => {
     renderSidebar()
     // Events requires event:read which is granted
     expect(screen.getByText("Events")).toBeInTheDocument()
+    // My Family has no required permission — visible to every member.
+    expect(screen.getByText("My Family").closest("a")).toHaveAttribute("href", "/family")
     // Expand Membership group
     await userEvent.click(screen.getByText("Membership"))
     expect(screen.queryByText("Members")).not.toBeInTheDocument()

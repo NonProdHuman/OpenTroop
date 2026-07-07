@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   UserRound,
+  Users,
   CalendarDays,
   ChevronRight,
   MessageSquare,
@@ -55,6 +56,9 @@ type NavItem = {
 }
 
 const tenantNavItems: NavItem[] = [
+  // Visible to every member — the page degrades to "just me" for scouts and
+  // unlinked adults (the backend scopes /members/me/family to the household).
+  { title: "My Family", icon: Users, url: "/family" },
   {
     title: "Membership",
     icon: UserRound,

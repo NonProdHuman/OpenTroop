@@ -33,6 +33,7 @@ export type PlatformRole = Schemas["PlatformRole"]
 
 export type Member = Schemas["MemberRead"]
 export type MemberRelationship = Schemas["MemberRelationshipRead"]
+export type Family = Schemas["FamilyRead"]
 export type AnnouncementEmailMode = Schemas["AnnouncementEmailMode"]
 export type NotificationPreferences = Schemas["NotificationPreferencesRead"]
 export type NotificationPreferencesUpdate = Schemas["NotificationPreferencesUpdate"]

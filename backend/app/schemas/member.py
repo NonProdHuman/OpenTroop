@@ -10,6 +10,7 @@ from app.models.enums import (
     SwimClassification,
 )
 from app.schemas.base import TrackedRead
+from app.schemas.relationship import MemberRelationshipRead
 
 
 class MemberBase(BaseModel):
@@ -110,6 +111,20 @@ class MemberRead(MemberBase, TrackedRead):
     # (e.g. "[email]" placeholder from aggressive PII scrubbing) don't cause
     # a 500 on the list endpoint.
     email: str | None = None
+
+
+class FamilyRead(BaseModel):
+    """The caller's household for the "My Family" page (GH-143).
+
+    ``members`` is ``{self} ∪ children/wards ∪ co-parents`` (``family_member_ids``);
+    ``relationships`` is the subset of ``MemberRelationship`` edges whose *both*
+    endpoints are in that household. The medical bundle is intentionally left
+    intact on these rows — the household is exactly the ``redact_medical``
+    exemption, so a positionless parent sees their child's allergies here.
+    """
+
+    members: list[MemberRead]
+    relationships: list[MemberRelationshipRead]
 
 
 class MemberPurgeRequest(BaseModel):
