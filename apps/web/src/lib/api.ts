@@ -73,5 +73,32 @@ export function useApi() {
     [getToken, activeTenantId],
   )
 
-  return { request }
+  /**
+   * Fetch a non-JSON attachment (e.g. a streamed CSV report). Returns the raw
+   * Blob; the auth token + tenant header ride the request the same way `request`
+   * sends them, which a bare `<a href>` navigation can't do.
+   */
+  const requestBlob = useCallback(
+    async (path: string, init?: RequestInit): Promise<Blob> => {
+      const token = await getToken(
+        CLERK_JWT_TEMPLATE ? { template: CLERK_JWT_TEMPLATE } : undefined,
+      )
+      const res = await fetch(`${BASE}${path}`, {
+        ...init,
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(activeTenantId ? { "X-Tenant-ID": activeTenantId } : {}),
+          ...(init?.headers ?? {}),
+        },
+      })
+      if (!res.ok) {
+        const detail = await res.text().catch(() => res.statusText)
+        throw new ApiError(res.status, detail)
+      }
+      return res.blob()
+    },
+    [getToken, activeTenantId],
+  )
+
+  return { request, requestBlob }
 }

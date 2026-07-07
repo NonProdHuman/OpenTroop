@@ -83,4 +83,9 @@ export const queryKeys = {
 
   // ── Tenant settings ───────────────────────────────────────────────────────
   tenantSettings: (t: TenantId) => [t, "tenant-settings"] as const,
+
+  // ── Reports (#147) ────────────────────────────────────────────────────────
+  reportCatalog: (t: TenantId) => [t, "report-catalog"] as const,
+  report: (t: TenantId, key: string, params: Record<string, string>) =>
+    [t, "report", key, params] as const,
 }

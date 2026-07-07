@@ -29,6 +29,7 @@ from app.routers import (
     positions,
     push_tokens,
     relationships,
+    reports,
     sync,
     tenant_settings,
     webhooks,
@@ -146,6 +147,7 @@ app.include_router(tenant_settings.router)
 app.include_router(sync.router)
 app.include_router(consents.router)
 app.include_router(advancement.router)
+app.include_router(reports.router)
 app.include_router(webhooks.router)
 
 

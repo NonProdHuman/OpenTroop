@@ -1833,6 +1833,48 @@ export interface paths {
         patch: operations["update_relationship_relationships__rel_id__patch"];
         trace?: never;
     };
+    "/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Reports
+         * @description The report catalog with a ``runnable`` flag per report for this caller.
+         */
+        get: operations["list_reports_reports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reports/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Run Report
+         * @description Render report ``key``. ``format=json`` returns rows for the web table;
+         *     ``format=csv`` streams a CSV attachment. Report parameters are read from the
+         *     query string per the report's declared parameter schema.
+         */
+        get: operations["run_report_reports__key__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/storage/usage": {
         parameters: {
             query?: never;
@@ -5053,6 +5095,82 @@ export interface components {
          * @enum {string}
          */
         RelationshipType: "parent_of" | "guardian_of" | "sibling_of" | "other";
+        /**
+         * ReportCatalogEntry
+         * @description A report as advertised by ``GET /reports``.
+         */
+        ReportCatalogEntry: {
+            /** Description */
+            description: string;
+            /** Key */
+            key: string;
+            /** Params */
+            params: components["schemas"]["ReportParamSchema"][];
+            /** Runnable */
+            runnable: boolean;
+            /** Title */
+            title: string;
+        };
+        /**
+         * ReportColumnSchema
+         * @description One column of a rendered report: a stable key plus its display label.
+         */
+        ReportColumnSchema: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
+        /**
+         * ReportData
+         * @description A rendered report's columns and rows for the web table (``format=json``).
+         */
+        ReportData: {
+            /** Columns */
+            columns: components["schemas"]["ReportColumnSchema"][];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Key */
+            key: string;
+            /** Rows */
+            rows: {
+                [key: string]: string | number | boolean | null;
+            }[];
+            /** Title */
+            title: string;
+        };
+        /**
+         * ReportParamOption
+         * @description One selectable value for an ``enum`` parameter.
+         */
+        ReportParamOption: {
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+        };
+        /**
+         * ReportParamSchema
+         * @description A single typed parameter a report accepts, for rendering a form control.
+         */
+        ReportParamSchema: {
+            /** Default */
+            default?: string | number | boolean | null;
+            /** Label */
+            label: string;
+            /** Name */
+            name: string;
+            /** Options */
+            options?: components["schemas"]["ReportParamOption"][] | null;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "enum" | "int" | "group";
+        };
         /** RequirementProgress */
         RequirementProgress: {
             completion: components["schemas"]["CompletionRead"] | null;
@@ -10603,6 +10721,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberRelationshipRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reports_reports_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportCatalogEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_report_reports__key__get: {
+        parameters: {
+            query?: {
+                format?: "json" | "csv";
+            };
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportData"];
                 };
             };
             /** @description Validation Error */
