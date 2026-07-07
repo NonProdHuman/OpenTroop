@@ -5662,6 +5662,8 @@ export interface components {
             address_line2?: string | null;
             /** Allergies */
             allergies?: string | null;
+            /** @default every */
+            announcement_email_mode: components["schemas"]["AnnouncementEmailMode"];
             /** Bsa Id */
             bsa_id?: string | null;
             /** City */
@@ -5856,6 +5858,7 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            delivery: components["schemas"]["MessageDelivery"];
             /**
              * Id
              * Format: uuid
