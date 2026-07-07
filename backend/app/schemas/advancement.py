@@ -6,7 +6,7 @@ import uuid
 from datetime import date
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.enums import CompletionStatus, MemberStatus, RankCode, RecordedVia
 from app.schemas.base import PlatformRead, TrackedRead
@@ -61,10 +61,20 @@ class MeritBadgeRead(PlatformRead):
 # ---------------------------------------------------------------------------
 
 
+def _not_in_future(value: date | None) -> date | None:
+    """Completion dates record history — a future sign-off is always a typo (#256 D2)."""
+    if value is not None and value > date.today():
+        raise ValueError("date_completed cannot be in the future")
+    return value
+
+
 class CompletionCreate(BaseModel):
     requirement_id: uuid.UUID
-    date_completed: date
+    # Optional: omitted means "today" (the server stamps it), editable otherwise.
+    date_completed: date | None = None
     note: str | None = Field(default=None, max_length=2000)
+
+    _no_future = field_validator("date_completed")(_not_in_future)
 
 
 class CompletionUpdate(BaseModel):
@@ -74,6 +84,8 @@ class CompletionUpdate(BaseModel):
     status: CompletionStatus | None = None
     date_completed: date | None = None
     note: str | None = Field(default=None, max_length=2000)
+
+    _no_future = field_validator("date_completed")(_not_in_future)
 
 
 class CompletionRead(TrackedRead):

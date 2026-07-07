@@ -61,6 +61,7 @@ from __future__ import annotations
 import contextlib
 import re
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, tzinfo
 from decimal import Decimal, InvalidOperation
@@ -307,17 +308,33 @@ class TwhImporter:
         # Guard against duplicate (event_id, member_id) participant rows in the XML
         self._participant_seen: set[tuple[uuid.UUID, uuid.UUID]] = set()
 
-    def run(self, root: ET.Element) -> TwhImportResult:
-        """Import all supported record types from *root* in dependency order."""
-        self._import_patrols(root)
-        self._import_members(root)
-        self._import_relationships(root)
-        self._import_positions(root)
-        self._import_locations(root)
-        self._import_event_types(root)
-        self._import_events(root)
-        self._import_participants(root)
-        self._import_advancement(root)
+    def run(
+        self,
+        root: ET.Element,
+        on_progress: Callable[[str, TwhImportResult], None] | None = None,
+    ) -> TwhImportResult:
+        """Import all supported record types from *root* in dependency order.
+
+        *on_progress* (optional) is invoked with ``(stage, result)`` after each
+        stage completes, so a long-running async job can persist live progress
+        (current stage + running counts) for the UI to poll (GH-240). It must not
+        raise — the async worker wraps it to update the ``ImportJob`` row.
+        """
+        stages: tuple[tuple[str, Callable[[ET.Element], None]], ...] = (
+            ("patrols", self._import_patrols),
+            ("members", self._import_members),
+            ("relationships", self._import_relationships),
+            ("positions", self._import_positions),
+            ("locations", self._import_locations),
+            ("event_types", self._import_event_types),
+            ("events", self._import_events),
+            ("participants", self._import_participants),
+            ("advancement", self._import_advancement),
+        )
+        for stage, handler in stages:
+            handler(root)
+            if on_progress is not None:
+                on_progress(stage, self.result)
         self.session.flush()
         return self.result
 

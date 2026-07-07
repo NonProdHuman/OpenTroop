@@ -589,6 +589,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events/{event_id}/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Event Photos
+         * @description The event's gallery: READY photos plus short-lived presigned GETs.
+         */
+        get: operations["list_event_photos_events__event_id__photos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/events/{event_id}/photos/initiate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Initiate Photo Upload
+         * @description Reserve quota and mint presigned PUT URLs for a batch of photos.
+         */
+        post: operations["initiate_photo_upload_events__event_id__photos_initiate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/functional-roles": {
         parameters: {
             query?: never;
@@ -849,6 +889,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/import/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List import jobs for the current tenant (newest first) */
+        get: operations["list_import_jobs_import_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/import/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one import job (poll for progress and the final summary) */
+        get: operations["get_import_job_import_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/import/twh": {
         parameters: {
             query?: never;
@@ -859,22 +933,18 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Import a TroopWebHost XML full-data export
-         * @description Upload a TroopWebHost XML export and import its roster and events.
+         * Queue a TroopWebHost XML full-data export for import
+         * @description Validate and **queue** a TroopWebHost XML export; the import runs in the background.
          *
-         *     Creates Patrol, Member, MemberRelationship, Position (with dated
-         *     MemberPositionAssignment terms for leadership history), Location, EventType,
-         *     Event, EventParticipant, and advancement records (MemberRankProgress,
-         *     MemberRequirementCompletion, MemberMeritBadge — requires the global
-         *     advancement catalog to be seeded) for the current tenant.  The import is additive;
-         *     running it twice will attempt to create duplicate records (BSA ID uniqueness
-         *     will raise a 409 on the second run if the same persons are re-imported).
+         *     A real full-troop export takes minutes to import against a remote database — far
+         *     longer than a gateway request timeout (GH-240). So this endpoint validates the
+         *     upload synchronously (size caps, XML well-formedness, timezone), stores the
+         *     compressed payload, creates an :class:`ImportJob`, and returns **202** with the job.
+         *     Poll ``GET /import/jobs/{id}`` for progress and the final summary + warnings.
          *
-         *     ``timezone`` is the IANA zone the export's naive datetimes are expressed in;
-         *     they are converted to UTC for storage (defaults to UTC).
-         *
-         *     Returns a summary of created and skipped records, plus any warnings for
-         *     rows that could not be mapped (unknown foreign keys, missing required fields).
+         *     Rejects fast (409) when the tenant already contains imported TWH data (re-import
+         *     is additive and would duplicate) or already has an import running — so a retry
+         *     never stacks a second concurrent or duplicate import.
          */
         post: operations["import_twh_import_twh_post"];
         delete?: never;
@@ -1341,6 +1411,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/photos/{photo_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Photo
+         * @description Soft-delete a photo (owner, or ``photo:moderate`` for anyone's).
+         *
+         *     Quota is given back immediately; the object bytes are removed later by
+         *     ``uv run reap-photo-uploads`` (the tombstone row stays for sync).
+         */
+        delete: operations["delete_photo_photos__photo_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Photo */
+        patch: operations["update_photo_photos__photo_id__patch"];
+        trace?: never;
+    };
+    "/photos/{photo_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Complete Photo Upload
+         * @description Confirm an upload: HEAD-verify the object, flip to READY, settle quota.
+         */
+        post: operations["complete_photo_upload_photos__photo_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/photos/{photo_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Photo
+         * @description A short-lived presigned GET for saving the photo back to a device.
+         */
+        get: operations["download_photo_photos__photo_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/platform/admins": {
         parameters: {
             query?: never;
@@ -1681,6 +1815,26 @@ export interface paths {
         patch: operations["update_relationship_relationships__rel_id__patch"];
         trace?: never;
     };
+    "/storage/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Storage Usage
+         * @description The tenant's storage meter, for upload UIs.
+         */
+        get: operations["storage_usage_storage_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sync/event_participants": {
         parameters: {
             query?: never;
@@ -1968,11 +2122,8 @@ export interface components {
         };
         /** CompletionCreate */
         CompletionCreate: {
-            /**
-             * Date Completed
-             * Format: date
-             */
-            date_completed: string;
+            /** Date Completed */
+            date_completed?: string | null;
             /** Note */
             note?: string | null;
             /**
@@ -2578,6 +2729,115 @@ export interface components {
             signed_up?: boolean | null;
             /** Water Hours Override */
             water_hours_override?: number | string | null;
+        };
+        /** EventPhotoRead */
+        EventPhotoRead: {
+            /** Byte Size */
+            byte_size?: number | null;
+            /** Caption */
+            caption?: string | null;
+            /** Checksum Sha256 */
+            checksum_sha256?: string | null;
+            /** Content Type */
+            content_type: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /** Height */
+            height: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            status: components["schemas"]["PhotoStatus"];
+            /** Taken At */
+            taken_at?: string | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Thumbhash */
+            thumbhash?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Uploaded By Member Id
+             * Format: uuid
+             */
+            uploaded_by_member_id: string;
+            /** Width */
+            width: number;
+        };
+        /**
+         * EventPhotoWithUrl
+         * @description A READY photo plus a short-lived presigned GET for its bytes.
+         */
+        EventPhotoWithUrl: {
+            /** Byte Size */
+            byte_size?: number | null;
+            /** Caption */
+            caption?: string | null;
+            /** Checksum Sha256 */
+            checksum_sha256?: string | null;
+            /** Content Type */
+            content_type: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Display Url */
+            display_url: string;
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /** Height */
+            height: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            status: components["schemas"]["PhotoStatus"];
+            /** Taken At */
+            taken_at?: string | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /** Thumbhash */
+            thumbhash?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Uploaded By Member Id
+             * Format: uuid
+             */
+            uploaded_by_member_id: string;
+            /** Width */
+            width: number;
         };
         /** EventRead */
         EventRead: {
@@ -3199,6 +3459,74 @@ export interface components {
              */
             user_id: string;
         };
+        /**
+         * ImportJobRead
+         * @description An async import job (GH-240) — returned by POST (202) and the poll endpoints.
+         */
+        ImportJobRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error */
+            error: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Is Deleted */
+            is_deleted: boolean;
+            /** Original Filename */
+            original_filename: string | null;
+            /** Payload Bytes */
+            payload_bytes: number;
+            /** Progress */
+            progress: {
+                [key: string]: number;
+            } | null;
+            /** Requested By Id */
+            requested_by_id: string | null;
+            /** Source Timezone */
+            source_timezone: string;
+            /** Stage */
+            stage: string | null;
+            /** Started At */
+            started_at: string | null;
+            status: components["schemas"]["ImportJobStatus"];
+            /** Summary */
+            summary: {
+                [key: string]: number;
+            } | null;
+            /**
+             * Tenant Id
+             * Format: uuid
+             */
+            tenant_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Warnings */
+            warnings: string[] | null;
+        };
+        /**
+         * ImportJobStatus
+         * @description Lifecycle of an async TWH import job (GH-240).
+         *
+         *     QUEUED    — persisted and waiting for a worker to pick it up.
+         *     RUNNING   — a worker is actively parsing + writing rows.
+         *     SUCCEEDED — committed; ``summary`` + ``warnings`` are final.
+         *     FAILED    — aborted and rolled back; ``error`` explains why.
+         *
+         *     QUEUED and RUNNING are the "active" states — at most one per tenant.
+         * @enum {string}
+         */
+        ImportJobStatus: "queued" | "running" | "succeeded" | "failed";
         /**
          * InboxEntry
          * @description One inbox row + the message content it points at (member-facing).
@@ -4176,7 +4504,7 @@ export interface components {
          *     permissions gate whether the action is possible at all.
          * @enum {string}
          */
-        Permission: "member:read" | "member:write" | "member:read_medical" | "member:write_medical" | "member:read_contact" | "member:delete" | "event:read" | "event:create" | "event:write" | "event:delete" | "event:manage_attendance" | "advancement:read" | "advancement:record" | "advancement:approve" | "finance:read" | "finance:write" | "role:assign" | "role:manage" | "communication:send_troop" | "communication:send_patrol" | "report:read";
+        Permission: "member:read" | "member:write" | "member:read_medical" | "member:write_medical" | "member:read_contact" | "member:delete" | "event:read" | "event:create" | "event:write" | "event:delete" | "event:manage_attendance" | "advancement:read" | "advancement:record" | "advancement:approve" | "finance:read" | "finance:write" | "role:assign" | "role:manage" | "communication:send_troop" | "communication:send_patrol" | "report:read" | "photo:read" | "photo:upload" | "photo:moderate";
         /**
          * PermissionSlipStatus
          * @description Derived status of a scout's parental permission slip for an event.
@@ -4191,6 +4519,77 @@ export interface components {
          * @enum {string}
          */
         PermissionSlipStatus: "not_required" | "pending" | "granted";
+        /** PhotoDownload */
+        PhotoDownload: {
+            /** Expires In Seconds */
+            expires_in_seconds: number;
+            /** Url */
+            url: string;
+        };
+        /**
+         * PhotoInitiateItem
+         * @description One photo the client wants to upload (post-downscale facts).
+         */
+        PhotoInitiateItem: {
+            /** Byte Length */
+            byte_length: number;
+            /** Caption */
+            caption?: string | null;
+            /** Checksum Sha256 */
+            checksum_sha256?: string | null;
+            /** Content Type */
+            content_type: string;
+            /** Height */
+            height: number;
+            /** Taken At */
+            taken_at?: string | null;
+            /** Thumbhash */
+            thumbhash?: string | null;
+            /** Width */
+            width: number;
+        };
+        /** PhotoInitiateRequest */
+        PhotoInitiateRequest: {
+            /** Photos */
+            photos: components["schemas"]["PhotoInitiateItem"][];
+        };
+        /** PhotoInitiateResponse */
+        PhotoInitiateResponse: {
+            /** Uploads */
+            uploads: components["schemas"]["PhotoUploadTarget"][];
+        };
+        /**
+         * PhotoStatus
+         * @description Lifecycle of an uploaded event photo (GH-145).
+         *
+         *     PENDING — quota reserved, presigned PUT issued, bytes not yet confirmed.
+         *     READY   — the server HEAD-verified the object; it appears in galleries.
+         *     FAILED  — the upload never confirmed (abandoned/stale); reservation released.
+         *     PURGED  — the reaper deleted the underlying object(s); the tombstone row
+         *               remains so the deletion syncs to offline mirrors.
+         * @enum {string}
+         */
+        PhotoStatus: "pending" | "ready" | "failed" | "purged";
+        /** PhotoUpdate */
+        PhotoUpdate: {
+            /** Caption */
+            caption?: string | null;
+        };
+        /**
+         * PhotoUploadTarget
+         * @description Where the client PUTs one photo's bytes.
+         */
+        PhotoUploadTarget: {
+            /** Expires In Seconds */
+            expires_in_seconds: number;
+            /**
+             * Photo Id
+             * Format: uuid
+             */
+            photo_id: string;
+            /** Upload Url */
+            upload_url: string;
+        };
         /**
          * PlatformAdminGrant
          * @description Grant a platform role to an existing (already signed-in) user, by email.
@@ -4720,6 +5119,20 @@ export interface components {
             name: string;
         };
         /**
+         * StorageUsageRead
+         * @description The tenant's storage meter, for upload UIs (GH-145 §7).
+         */
+        StorageUsageRead: {
+            /** Quota Bytes */
+            quota_bytes: number;
+            /** Remaining Bytes */
+            remaining_bytes: number;
+            /** Reserved Bytes */
+            reserved_bytes: number;
+            /** Used Bytes */
+            used_bytes: number;
+        };
+        /**
          * SwimClassification
          * @description Official BSA aquatics classification.
          * @enum {string}
@@ -4992,40 +5405,6 @@ export interface components {
             advancement_mode?: components["schemas"]["AdvancementMode"] | null;
             /** Permission Message */
             permission_message?: string | null;
-        };
-        /**
-         * TwhImportRead
-         * @description Summary returned by POST /import/twh.
-         */
-        TwhImportRead: {
-            /** Event Types */
-            event_types: number;
-            /** Events */
-            events: number;
-            /** Locations */
-            locations: number;
-            /** Members */
-            members: number;
-            /** Merit Badges */
-            merit_badges: number;
-            /** Participants */
-            participants: number;
-            /** Patrols */
-            patrols: number;
-            /** Position Assignments */
-            position_assignments: number;
-            /** Positions */
-            positions: number;
-            /** Rank Progress */
-            rank_progress: number;
-            /** Relationships */
-            relationships: number;
-            /** Requirement Completions */
-            requirement_completions: number;
-            /** Skipped */
-            skipped: number;
-            /** Warnings */
-            warnings: string[];
         };
         /** UserRead */
         UserRead: {
@@ -6466,6 +6845,79 @@ export interface operations {
             };
         };
     };
+    list_event_photos_events__event_id__photos_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventPhotoWithUrl"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    initiate_photo_upload_events__event_id__photos_initiate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhotoInitiateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoInitiateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_functional_roles_functional_roles_get: {
         parameters: {
             query?: never;
@@ -7193,6 +7645,70 @@ export interface operations {
             };
         };
     };
+    list_import_jobs_import_jobs_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJobRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_import_job_import_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportJobRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     import_twh_import_twh_post: {
         parameters: {
             query?: never;
@@ -7209,12 +7725,12 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TwhImportRead"];
+                    "application/json": components["schemas"]["ImportJobRead"];
                 };
             };
             /** @description Validation Error */
@@ -8351,6 +8867,142 @@ export interface operations {
             };
         };
     };
+    delete_photo_photos__photo_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_photo_photos__photo_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhotoUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventPhotoRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_photo_upload_photos__photo_id__complete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventPhotoRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_photo_photos__photo_id__download_get: {
+        parameters: {
+            query?: {
+                variant?: string;
+            };
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path: {
+                photo_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoDownload"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_platform_admins_platform_admins_get: {
         parameters: {
             query?: never;
@@ -9164,6 +9816,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberRelationshipRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    storage_usage_storage_usage_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-tenant-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageUsageRead"];
                 };
             };
             /** @description Validation Error */

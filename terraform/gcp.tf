@@ -11,14 +11,17 @@ resource "random_password" "origin_secret" {
 }
 
 resource "google_project_service" "required" {
-  for_each = toset([
+  for_each = toset(concat([
     "artifactregistry.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
     "run.googleapis.com",
     "secretmanager.googleapis.com",
-  ])
+    ],
+    local.cloudtasks_enabled ? ["cloudtasks.googleapis.com"] : [],
+    local.maintenance_enabled ? ["cloudscheduler.googleapis.com"] : [],
+  ))
 
   project            = var.gcp_project_id
   service            = each.value
@@ -111,7 +114,11 @@ resource "google_cloud_run_v2_service" "api" {
           cpu    = var.api_cpu
           memory = var.api_memory
         }
-        cpu_idle = true
+        # Request-based billing (cpu_idle = true) throttles CPU between requests,
+        # which starves the in-process import drain loop — queued TWH imports
+        # never run (GH-240). With the inprocess backend, keep CPU allocated for
+        # the instance's lifetime; cloudtasks deployments keep the cheaper mode.
+        cpu_idle = var.import_queue_backend != "inprocess"
       }
 
       env {
@@ -167,6 +174,49 @@ resource "google_cloud_run_v2_service" "api" {
       env {
         name  = "EMAIL_FROM_ADDRESS"
         value = coalesce(var.email_from_address, "")
+      }
+
+      # Object storage for event photos (GH-145, ADR 0011). Empty/none when the
+      # feature is disabled; the access keys ride the secret env block below.
+      env {
+        name  = "STORAGE_BACKEND"
+        value = var.storage_backend
+      }
+      env {
+        name  = "STORAGE_BUCKET"
+        value = local.storage_bucket_name
+      }
+      env {
+        name  = "STORAGE_S3_ENDPOINT"
+        value = local.storage_s3_endpoint
+      }
+
+      # Async TWH import dispatch (GH-240). The queue/worker values are empty
+      # unless import_queue_backend == "cloudtasks", in which case the API pushes
+      # each job to the worker via Cloud Tasks; otherwise the backend drains
+      # queued jobs in-process.
+      env {
+        name  = "IMPORT_QUEUE_BACKEND"
+        value = var.import_queue_backend
+      }
+      # The inprocess backend only works if something drains the queue — that is
+      # this lifespan loop. Without it POST /import/twh 202s and the job sits
+      # queued forever. cloudtasks is push-driven; the loop stays off there.
+      env {
+        name  = "IMPORT_LOOP_ENABLED"
+        value = var.import_queue_backend == "inprocess" ? "true" : "false"
+      }
+      env {
+        name  = "CLOUDTASKS_QUEUE_PATH"
+        value = local.import_tasks_queue_path
+      }
+      env {
+        name  = "IMPORT_WORKER_URL"
+        value = local.import_worker_url
+      }
+      env {
+        name  = "IMPORT_WORKER_SERVICE_ACCOUNT"
+        value = local.import_worker_service_account
       }
 
       dynamic "env" {

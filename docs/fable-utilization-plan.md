@@ -173,7 +173,8 @@ The principle: **Fable designs, decides, and reviews; lower tiers execute agains
 patterns that already exist in the repo.** OpenTroop is unusually delegation-friendly
 because its conventions are strong (TrackedBase contract, `require()` guards, seeded
 RBAC, spec-in-issue) and its CI is a real safety net (pytest, mypy, ruff, tsc,
-eslint, generated-types drift check, Playwright smoke, CodeQL).
+eslint, generated-types drift check, CodeQL, and — once the Clerk CI secrets are
+wired, GH-245 — a full-stack Playwright suite).
 
 | Work | Tier | Rationale |
 |---|---|---|

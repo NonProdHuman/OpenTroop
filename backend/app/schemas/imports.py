@@ -1,20 +1,24 @@
-from pydantic import BaseModel
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+
+from app.models.enums import ImportJobStatus
+from app.schemas.base import TrackedRead
 
 
-class TwhImportRead(BaseModel):
-    """Summary returned by POST /import/twh."""
+class ImportJobRead(TrackedRead):
+    """An async import job (GH-240) — returned by POST (202) and the poll endpoints."""
 
-    patrols: int
-    members: int
-    relationships: int
-    positions: int
-    position_assignments: int
-    locations: int
-    event_types: int
-    events: int
-    participants: int
-    rank_progress: int
-    requirement_completions: int
-    merit_badges: int
-    skipped: int
-    warnings: list[str]
+    status: ImportJobStatus
+    stage: str | None
+    progress: dict[str, int] | None
+    summary: dict[str, int] | None
+    warnings: list[str] | None
+    error: str | None
+    requested_by_id: uuid.UUID | None
+    original_filename: str | None
+    source_timezone: str
+    payload_bytes: int
+    started_at: datetime | None
+    finished_at: datetime | None

@@ -40,6 +40,22 @@ class ConsentMethod(enum.StrEnum):
     KBA = "kba"  # knowledge-based authentication
 
 
+class PhotoStatus(enum.StrEnum):
+    """Lifecycle of an uploaded event photo (GH-145).
+
+    PENDING — quota reserved, presigned PUT issued, bytes not yet confirmed.
+    READY   — the server HEAD-verified the object; it appears in galleries.
+    FAILED  — the upload never confirmed (abandoned/stale); reservation released.
+    PURGED  — the reaper deleted the underlying object(s); the tombstone row
+              remains so the deletion syncs to offline mirrors.
+    """
+
+    PENDING = "pending"
+    READY = "ready"
+    FAILED = "failed"
+    PURGED = "purged"
+
+
 class Permission(enum.StrEnum):
     """All capabilities that can be granted to a Role.
 
@@ -82,6 +98,11 @@ class Permission(enum.StrEnum):
 
     # Reports
     REPORT_READ = "report:read"
+
+    # Event photos (GH-145)
+    PHOTO_READ = "photo:read"
+    PHOTO_UPLOAD = "photo:upload"
+    PHOTO_MODERATE = "photo:moderate"
 
 
 class GroupType(enum.StrEnum):
@@ -365,3 +386,20 @@ class PlatformRole(enum.StrEnum):
     SUPERADMIN = "superadmin"
     SUPPORT = "support"
     BILLING = "billing"
+
+
+class ImportJobStatus(enum.StrEnum):
+    """Lifecycle of an async TWH import job (GH-240).
+
+    QUEUED    — persisted and waiting for a worker to pick it up.
+    RUNNING   — a worker is actively parsing + writing rows.
+    SUCCEEDED — committed; ``summary`` + ``warnings`` are final.
+    FAILED    — aborted and rolled back; ``error`` explains why.
+
+    QUEUED and RUNNING are the "active" states — at most one per tenant.
+    """
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"

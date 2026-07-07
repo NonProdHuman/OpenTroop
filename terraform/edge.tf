@@ -128,10 +128,10 @@ resource "cloudflare_zero_trust_access_application" "platform" {
   domain           = "admin.${var.app_domain}"
   session_duration = "24h"
 
-  self_hosted_domains = [
-    "admin.${var.app_domain}",
-    "api.${var.app_domain}/platform",
-    "${var.app_domain}/api/platform",
+  destinations = [
+    { uri = "admin.${var.app_domain}" },
+    { uri = "api.${var.app_domain}/platform" },
+    { uri = "${var.app_domain}/api/platform" }
   ]
 
   policies = [

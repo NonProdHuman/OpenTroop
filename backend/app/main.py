@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import logging
 import re
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -23,6 +24,7 @@ from app.routers import (
     member_positions,
     members,
     messages,
+    photos,
     platform,
     positions,
     push_tokens,
@@ -31,27 +33,64 @@ from app.routers import (
     tenant_settings,
 )
 
+logger = logging.getLogger("app.startup")
+
+
+def _warn_if_advancement_catalog_empty() -> None:
+    """Log a loud WARNING when the global advancement catalog is unseeded (GH-241).
+
+    A deployed environment that never ran ``seed-advancement`` has no ``Rank`` rows,
+    so the TWH importer silently skips every advancement record behind one warning.
+    Surfacing it at startup turns an invisible data-loss condition into a visible
+    signal that the deploy path (Dockerfile CMD / release step) is missing the seed.
+    Best-effort: a lookup failure must never block the app from serving.
+    """
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from app.core.advancement_catalog import catalog_is_empty
+    from app.core.database import SessionLocal
+
+    try:
+        with SessionLocal() as session:
+            empty = catalog_is_empty(session)
+    except SQLAlchemyError:
+        logger.exception("Could not check the advancement catalog at startup")
+        return
+    if empty:
+        logger.warning(
+            "Advancement catalog is empty — no Rank rows. TWH imports will skip ALL "
+            "advancement data. Run `seed-advancement` in the deploy path (see GH-241)."
+        )
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
-    """Start the messaging outbox loop (GH-78) when enabled.
+    """Start the background drain loops (GH-78 outbox, GH-240 import) when enabled.
 
     Off by default (tests, one-shot commands); production/dev API processes set
-    OUTBOX_LOOP_ENABLED=true. The drain-outbox CLI is the cron belt either way.
+    OUTBOX_LOOP_ENABLED / IMPORT_LOOP_ENABLED as appropriate. The drain-outbox and
+    drain-import-jobs CLIs are the cron belts either way. (On SaaS, imports are
+    pushed to a Cloud Tasks worker instead — IMPORT_QUEUE_BACKEND=cloudtasks.)
     """
-    task: asyncio.Task[None] | None = None
+    _warn_if_advancement_catalog_empty()
+    tasks: list[asyncio.Task[None]] = []
     if settings.outbox_loop_enabled:
         from app.core.outbox import outbox_loop
 
-        task = asyncio.create_task(outbox_loop())
+        tasks.append(asyncio.create_task(outbox_loop()))
+    if settings.import_loop_enabled:
+        from app.core.import_jobs import import_loop
+
+        tasks.append(asyncio.create_task(import_loop()))
     yield
-    if task is not None:
+    for task in tasks:
         task.cancel()
+    if tasks:
         with contextlib.suppress(asyncio.CancelledError):
-            # Await the cancelled outbox loop so it can unwind before shutdown
-            # continues (gather keeps this a call expression, not a bare
+            # Await the cancelled background loops so they can unwind before
+            # shutdown continues (gather keeps this a call expression, not a bare
             # awaited-name that static analysis reads as having no effect).
-            await asyncio.gather(task)
+            await asyncio.gather(*tasks)
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
@@ -99,6 +138,7 @@ app.include_router(platform.router)
 app.include_router(locations.router)
 app.include_router(event_types.router)
 app.include_router(events.router)
+app.include_router(photos.router)
 app.include_router(calendar.router)
 app.include_router(imports.router)
 app.include_router(tenant_settings.router)

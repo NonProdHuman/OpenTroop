@@ -14,10 +14,16 @@ from app.models.enums import GroupType, MemberType
 from app.models.event import Event
 from app.models.event_audience import EventAudience
 from app.models.group import Group
+from app.models.location import Location
 from app.models.member import Member
 from app.models.rbac import MemberPositionAssignment, Position
 from app.models.relationship import MemberRelationship
-from scripts.seed_dev_data import PATROLS, seed_demo_tenant, teardown_tenant
+from scripts.seed_dev_data import (
+    PATROLS,
+    build_manifest,
+    seed_demo_tenant,
+    teardown_tenant,
+)
 
 
 def _count(db: Session, stmt: object) -> int:
@@ -120,6 +126,77 @@ def test_plc_group_resolves_leadership(db_session: Session) -> None:
         "Peter Quinn",
         "Sarah Rivers",
     }
+
+
+def test_manifest_counts_match_seeded_data(db_session: Session) -> None:
+    """The e2e manifest (GH-245) is the single source of truth — its counts must
+    equal what the seed actually wrote, so specs can't assert on stale numbers."""
+    tenant, *_ = seed_demo_tenant(db_session)
+    db_session.commit()
+
+    manifest = build_manifest(db_session, tenant)
+    counts = manifest["counts"]
+    assert isinstance(counts, dict)
+    assert counts["scouts"] == 20
+    assert counts["adults"] == 16
+    assert counts["events"] == 11
+    assert counts["locations"] == 3
+    assert counts["groups"] == 6  # 4 patrols + PLC + Fundraiser Crew
+
+    tenant_info = manifest["tenant"]
+    assert isinstance(tenant_info, dict)
+    assert tenant_info["slug"] == "demo"
+    assert tenant_info["id"] == str(tenant.id)
+
+
+def test_manifest_named_rows_exist(db_session: Session) -> None:
+    """Every member / event / location / group the manifest names must actually be
+    seeded — this is the drift guard: renaming a seeded row fails here, loudly."""
+    tenant, *_ = seed_demo_tenant(db_session)
+    db_session.commit()
+    tid = tenant.id
+    manifest = build_manifest(db_session, tenant)
+
+    def exists(model: type, name: str) -> bool:
+        return (
+            db_session.scalar(
+                select(func.count())
+                .select_from(model)
+                .where(model.tenant_id == tid, model.name == name)  # type: ignore[attr-defined]
+            )
+            or 0
+        ) > 0
+
+    members = manifest["members"]
+    events = manifest["events"]
+    locations = manifest["locations"]
+    groups = manifest["groups"]
+    assert isinstance(members, dict)
+    assert isinstance(events, dict)
+    assert isinstance(locations, dict)
+    assert isinstance(groups, dict)
+
+    for full_name in set(members.values()):
+        first, last = full_name.split(" ", 1)
+        assert (
+            db_session.scalar(
+                select(func.count())
+                .select_from(Member)
+                .where(
+                    Member.tenant_id == tid,
+                    Member.first_name == first,
+                    Member.last_name == last,
+                )
+            )
+            or 0
+        ) > 0, f"manifest member {full_name!r} not seeded"
+
+    for title in set(events.values()):
+        assert exists(Event, title), f"manifest event {title!r} not seeded"
+    for loc_name in set(locations.values()):
+        assert exists(Location, loc_name), f"manifest location {loc_name!r} not seeded"
+    for group_name in set(groups.values()):
+        assert exists(Group, group_name), f"manifest group {group_name!r} not seeded"
 
 
 def test_teardown_then_reseed_is_clean(db_session: Session) -> None:

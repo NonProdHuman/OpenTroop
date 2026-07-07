@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test"
+import { manifest } from "./fixtures/seed-manifest"
 
 /**
  * Regression for the member-edit family picker (issue #109 follow-up).
@@ -11,14 +12,13 @@ import { expect, test } from "@playwright/test"
  * positions popovers viewport-relative ("fixed") so focusing them never scrolls
  * the page.
  *
- * Asserts against the deterministic dataset from `uv run seed-dev-data`
- * (backend/scripts/seed_dev_data.py) — member names here must stay in sync.
+ * Member names come from the seed manifest (GH-245), not hard-coded strings.
  */
 test("opening the family picker does not scroll the edit page to the top", async ({ page }) => {
   await page.goto("/members")
 
   // Open a seeded member and jump into their edit page.
-  await page.getByText("Aiden Brooks").first().click()
+  await page.getByText(manifest.members.sampleScout).first().click()
   const sheet = page.getByRole("dialog")
   await sheet.getByRole("button", { name: /edit/i }).click()
 

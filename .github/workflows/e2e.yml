@@ -1,0 +1,162 @@
+name: E2E (Playwright)
+
+# End-to-end browser tests against a full stack (Postgres + backend + web) seeded
+# with the deterministic demo tenant (GH-245).
+#
+# Auth uses Clerk Testing Tokens, so this job needs the Clerk **dev instance**
+# secrets below. Until they are set the `guard` job reports them missing and the
+# `e2e` job is SKIPPED (never failed), so this workflow stays green-and-inert on
+# PRs that haven't wired secrets yet.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   E2E_CLERK_PUBLISHABLE_KEY   pk_test_… for the Clerk dev instance
+#   E2E_CLERK_SECRET_KEY        sk_test_… for the same instance (mints Testing Tokens)
+#   E2E_CLERK_USER_EMAIL        a password-strategy test user's verified email
+#   E2E_CLERK_USER_PASSWORD     that user's password
+#   E2E_AUTH_ISSUER             https://<instance>.clerk.accounts.dev (backend JWT issuer)
+#   E2E_AUTH_JWKS_URI           https://<instance>.clerk.accounts.dev/.well-known/jwks.json
+#
+# The test user's email must match the seeded founder (--email below), so on first
+# sign-in Clerk auto-links it to the demo tenant's "Demo Admin" member.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 7 * * *" # nightly ~07:00 UTC
+  pull_request:
+    branches: [develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Secrets can't be read in a job-level `if:`, so a tiny guard job checks them
+  # and exposes the result as an output the real job gates on.
+  guard:
+    name: Check E2E secrets
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        run: |
+          if [ -n "${{ secrets.E2E_CLERK_SECRET_KEY }}" ] && [ -n "${{ secrets.E2E_CLERK_USER_EMAIL }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "E2E secrets present — running the suite."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::E2E Clerk secrets not configured — skipping the Playwright suite. See .github/workflows/e2e.yml for the required secrets."
+          fi
+
+  e2e:
+    name: Playwright
+    needs: guard
+    if: needs.guard.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: opentroop_e2e
+          POSTGRES_USER: opentroop
+          POSTGRES_PASSWORD: opentroop
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      # Backend
+      DATABASE_URL: postgresql+psycopg://opentroop:opentroop@localhost:5432/opentroop_e2e
+      APP_DOMAIN: localhost:3000
+      APP_SECRET: this-is-a-dummy-secret-for-ci-testing-purposes-only # gitleaks:allow
+      CORS_ORIGINS: '["http://localhost:3000"]'
+      ALLOW_TENANT_ID_HEADER: "true"
+      AUTH_ISSUER: ${{ secrets.E2E_AUTH_ISSUER }}
+      AUTH_JWKS_URI: ${{ secrets.E2E_AUTH_JWKS_URI }}
+      # Web (build-time NEXT_PUBLIC_* are exported before `next build` below)
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_APP_DOMAIN: localhost:3000
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.E2E_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.E2E_CLERK_SECRET_KEY }}
+      # Playwright / Clerk Testing Tokens
+      E2E_BASE_URL: http://localhost:3000
+      E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
+      E2E_CLERK_USER_PASSWORD: ${{ secrets.E2E_CLERK_USER_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations
+        working-directory: backend
+        run: uv run alembic upgrade head
+
+      - name: Seed demo tenant + emit e2e manifest
+        working-directory: backend
+        run: |
+          uv run seed-dev-data --reset \
+            --email "${E2E_CLERK_USER_EMAIL}" \
+            --emit-manifest "${GITHUB_WORKSPACE}/apps/web/e2e/.seed-manifest.json"
+
+      - name: Export seeded tenant id for the web build
+        run: |
+          TENANT_ID=$(python3 -c "import json,sys; print(json.load(open('apps/web/e2e/.seed-manifest.json'))['tenant']['id'])")
+          echo "NEXT_PUBLIC_TENANT_ID=${TENANT_ID}" >> "$GITHUB_ENV"
+          echo "Seeded tenant: ${TENANT_ID}"
+
+      - name: Build web app
+        run: pnpm --filter web build
+
+      - name: Start backend
+        working-directory: backend
+        run: |
+          uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8000/health && break
+            sleep 1
+          done
+
+      - name: Start web app
+        run: |
+          pnpm --filter web start &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:3000 && break
+            sleep 1
+          done
+
+      - name: Install Playwright browser
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Run Playwright
+        run: pnpm --filter web e2e
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/e2e/.results/
+          retention-days: 14

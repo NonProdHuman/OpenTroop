@@ -315,6 +315,21 @@ unmodified on SQLite, which is how the test suite stays DB-free.
   `electronic_permission_by_id` (FK → members), `electronic_permission_signature`.
   Setting `attended` via PATCH is gated: returns 409 if `Event.attendance_taken` is False.
 
+- `EventPhoto` — one photo in an event's gallery (GH-145, ADR 0011). The event *is* the
+  album; visibility = the event's audience rules (same `event_visibility` primitives).
+  Bytes live in object storage (Cloudflare R2 via the S3-compatible `StorageService`
+  driver in `app/core/storage.py`, selected by `STORAGE_BACKEND`; `fake` for tests) under
+  `<tenant_id>/photo/<id>/…` — the API never proxies them: `POST
+  /events/{id}/photos/initiate` reserves tenant quota and mints presigned PUTs, `POST
+  /photos/{id}/complete` HEAD-verifies the real size and settles the meter
+  (`Tenant.used_storage_bytes`; per-tenant `storage_quota_bytes` overrides the
+  `TENANT_STORAGE_QUOTA_DEFAULT_BYTES` default — 413 over quota). Gallery reads return
+  short-lived presigned GETs (no public objects). Deletes are soft + release quota;
+  `uv run reap-photo-uploads` sweeps stale PENDING uploads and deleted photos' objects
+  (status `purged`). `Syncable` — metadata rides pull-sync for offline galleries.
+  Permissions: `photo:read`/`photo:upload` seeded on the baseline Members role
+  (troop-wide view + contribute by default), `photo:moderate` on event-admins.
+
 **Advancement (Pillar 4, GH-92).** Platform-global catalog (`Rank`, `RequirementSet` —
 one complete copy of a rank's requirements per BSA version year, `Requirement` with
 curated cross-version `stable_key`s + JSON metric conditions + `auto_credit`,

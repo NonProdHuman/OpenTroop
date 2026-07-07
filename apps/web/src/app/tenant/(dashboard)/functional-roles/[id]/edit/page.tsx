@@ -40,6 +40,9 @@ const ALL_PERMISSIONS: Permission[] = [
   "communication:send_troop",
   "communication:send_patrol",
   "report:read",
+  "photo:read",
+  "photo:upload",
+  "photo:moderate",
 ]
 
 const PERM_GROUPS: { label: string; perms: Permission[] }[] = [
@@ -84,6 +87,10 @@ const PERM_GROUPS: { label: string; perms: Permission[] }[] = [
     label: "Reports",
     perms: ["report:read"],
   },
+  {
+    label: "Photos",
+    perms: ["photo:read", "photo:upload", "photo:moderate"],
+  },
 ]
 
 const PERM_LABELS: Record<Permission, string> = {
@@ -108,6 +115,9 @@ const PERM_LABELS: Record<Permission, string> = {
   "communication:send_troop": "Send troop-wide messages",
   "communication:send_patrol": "Send patrol messages",
   "report:read": "View reports",
+  "photo:read": "View event photos",
+  "photo:upload": "Add event photos",
+  "photo:moderate": "Remove others' photos",
 }
 
 void ALL_PERMISSIONS // used for exhaustive mapping above

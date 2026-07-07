@@ -71,6 +71,32 @@ class Settings(BaseSettings):
     twh_import_max_decompressed_bytes: int = 200 * 1024 * 1024
     twh_import_max_zip_entries: int = 64
 
+    # Async import queue (GH-240). An import is never run inside its HTTP request:
+    # POST /import/twh persists the payload + an ImportJob and returns 202; a worker
+    # drains it. The backend is selected once here, mirroring EMAIL_BACKEND / the
+    # outbox driver:
+    #   "inprocess" (default) — the lifespan loop drains queued jobs (self-host, dev,
+    #                and Cloud Run *with CPU always allocated*); `drain-import-jobs`
+    #                is the cron/self-host belt.
+    #   "cloudtasks" — enqueue pushes each job to a dedicated worker service via
+    #                Cloud Tasks (SaaS; the worker has a long request timeout). See
+    #                app/core/import_queue.py.
+    import_queue_backend: str = "inprocess"
+    # Run the in-process drain loop in this process. Off by default (tests, one-shot
+    # commands, and the cloudtasks worker, which is push-driven not loop-driven).
+    import_loop_enabled: bool = False
+    import_tick_seconds: int = 10
+
+    # --- cloudtasks backend only ---
+    # Fully-qualified queue path: projects/<p>/locations/<loc>/queues/<q>.
+    cloudtasks_queue_path: str = ""
+    # Absolute URL of the worker execute endpoint Cloud Tasks POSTs to
+    # (e.g. https://import-worker-xxxx.run.app/import/jobs/execute).
+    import_worker_url: str = ""
+    # Service account Cloud Tasks mints its OIDC token as; the worker verifies the
+    # token audience == import_worker_url and email == this account.
+    import_worker_service_account: str = ""
+
     # Email delivery backend: "fake" (default, no vendor call — for local dev/tests)
     # or "resend". See app/core/notifications.py.
     # Messaging outbox (GH-146/GH-78): per-tenant emails per drain tick, tick
@@ -86,6 +112,36 @@ class Settings(BaseSettings):
     email_backend: str = "fake"
     resend_api_key: str = ""
     email_from_address: str = ""
+
+    # --- Object storage for event photos (GH-145) ---
+    #
+    # Vendor-agnostic: app code talks to app/core/storage.py's StorageService,
+    # never a cloud SDK directly. The backend is selected once here. R2 and
+    # GCS-interop are both "an S3 endpoint", so one S3 driver covers them; the
+    # "R2 vs GCS" decision is an env choice, not a code fork (ADR 0011: R2).
+    #   "none" (default, inert — no storage configured)
+    #   "fake" (in-memory, for tests / local dev — no cloud call)
+    #   "r2" / "s3" / "gcs" (S3-compatible; requires bucket + endpoint + creds)
+    storage_backend: str = "none"
+    storage_bucket: str = ""
+    storage_s3_endpoint: str = ""  # R2/GCS-interop endpoint; empty = AWS default
+    storage_region: str = "auto"  # R2 uses "auto"
+    storage_access_key_id: str = ""
+    storage_secret_access_key: str = ""  # secret — from env, never committed
+    # Presigned PUT/GET URLs are short-lived credentials; keep the window tight.
+    storage_presign_ttl_seconds: int = Field(default=600, ge=60, le=3600)
+
+    # Per-troop storage quota (bytes). The platform's first storage meter — the
+    # placeholder tier ceiling until real billing lands (Tenant.storage_quota_bytes
+    # overrides per-tenant). Photo upload reserves against this and 413s on overflow.
+    tenant_storage_quota_default_bytes: int = 5 * 1024 * 1024 * 1024  # 5 GiB
+    # Per-file cap after client-side downscale, and per-initiate batch cap — the
+    # shared API is multi-tenant, so a single request must not be unbounded.
+    photo_max_upload_bytes: int = 15 * 1024 * 1024  # 15 MiB post-downscale
+    photo_max_batch: int = 30
+    # How long a PENDING upload may sit unconfirmed before `uv run
+    # reap-photo-uploads` releases its quota reservation and tombstones it.
+    photo_pending_reap_hours: int = 24
 
     # --- Edge security (GH-116 / GH-117) ---
 

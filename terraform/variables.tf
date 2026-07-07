@@ -401,3 +401,129 @@ variable "deletion_protection" {
   type        = bool
   default     = false
 }
+
+# ── Async TWH import worker (GH-240) ──────────────────────────────────────────
+
+variable "import_queue_backend" {
+  description = "How queued TWH imports are dispatched. 'inprocess' (default; self-host/dev — the API drains jobs in a background loop / CLI) or 'cloudtasks' (SaaS — provisions a Cloud Tasks queue + dedicated worker Cloud Run service). Must match the API's IMPORT_QUEUE_BACKEND env."
+  type        = string
+  default     = "inprocess"
+
+  validation {
+    condition     = contains(["inprocess", "cloudtasks"], var.import_queue_backend)
+    error_message = "import_queue_backend must be 'inprocess' or 'cloudtasks'."
+  }
+}
+
+variable "import_worker_url" {
+  description = "Override for the import worker's URL (the Cloud Tasks OIDC audience). Leave empty to use Cloud Run's deterministic URL; set it to the service's actual URI only if the postcondition reports a mismatch (older projects use a hashed URL)."
+  type        = string
+  default     = ""
+}
+
+variable "import_worker_ingress" {
+  description = "Ingress policy for the import worker service. Only Cloud Tasks (as the worker SA) may invoke it — there is no public invoker binding."
+  type        = string
+  default     = "INGRESS_TRAFFIC_ALL"
+}
+
+variable "import_worker_timeout_seconds" {
+  description = "Request timeout for the import worker (a single import runs inside one Cloud Tasks push). Cloud Run's max is 3600."
+  type        = number
+  default     = 3600
+}
+
+variable "import_worker_cpu" {
+  description = "CPU limit for the import worker service."
+  type        = string
+  default     = "1"
+}
+
+variable "import_worker_memory" {
+  description = "Memory limit for the import worker service (imports stream-parse but stage rows; give it headroom)."
+  type        = string
+  default     = "2Gi"
+}
+
+variable "import_worker_max_instances" {
+  description = "Max instances for the import worker (also the Cloud Tasks max concurrent dispatches). Imports are serialized per tenant; a small ceiling is plenty."
+  type        = number
+  default     = 3
+}
+
+# ── Object storage for event photos (GH-145, ADR 0011) ────────────────────────
+
+variable "storage_backend" {
+  description = "Object storage driver for event photos. 'none' disables the feature; 'r2' (Cloudflare R2, the ADR 0011 SaaS default), 's3', and 'gcs' all speak the S3-compatible API. Must match the backend's STORAGE_BACKEND env."
+  type        = string
+  default     = "none"
+
+  validation {
+    condition     = contains(["none", "r2", "s3", "gcs"], var.storage_backend)
+    error_message = "storage_backend must be one of 'none', 'r2', 's3', or 'gcs'."
+  }
+}
+
+variable "manage_r2_bucket" {
+  description = "Create the R2 bucket via the Cloudflare provider (requires an API token with R2 edit permission). Off by default so existing buckets can be supplied via storage_bucket without import."
+  type        = bool
+  default     = false
+}
+
+variable "manage_r2_cors" {
+  description = "Manage the R2 bucket CORS policy via the Cloudflare provider (requires an API token with R2 edit permission — the same one manage_r2_bucket needs). Origins are derived from cors_origins (app_domain-based) so each environment gets correct browser-upload origins automatically. Set false to manage CORS by hand in the dashboard (e.g. bring-your-own-bucket with a low-privilege provider token)."
+  type        = bool
+  default     = true
+}
+
+variable "storage_bucket" {
+  description = "Object storage bucket for event photos. Defaults to '<name_prefix>-media' when storage is enabled."
+  type        = string
+  default     = null
+}
+
+variable "storage_s3_endpoint" {
+  description = "S3-compatible endpoint URL. For R2 this defaults to https://<cloudflare_account_id>.r2.cloudflarestorage.com; AWS S3 leaves it empty."
+  type        = string
+  default     = null
+}
+
+variable "storage_access_key_id" {
+  description = "S3-compatible access key id (for R2: an R2 API token's access key). Stored in Secret Manager."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "storage_secret_access_key" {
+  description = "S3-compatible secret access key. Stored in Secret Manager."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+# ── Weekly maintenance job (reapers) ──────────────────────────────────────────
+
+variable "maintenance_job_enabled" {
+  description = "Provision the Cloud Run maintenance job + weekly Cloud Scheduler trigger that runs `reap-photo-uploads` and `reap-tombstones` (GH-145/GH-222). Disable for self-host setups that run the CLIs from their own cron."
+  type        = bool
+  default     = true
+}
+
+variable "maintenance_job_name" {
+  description = "Override the Cloud Run maintenance job name. Defaults to '<name_prefix>-maintenance'."
+  type        = string
+  default     = null
+}
+
+variable "maintenance_schedule" {
+  description = "Cron schedule for the maintenance job. Default: weekly, Mondays 08:00 UTC (Sunday night US — after weekend-campout uploads settle)."
+  type        = string
+  default     = "0 8 * * 1"
+}
+
+variable "maintenance_time_zone" {
+  description = "IANA time zone the maintenance_schedule is evaluated in."
+  type        = string
+  default     = "Etc/UTC"
+}

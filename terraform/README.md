@@ -85,6 +85,74 @@ enabled deliberately. Suggested order:
    domain** in the Zero Trust dashboard so the admin console's XHR calls to
    `api.<domain>` carry the Access session.
 
+## Async import worker (GH-240)
+
+Large TWH imports can exceed Cloud Run's request timeout, so on SaaS an import is
+pushed to a **Cloud Tasks queue** that invokes a dedicated **worker Cloud Run
+service** (same image, `timeoutSeconds` 3600, scales to zero). Enable it with:
+
+```hcl
+import_queue_backend = "cloudtasks"   # default "inprocess" (self-host/dev)
+```
+
+When set, `terraform apply` provisions the `cloudtasks.googleapis.com` API, an
+`<prefix>-imports` queue, an `<prefix>-import-worker` service + its service
+account, and the IAM (the API SA gets `cloudtasks.enqueuer` on the queue and
+`actAs` on the worker SA; the worker SA gets `run.invoker` on the worker and
+secret access). The API's `IMPORT_*` env is wired automatically.
+
+Two operator follow-ups:
+
+- **Set `GCP_IMPORT_WORKER_SERVICE_NAME`** in the deploy workflow's GitHub
+  environment to the `import_worker_service_name` output. The worker runs the same
+  backend image, so the deploy workflow must roll it alongside the API — the step
+  is skipped when the variable is empty.
+- **Deterministic URL check.** The worker carries its own URL as the OIDC audience,
+  computed as `https://<service>-<project_number>.<region>.run.app`. If your
+  project uses legacy hashed Cloud Run URLs the apply fails with a postcondition
+  telling you the actual URI — set `import_worker_url` to it and re-apply.
+
+The default (`inprocess`) creates none of this: the API drains queued jobs in a
+background loop / the `drain-import-jobs` CLI (self-host needs **CPU always
+allocated** if draining in-process on Cloud Run).
+
+## Photo storage (R2) + weekly maintenance job (GH-145, ADR 0011)
+
+Event photos live in **Cloudflare R2**, spoken through the S3-compatible API.
+Step-by-step dashboard instructions (R2 enablement, API token, **CORS policy —
+required for browser uploads**) live in [`docs/r2-setup.md`](../docs/r2-setup.md).
+Enable storage with:
+
+```hcl
+storage_backend           = "r2"
+manage_r2_bucket          = true   # or supply an existing bucket via storage_bucket
+storage_access_key_id     = "..."  # an R2 API token's S3 key pair — created in the
+storage_secret_access_key = "..."  # Cloudflare dashboard; the provider can't mint these
+```
+
+Terraform then creates the `<prefix>-media` R2 bucket (private — the backend
+mints short-lived presigned URLs for every access), derives the endpoint from
+`cloudflare_account_id`, wires `STORAGE_*` env onto the API service, stores
+the key pair in Secret Manager, and (by default, `manage_r2_cors = true`)
+applies the bucket's **browser-upload CORS policy** with origins derived from
+`app_domain` — so no per-environment CORS copy-paste in the dashboard. Both
+`manage_r2_bucket` and `manage_r2_cors` need the provider token to carry
+**Workers R2 Storage: Edit**; a low-privilege / bring-your-own-bucket setup can
+set `manage_r2_cors = false` and configure CORS by hand (see `docs/r2-setup.md`).
+
+A **weekly maintenance Cloud Run Job** (`<prefix>-maintenance`, on by default via
+`maintenance_job_enabled`) runs `reap-photo-uploads && reap-tombstones` —
+releasing abandoned upload reservations, deleting soft-deleted photos' objects,
+and hard-deleting purged-member tombstones past retention. **Cloud Scheduler**
+triggers it on `maintenance_schedule` (default `0 8 * * 1`, Mondays 08:00 UTC);
+both reapers are idempotent and cumulative, so a missed week self-heals.
+
+One operator follow-up, mirroring the import worker (ADR 0009): **set
+`GCP_MAINTENANCE_JOB_NAME`** in the deploy workflow's GitHub environment to the
+`maintenance_job_name` output so deploys roll the job's image; Terraform only
+bootstraps it. Self-host deployments can set `maintenance_job_enabled = false`
+and run both CLIs from their own cron instead.
+
 ## Scalr Workspaces
 
 Use separate Scalr workspaces and state for dev and prod. Keep secrets, Neon

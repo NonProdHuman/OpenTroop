@@ -67,7 +67,9 @@ DEFAULT_FUNCTIONAL_ROLES: list[dict[str, object]] = [
     {
         "slug": "members",
         "name": "Members",
-        "perms": [P.MEMBER_READ, P.EVENT_READ],
+        # photo:read + photo:upload here make galleries troop-wide by default:
+        # every member can view and contribute photos out of the box (GH-145).
+        "perms": [P.MEMBER_READ, P.EVENT_READ, P.PHOTO_READ, P.PHOTO_UPLOAD],
     },
     {
         "slug": "member-admins",
@@ -98,6 +100,9 @@ DEFAULT_FUNCTIONAL_ROLES: list[dict[str, object]] = [
             P.EVENT_DELETE,
             P.EVENT_MANAGE_ATTENDANCE,
             P.REPORT_READ,
+            P.PHOTO_READ,
+            P.PHOTO_UPLOAD,
+            P.PHOTO_MODERATE,
         ],
     },
     {
