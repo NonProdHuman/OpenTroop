@@ -34,7 +34,7 @@
     "yet-another-react-lightbox": "^3.32.0"
   },
   "devDependencies": {
-    "@clerk/testing": "^2.2.2",
+    "@clerk/testing": "^2.2.7",
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
@@ -44,13 +44,13 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.3",
-    "@vitest/coverage-v8": "^4.1.9",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^10",
+    "eslint-config-next": "16.2.10",
     "jsdom": "^29.1.1",
     "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4",
-    "typescript": "^6",
-    "vitest": "^4.1.9"
+    "typescript": "^7",
+    "vitest": "^4.1.10"
   }
 }
