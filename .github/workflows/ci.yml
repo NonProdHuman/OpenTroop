@@ -159,7 +159,7 @@ jobs:
         run: pnpm audit --prod --audit-level high
 
   mobile:
-    name: Mobile (lint, type-check, test)
+    name: Mobile (SDK check, lint, type-check, test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -173,6 +173,20 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Every expo-* package, react-native and their peers are pinned to the
+      # installed Expo SDK. Nothing else in this job can catch a mismatch —
+      # lint, tsc and vitest never touch a native module, so an SDK-57 package
+      # dropped into this SDK-54 app type-checks and tests clean (see the
+      # closed #276/#279, which were green and wrong). This step is the only
+      # thing standing between that and a merge.
+      #
+      # On failure run `pnpm --filter mobile exec expo install --fix`, then
+      # check the declared ranges by hand: pnpm's save-prefix rewrites them to
+      # the installed version (^7.1.8 becomes ^7.3.14) and `--check` compares
+      # the declared range, so --fix alone can leave the job still red.
+      - name: Expo SDK compatibility check
+        run: pnpm --filter mobile exec expo install --check
 
       - name: Lint (eslint)
         run: pnpm --filter mobile lint
