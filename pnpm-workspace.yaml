@@ -13,9 +13,47 @@ allowBuilds:
   unrs-resolver: true
   utf-8-validate: false
 
-# Force patched versions of vulnerable transitive (build-time) deps.
-# postcss <8.5.10: XSS (GHSA-qx2v-qp2m-jg93), pulled via next.
-# js-yaml <=4.1.1: ReDoS (GHSA-h67p-54hq-rp68), pulled via openapi-typescript.
+# Dependency security policy. Two mechanisms, in order of preference:
+#
+# 1. overrides — force a patched version. Actually removes the vulnerable code,
+#    so prefer this. NOTE: pnpm honours only ONE override entry per package
+#    name; extra entries for the same package are silently ignored.
+# 2. auditConfig.ignoreGhsas — suppress. Last resort, and only with a written
+#    reason that says why the advisory cannot bite.
+#
+# Keep these minimal. Most advisories that surface here are stale lockfile
+# pins, not missing fixes — a fresh resolve usually picks up a patched release
+# that already satisfies the declared range. Re-resolve before reaching for an
+# override, and prefer the narrowest range that does the job: forcing a whole
+# package to its newest major breaks transitive consumers that expect the old
+# export shape (js-yaml 5.x breaks @redocly/openapi-core, which needs 4.x's
+# types.merge; brace-expansion 5.x breaks minimatch@3.x).
+#
+# postcss <=8.5.17: XSS (GHSA-qx2v-qp2m-jg93) + path traversal in source-map
+#                   auto-loading (GHSA-r28c-9q8g-f849), via next/@expo.
+# js-yaml <4.1.2:   ReDoS (GHSA-h67p-54hq-rp68), via openapi-typescript. Bound
+#                   deliberately below 5.x — see the @redocly note above.
+# sharp <0.35.0:    inherited libvips CVEs (GHSA-f88m-g3jw-g9cj), via next.
+#                   Not reachable — next/image's optimizer is never invoked
+#                   (event photos are presigned R2 URLs rendered with a plain
+#                   <img>; see photo-gallery.tsx) — but patched regardless.
 overrides:
-  postcss@<8.5.10: ">=8.5.10"
+  postcss@<8.5.18: ">=8.5.18"
   js-yaml@<4.1.2: ">=4.1.2"
+  sharp@<0.35.0: ">=0.35.0"
+
+# brace-expansion DoS (GHSA-mh99-v99m-4gvg) — suppressed as a FALSE POSITIVE,
+# not as an accepted risk. The tree carries only patched releases: 1.1.16,
+# 2.1.2 and 5.0.8, which are the fixed versions of their respective major
+# lines (verify with `pnpm why brace-expansion`). The advisory collapses three
+# disjoint vulnerable ranges (<1.1.16, 2.0.0-2.1.1, <=5.0.7) into the single
+# expression "<=5.0.7", so pnpm's plain semver compare matches 1.1.16 and
+# 2.1.2 — both patched — and reports them as vulnerable.
+#
+# An override cannot fix a false positive, and forcing everything to 5.0.8
+# actively breaks the toolchain: minimatch@3.x expects the 1.x export shape
+# and dies with "TypeError: expand is not a function", taking eslint with it.
+# Drop this entry once the advisory's range data is corrected upstream.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-mh99-v99m-4gvg
