@@ -27,6 +27,43 @@ updates:
         dependency-type: development
     cooldown:
       default-days: 2
+    # Major-version ignores only. Patch and minor updates still flow for every
+    # package below — we are suppressing the specific major bumps that cannot
+    # be merged one at a time, not muting the dependency.
+    ignore:
+      # --- Expo SDK train -------------------------------------------------
+      # Expo renumbered its packages to match the SDK, so expo-file-system 57
+      # means "SDK 57". The ~20 expo-* packages, react-native and
+      # eslint-config-expo must move together with the `expo` package or not
+      # at all; bumping one into an app on an older SDK is always wrong, and
+      # CI cannot catch it (the mobile job runs lint/type-check/vitest only —
+      # no native build). Upgrade via `expo install --fix`, not dependabot.
+      #
+      # NOTE: the bare `expo` package is deliberately NOT ignored. Its version
+      # IS the SDK version, so a "bump expo from 54.x to 57.x" PR is our
+      # notification that a new SDK exists. Never merge it on its own — treat
+      # it as a doorbell, close it, and do the real upgrade.
+      - dependency-name: "expo-*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint-config-expo"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-native"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@react-native-community/*"
+        update-types: ["version-update:semver-major"]
+
+      # --- TypeScript / ESLint ecosystem ----------------------------------
+      # TypeScript 7 and ESLint 10 break tooling that has not caught up:
+      # @typescript-eslint/typescript-estree dies on TS 7 ("Cannot read
+      # properties of undefined (reading 'Cjs')") and openapi-typescript dies
+      # with it ("...reading 'createKeywordTypeNode'"), taking `pnpm gen:api`
+      # down. Both must land together with their plugin ecosystem, so they are
+      # a deliberate coordinated upgrade rather than a weekly group bump.
+      # Revisit once @typescript-eslint and openapi-typescript support TS 7.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
 
   # GitHub Actions
   - package-ecosystem: github-actions
