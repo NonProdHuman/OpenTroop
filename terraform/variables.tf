@@ -158,6 +158,25 @@ variable "resend_api_key" {
   sensitive   = true
 }
 
+variable "resend_webhook_secret" {
+  description = "Resend webhook signing secret (whsec_…) for bounce/complaint delivery events (GH-80). Unset leaves POST /webhooks/email/resend answering 404."
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "demo_tenant_slug" {
+  description = "Tenant slug served anonymously read-only as the public demo (GH-246, ADR 0012), e.g. \"demo\". Unset (default) keeps the anonymous path off."
+  type        = string
+  default     = null
+}
+
+variable "outbox_loop_enabled" {
+  description = "Run the in-process messaging outbox loop (scheduled sends, email retries, weekly digests — GH-78/GH-218). Needs CPU always allocated, which the inprocess import backend already forces; alternatives run `drain-outbox` on cron."
+  type        = bool
+  default     = false
+}
+
 variable "email_from_address" {
   description = "From address for outgoing email, e.g. noreply@opentroop.dev. Must be on a domain verified in Resend."
   type        = string

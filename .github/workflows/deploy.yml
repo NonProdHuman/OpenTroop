@@ -132,6 +132,7 @@ jobs:
             --build-arg NEXT_PUBLIC_CLERK_JWT_TEMPLATE=${{ vars.NEXT_PUBLIC_CLERK_JWT_TEMPLATE || secrets.NEXT_PUBLIC_CLERK_JWT_TEMPLATE }} \
             --build-arg NEXT_PUBLIC_TENANT_ID=${{ secrets.NEXT_PUBLIC_TENANT_ID }} \
             --build-arg NEXT_PUBLIC_APP_DOMAIN=${{ vars.NEXT_PUBLIC_APP_DOMAIN || vars.APP_DOMAIN || '' }} \
+            --build-arg NEXT_PUBLIC_DEMO_HOST=${{ vars.NEXT_PUBLIC_DEMO_HOST || '' }} \
             -f apps/web/Dockerfile -t ${{ env.FRONTEND_IMAGE }} -t ${{ env.FRONTEND_IMAGE_LATEST }} .
 
       - name: Push Frontend Image
