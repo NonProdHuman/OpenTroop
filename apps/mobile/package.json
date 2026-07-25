@@ -2,7 +2,7 @@
   "name": "@opentroop/mobile",
   "version": "0.1.0",
   "private": true,
-  "description": "OpenTroop mobile app (Expo / React Native, iOS first) — offline-first client, GH-93",
+  "description": "OpenTroop mobile app (Expo / React Native, iOS first) \u2014 offline-first client, GH-93",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
@@ -48,11 +48,11 @@
     "react-native-screens": "~4.16.0"
   },
   "devDependencies": {
-    "@types/node": "^22.18.0",
+    "@types/node": "^26.1.1",
     "@types/react": "~19.1.17",
     "eslint": "^9",
     "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   }
 }
