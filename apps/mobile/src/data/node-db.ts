@@ -1,3 +1,7 @@
+/// <reference types="node" />
+// TypeScript 6 (SDK 57) no longer auto-includes @types/node here, and the
+// reference is kept file-local on purpose: this is the only module that runs
+// in Node, so device code stays free of Node globals.
 import { DatabaseSync } from "node:sqlite"
 import { runInTransaction, type SqlDatabase, type SqlParams } from "./db"
 

@@ -3,9 +3,16 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
-  "include": ["app", "src", "expo-env.d.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "app",
+    "src"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

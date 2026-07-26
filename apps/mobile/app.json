@@ -47,7 +47,8 @@
           "savePhotosPermission": "OpenTroop saves event photos you download to your photo library.",
           "isAccessMediaLocationEnabled": false
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": false
