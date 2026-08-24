@@ -33,24 +33,24 @@
     "yet-another-react-lightbox": "^3.32.0"
   },
   "devDependencies": {
-    "@clerk/testing": "^2.2.12",
-    "@playwright/test": "^1.61.1",
+    "@clerk/testing": "^2.2.28",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
-    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.1",
+    "@testing-library/user-event": "^14.6.5",
     "@types/node": "^26",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitejs/plugin-react": "^6.0.4",
-    "@vitest/coverage-v8": "^4.1.10",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.11",
-    "jsdom": "^29.1.1",
+    "@vitejs/plugin-react": "^6.1.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "eslint": "^10",
+    "eslint-config-next": "16.3.2",
+    "jsdom": "^30.0.1",
     "openapi-typescript": "^7.13.0",
-    "shadcn": "^4.13.0",
+    "shadcn": "^4.19.0",
     "tailwindcss": "^4",
-    "typescript": "^6",
-    "vitest": "^4.1.10"
+    "typescript": "^7",
+    "vitest": "^4.1.11"
   }
 }
